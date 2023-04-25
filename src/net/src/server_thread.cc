@@ -122,7 +122,7 @@ int ServerThread::StartThread() {
   if (ret != kSuccess) return ret;
   return Thread::StartThread();
 }
-
+//初始化
 int ServerThread::InitHandle() {
   int ret = 0;
   ServerSocket* socket_p;

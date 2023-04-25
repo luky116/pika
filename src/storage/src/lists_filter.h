@@ -24,19 +24,22 @@ class ListsMetaFilter : public rocksdb::CompactionFilter {
   bool Filter(int level, const rocksdb::Slice& key, const rocksdb::Slice& value, std::string* new_value,
               bool* value_changed) const override {
     int64_t unix_time;
+    //获取当前时间
     rocksdb::Env::Default()->GetCurrentTime(&unix_time);
     int32_t cur_time = static_cast<int32_t>(unix_time);
+    //解析meta_value
     ParsedListsMetaValue parsed_lists_meta_value(value);
     TRACE("==========================START==========================");
     TRACE("[ListMetaFilter], key: %s, count = %lu, timestamp: %d, cur_time: %d, version: %d", key.ToString().c_str(),
           parsed_lists_meta_value.count(), parsed_lists_meta_value.timestamp(), cur_time,
           parsed_lists_meta_value.version());
-
+    //依据 V 中的 timestamp 与系统当前时间进行比较，如果 V 的 timestamp 小于系统当前时间，则数据过时可以淘汰。
     if (parsed_lists_meta_value.timestamp() != 0 && parsed_lists_meta_value.timestamp() < cur_time &&
         parsed_lists_meta_value.version() < cur_time) {
       TRACE("Drop[Stale & version < cur_time]");
       return true;
     }
+    //
     if (parsed_lists_meta_value.count() == 0 && parsed_lists_meta_value.version() < cur_time) {
       TRACE("Drop[Empty & version < cur_time]");
       return true;

@@ -100,9 +100,12 @@ void* WorkerThread::ThreadMain() {
     nfds = net_multiplexer_->NetPoll(timeout);
 
     for (int i = 0; i < nfds; i++) {
+        //判断是否是管道fd
       pfe = (net_multiplexer_->FiredEvents()) + i;
       if (pfe->fd == net_multiplexer_->NotifyReceiveFd()) {
+          //管道可读事件，说明DispatchThread写入了数据，有新的连接需要处理
         if (pfe->mask & kReadable) {
+            //读出一个字节数据
           int32_t nread = read(net_multiplexer_->NotifyReceiveFd(), bb, 2048);
           if (nread == 0) {
             continue;
@@ -162,7 +165,7 @@ void* WorkerThread::ThreadMain() {
           }
           in_conn = iter->second;
         }
-
+          //判断socket是否出错，需要关闭
         if ((pfe->mask & kWritable) && in_conn->is_reply()) {
           WriteStatus write_status = in_conn->SendReply();
           in_conn->set_last_interaction(now);

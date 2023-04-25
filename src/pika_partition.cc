@@ -361,6 +361,7 @@ bool Partition::InitBgsaveEnv() {
   // Prepare for bgsave dir
   bgsave_info_.start_time = time(NULL);
   char s_time[32];
+  //获取当前时间，以 %Y%m%d%H%M%S 格式序列化为字符串；
   int len = strftime(s_time, sizeof(s_time), "%Y%m%d%H%M%S", localtime(&bgsave_info_.start_time));
   bgsave_info_.s_start_time.assign(s_time, len);
   std::string time_sub_path = g_pika_conf->bgsave_prefix() + std::string(s_time, 8);
@@ -369,8 +370,10 @@ bool Partition::InitBgsaveEnv() {
     LOG(WARNING) << partition_name_ << " remove exist bgsave dir failed";
     return false;
   }
+  //创建目录 pika.conf:dump-path/%Y%m%d，如果目录已经存在，则删除之
   pstd::CreatePath(bgsave_info_.path, 0755);
   // Prepare for failed dir
+  //删除目录 pika.conf:dump-path/_FAILED
   if (!pstd::DeleteDirIfExist(bgsave_info_.path + "_FAILED")) {
     LOG(WARNING) << partition_name_ << " remove exist fail bgsave dir failed :";
     return false;
@@ -379,8 +382,10 @@ bool Partition::InitBgsaveEnv() {
 }
 
 // Prepare bgsave env, need bgsave_protector protect
+//创建 BackupEngine 对象并进行获取五种数据类型的快照内容
 bool Partition::InitBgsaveEngine() {
   delete bgsave_engine_;
+  //调用 storage::BackupEngine::Open 创建 storage::BackupEngine 对象
   rocksdb::Status s = storage::BackupEngine::Open(db().get(), &bgsave_engine_);
   if (!s.ok()) {
     LOG(WARNING) << partition_name_ << " open backup engine failed " << s.ToString();

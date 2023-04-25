@@ -33,7 +33,7 @@ DispatchThread::DispatchThread(const std::string& ip, int port, int work_num, Co
       queue_limit_(queue_limit) {
   worker_thread_ = new WorkerThread*[work_num_];
   for (int i = 0; i < work_num_; i++) {
-    worker_thread_[i] = new WorkerThread(conn_factory, this, queue_limit, cron_interval);
+    worker_thread_[i] = new WorkerThread(conn_factory, this, queue_limit, cron_interval);// 生成多个工作线程，工作线程进来的请求通过conn_factory来进行处理
   }
 }
 
@@ -45,7 +45,7 @@ DispatchThread::DispatchThread(const std::set<std::string>& ips, int port, int w
       queue_limit_(queue_limit) {
   worker_thread_ = new WorkerThread*[work_num_];
   for (int i = 0; i < work_num_; i++) {
-    worker_thread_[i] = new WorkerThread(conn_factory, this, queue_limit, cron_interval);
+    worker_thread_[i] = new WorkerThread(conn_factory, this, queue_limit, cron_interval);//
   }
 }
 
@@ -57,7 +57,7 @@ DispatchThread::~DispatchThread() {
 }
 
 int DispatchThread::StartThread() {
-  for (int i = 0; i < work_num_; i++) {
+  for (int i = 0; i < work_num_; i++) {// 根据设置的工作线程的数量来进行处理
     int ret = handle_->CreateWorkerSpecificData(&(worker_thread_[i]->private_data_));
     if (ret != 0) {
       return ret;
@@ -66,7 +66,7 @@ int DispatchThread::StartThread() {
     if (!thread_name().empty()) {
       worker_thread_[i]->set_thread_name("WorkerThread");
     }
-    ret = worker_thread_[i]->StartThread();
+    ret = worker_thread_[i]->StartThread();// 开启每一个工作线程
     if (ret != 0) {
       return ret;
     }

@@ -249,9 +249,9 @@ int PikaConf::Load() {
   }
 
   std::string instance_mode;
+    //根据配置文件判断是classic模式还是sharding模式
   GetConfStr("instance-mode", &instance_mode);
   classic_mode_.store(instance_mode.empty() || !strcasecmp(instance_mode.data(), "classic"));
-
   if (classic_mode_.load()) {
     GetConfInt("databases", &databases_);
     if (databases_ < 1 || databases_ > 8) {

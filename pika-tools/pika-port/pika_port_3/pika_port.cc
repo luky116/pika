@@ -48,7 +48,9 @@ PikaPort::PikaPort(std::string& master_ip, int master_port, std::string& passwd)
   }
 
   // Create thread
+  //系统启动时初始化，占用端口port+1000，作为Slave接收Master同步过来的Redis命令
   binlog_receiver_thread_ = new BinlogReceiverThread(g_conf.local_ip, g_conf.local_port + 1000, 1000);
+  //系统启动时初始化，无角色，执行slaveof host port命令对应的后台任务包括定期检查是否需要跟某个Master建立连接、db替换、启动或关闭rsync任务等,当启动rsync服务时，占用端口port+3000。
   trysync_thread_ = new TrysyncThread();
 
   pthread_rwlock_init(&state_protector_, NULL);

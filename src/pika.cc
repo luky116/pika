@@ -187,14 +187,17 @@ int main(int argc, char* argv[]) {
   PikaSignalSetup();
 
   LOG(INFO) << "Server at: " << path;
+  //初始化cmd
   g_pika_cmd_table_manager = new PikaCmdTableManager();
+  //初始化server
   g_pika_server = new PikaServer();
+  //初始化PikaReplicaManager
   g_pika_rm = new PikaReplicaManager();
 
   if (g_pika_conf->daemonize()) {
     close_std();
   }
-
+    //初始化PikaProxy
   g_pika_rm->Start();
   g_pika_server->Start();
 

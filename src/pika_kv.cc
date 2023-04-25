@@ -65,13 +65,14 @@ void SetCmd::DoInitial() {
   }
   return;
 }
-
+//至此就是通过一个简单的set命令来进行的流程，当然中间省略了很多复杂的交互细节，
+// 并且跳过了pink库的一个处理流程，最终会回调在pika中的ProcessRedisCmds处理。
 void SetCmd::Do(std::shared_ptr<Partition> partition) {
   rocksdb::Status s;
   int32_t res = 1;
   switch (condition_) {
     case SetCmd::kXX:
-      s = partition->db()->Setxx(key_, value_, &res, sec_);
+      s = partition->db()->Setxx(key_, value_, &res, sec_);// 通过db来设置key相关的信息
       break;
     case SetCmd::kNX:
       s = partition->db()->Setnx(key_, value_, &res, sec_);

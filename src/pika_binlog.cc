@@ -61,6 +61,7 @@ Status Version::Init() {
 /*
  * Binlog
  */
+//构造binlog
 Binlog::Binlog(const std::string& binlog_path, const int file_size)
     : opened_(false),
       version_(NULL),
@@ -77,13 +78,13 @@ Binlog::Binlog(const std::string& binlog_path, const int file_size)
   // pstd::kMmapBoundSize = 1024 * 1024 * 100;
 
   Status s;
-
+  // 创建binlog文件目录
   pstd::CreateDir(binlog_path_);
 
   filename_ = binlog_path_ + kBinlogPrefix;
   const std::string manifest = binlog_path_ + kManifest;
   std::string profile;
-
+  //检查log目录下manifest文件是否存在，不存在则新建
   if (!pstd::FileExists(manifest)) {
     LOG(INFO) << "Binlog: Manifest file not exist, we create a new one.";
 
@@ -97,7 +98,7 @@ Binlog::Binlog(const std::string& binlog_path, const int file_size)
     if (!s.ok()) {
       LOG(FATAL) << "Binlog: new versionfile error " << s.ToString();
     }
-
+    //根据manifest文件初始化Version类
     version_ = new Version(versionfile_);
     version_->StableSave();
   } else {
@@ -114,7 +115,7 @@ Binlog::Binlog(const std::string& binlog_path, const int file_size)
     } else {
       LOG(FATAL) << "Binlog: open versionfile error";
     }
-
+    //根据manifest中的filenum找到对应的日志文件，根据pro_offset定位到文件append的位置，初始化日志指针、记录日志内容长度、Block块数量。
     profile = NewFileName(filename_, pro_num_);
     DLOG(INFO) << "Binlog: open profile " << profile;
     s = pstd::AppendWritableFile(profile, &queue_, version_->pro_offset_);
@@ -153,7 +154,9 @@ void Binlog::InitLogFile() {
 
   opened_.store(true);
 }
+//filenum: 当前日志编号
 
+//pro_offset: 当前日志偏移量
 Status Binlog::GetProducerStatus(uint32_t* filenum, uint64_t* pro_offset, uint32_t* term, uint64_t* logic_id) {
   if (!opened_.load()) {
     return Status::Busy("Binlog is not open yet");
@@ -174,6 +177,7 @@ Status Binlog::GetProducerStatus(uint32_t* filenum, uint64_t* pro_offset, uint32
 }
 
 // Note: mutex lock should be held
+//检查当前日志文件是否满足切割条件，如果满足则进行切割
 Status Binlog::Put(const std::string& item) {
   if (!opened_.load()) {
     return Status::Busy("Binlog is not open yet");

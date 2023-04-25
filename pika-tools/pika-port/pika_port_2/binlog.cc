@@ -362,7 +362,9 @@ Status Binlog::AppendBlank(slash::WritableFile* file, uint64_t len) {
   }
   return s;
 }
-
+//pro_num: 日志文件编号
+//pro_offset: 日志文件偏移量
+//用在需要全量同步时更新slave实例对应的binlog信息
 Status Binlog::SetProducerStatus(uint32_t pro_num, uint64_t pro_offset) {
   slash::MutexLock l(&mutex_);
 
@@ -374,15 +376,17 @@ Status Binlog::SetProducerStatus(uint32_t pro_num, uint64_t pro_offset) {
   delete queue_;
 
   std::string init_profile = NewFileName(filename, 0);
+  //删除write2file0。
   if (slash::FileExists(init_profile)) {
     slash::DeleteFile(init_profile);
   }
-
+ //删除write2file+pro_num。
   std::string profile = NewFileName(filename, pro_num);
   if (slash::FileExists(profile)) {
     slash::DeleteFile(profile);
   }
-
+//构造新的write2file+pro_num文件，填充pro_offset个空格，
+//初始化version->pro_num为pro_num,version->pro_offset为pro_offset，并刷新到manifest文件中。
   slash::NewWritableFile(profile, &queue_);
   Binlog::AppendBlank(queue_, pro_offset);
 

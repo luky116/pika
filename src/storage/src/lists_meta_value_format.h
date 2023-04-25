@@ -17,9 +17,10 @@ const uint64_t InitalRightIndex = 9223372036854775808U;
 
 class ListsMetaValue : public InternalValue {
  public:
+    //序列化 meta value
   explicit ListsMetaValue(const rocksdb::Slice& user_value)
       : InternalValue(user_value), left_index_(InitalLeftIndex), right_index_(InitalRightIndex) {}
-
+   //list的主要参数有version  temstap leftindex(链表左边界，链表右边界)
   size_t AppendTimestampAndVersion() override {
     size_t usize = user_value_.size();
     char* dst = start_;

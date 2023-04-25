@@ -20,10 +20,12 @@ class BaseDataKey {
     }
   }
 
-  const Slice Encode() {
+  const Slice Encode() { //把 KV Key 的相关信息序列化成字节流
     size_t usize = key_.size() + data_.size();
     size_t needed = usize + sizeof(int32_t) * 2;
     char* dst;
+    //若 key size(4B) + key + version + field 拼接后的总长度不大于 200B，
+    // 则 BaseDataKey::start_ = BaseDataKey::space_，即使用 InternalValue::space_ 存储序列化后的字节流，否则就在堆上分配一段内存用于存储字节流；
     if (needed <= sizeof(space_)) {
       dst = space_;
     } else {

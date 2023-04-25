@@ -8,11 +8,11 @@
 #include <glog/logging.h>
 
 PikaClientProcessor::PikaClientProcessor(size_t worker_num, size_t max_queue_size, const std::string& name_prefix) {
-  pool_ = new net::ThreadPool(worker_num, max_queue_size, name_prefix + "Pool");
+  pool_ = new net::ThreadPool(worker_num, max_queue_size, name_prefix + "Pool");// 生成一个线程池
   for (size_t i = 0; i < worker_num; ++i) {
-    net::BGThread* bg_thread = new net::BGThread(max_queue_size);
-    bg_threads_.push_back(bg_thread);
-    bg_thread->set_thread_name(name_prefix + "BgThread");
+    net::BGThread* bg_thread = new net::BGThread(max_queue_size);// 根据设置的线程池数量来初始化
+    bg_threads_.push_back(bg_thread);// 初始化bg工作线程
+    bg_thread->set_thread_name(name_prefix + "BgThread");// 保存每个线程
   }
 }
 

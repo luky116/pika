@@ -41,24 +41,28 @@ struct BackupContent {
 class BackupEngine {
  public:
   ~BackupEngine();
+    // 调用 BackupEngine::NewCheckpoint 为五种数据类型分别创建响应的 DBNemoCheckpoint 放入 engines_，
+    // 同时创建 BackupEngine 对象
   static Status Open(Storage* db, BackupEngine** backup_engine_ptr);
-
+    // 调用 DBNemoCheckpointImpl::GetCheckpointFiles 获取五种类型需要备份的 快照内容 存入 backup_content_
   Status SetBackupContent();
-
+    // 创建五个线程，分别调用 CreateNewBackupSpecify 进行数据备份
   Status CreateNewBackup(const std::string& dir);
 
   void StopBackup();
-
+  // 调用 DBNemoCheckpointImpl::CreateCheckpointWithFiles 执行具体的备份任务
+  // 这个函数之所以类型是 public 的，是为了在 线程函数ThreadFuncSaveSpecify 中能够调用之
   Status CreateNewBackupSpecify(const std::string& dir, const std::string& type);
 
  private:
   BackupEngine() {}
 
-  std::map<std::string, rocksdb::DBCheckpoint*> engines_;
-  std::map<std::string, BackupContent> backup_content_;
-  std::map<std::string, pthread_t> backup_pthread_ts_;
-
+  std::map<std::string, rocksdb::DBCheckpoint*> engines_;// 保存每个类型的 checkpoint 对象
+  std::map<std::string, BackupContent> backup_content_;// 保存每个类型需要复制的 快照内容
+  std::map<std::string, pthread_t> backup_pthread_ts_;// 保存每个类型执行备份任务的线程对象
+    // 调用 rocksdb::DBNemoCheckpoint::Create 创建 checkpoint 对象
   Status NewCheckpoint(rocksdb::DB* rocksdb_db, const std::string& type);
+    // 获取每个类型的数据目录
   std::string GetSaveDirByType(const std::string _dir, const std::string& _type) const {
     std::string backup_dir = _dir.empty() ? DEFAULT_BK_PATH : _dir;
     return backup_dir + ((backup_dir.back() != '/') ? "/" : "") + _type;

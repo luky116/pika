@@ -43,7 +43,7 @@ void DoDBSync(void* arg) {
   ps->DbSyncSendFile(dbsa->ip, dbsa->port, dbsa->table_name, dbsa->partition_id);
   delete dbsa;
 }
-
+//初始化了大量的工作线程，来启动协同处理分别启动了6个不同的线程池或者线程来进行不同的处理工作
 PikaServer::PikaServer()
     : exit_(false),
       slot_state_(INFREE),
@@ -60,7 +60,7 @@ PikaServer::PikaServer()
       force_full_sync_(false),
       slowlog_entry_id_(0) {
   // Init server ip host
-  if (!ServerInit()) {
+  if (!ServerInit()) {// 初始化监听的端口和IP
     LOG(FATAL) << "ServerInit iotcl error";
   }
 
@@ -71,7 +71,7 @@ PikaServer::PikaServer()
 #endif
   pthread_rwlock_init(&storage_options_rw_, &storage_options_rw_attr);
 
-  InitStorageOptions();
+  InitStorageOptions();// 初始化StorageOptions，主要配置rocksdb的相关参数
 
   pthread_rwlockattr_t tables_rw_attr;
   pthread_rwlockattr_init(&tables_rw_attr);
@@ -81,6 +81,7 @@ PikaServer::PikaServer()
   pthread_rwlock_init(&tables_rw_, &tables_rw_attr);
 
   // Create thread
+    // Create thread   根据配置来查看有多少的工作线程数
   worker_num_ = std::min(g_pika_conf->thread_num(), PIKA_MAX_WORKER_THREAD_NUM);
 
   std::set<std::string> ips;
@@ -90,17 +91,17 @@ PikaServer::PikaServer()
     ips.insert("127.0.0.1");
     ips.insert(host_);
   }
-  // We estimate the queue size
+  // We estimate the queue size获取处理的队列的大小
   int worker_queue_limit = g_pika_conf->maxclients() / worker_num_ + 100;
   LOG(INFO) << "Worker queue limit is " << worker_queue_limit;
   pika_dispatch_thread_ =
       new PikaDispatchThread(ips, port_, worker_num_, 3000, worker_queue_limit, g_pika_conf->max_conn_rbuf_size());
-  pika_monitor_thread_ = new PikaMonitorThread();
-  pika_rsync_service_ = new PikaRsyncService(g_pika_conf->db_sync_path(), g_pika_conf->port() + kPortShiftRSync);
-  pika_pubsub_thread_ = new net::PubSubThread();
-  pika_auxiliary_thread_ = new PikaAuxiliaryThread();
+  pika_monitor_thread_ = new PikaMonitorThread();// 监控的线程池
+  pika_rsync_service_ = new PikaRsyncService(g_pika_conf->db_sync_path(), g_pika_conf->port() + kPortShiftRSync);// 同步的线程池
+  pika_pubsub_thread_ = new net::PubSubThread();// 订阅发布处理线程
+  pika_auxiliary_thread_ = new PikaAuxiliaryThread();// 心跳辅助的状态改变处理线程
 
-  pika_client_processor_ = new PikaClientProcessor(g_pika_conf->thread_pool_size(), 100000);
+  pika_client_processor_ = new PikaClientProcessor(g_pika_conf->thread_pool_size(), 100000);//  处理异步的task
 
   pthread_rwlock_init(&state_protector_, NULL);
   pthread_rwlock_init(&slowlog_protector_, NULL);
@@ -192,7 +193,7 @@ void PikaServer::Start() {
     tables_.clear();
     LOG(FATAL) << "Start Pubsub Error: " << ret << (ret == net::kBindError ? ": bind port conflict" : ": other error");
   }
-
+  //在pika的pika_server的Start函数中启动了auxiliary_thread线程,
   ret = pika_auxiliary_thread_->StartThread();
   if (ret != net::kSuccess) {
     tables_.clear();

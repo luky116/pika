@@ -33,7 +33,7 @@ PikaClientConn::PikaClientConn(int fd, std::string ip_port, net::Thread* thread,
 std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const std::string& opt,
                                            std::shared_ptr<std::string> resp_ptr) {
   // Get command info
-  std::shared_ptr<Cmd> c_ptr = g_pika_cmd_table_manager->GetCmd(opt);
+  std::shared_ptr<Cmd> c_ptr = g_pika_cmd_table_manager->GetCmd(opt);// 从命令列表中查找命令
   if (!c_ptr) {
     std::shared_ptr<Cmd> tmp_ptr = std::make_shared<DummyCmd>(DummyCmd());
     tmp_ptr->res().SetRes(CmdRes::kErrOther, "unknown command \"" + opt + "\"");
@@ -44,7 +44,7 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
 
   // Check authed
   // AuthCmd will set stat_
-  if (!auth_stat_.IsAuthed(c_ptr)) {
+  if (!auth_stat_.IsAuthed(c_ptr)) {// 检查是否认证
     c_ptr->res().SetRes(CmdRes::kErrOther, "NOAUTH Authentication required.");
     return c_ptr;
   }
@@ -54,13 +54,13 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
     start_us = pstd::NowMicros();
   }
 
-  bool is_monitoring = g_pika_server->HasMonitorClients();
+  bool is_monitoring = g_pika_server->HasMonitorClients();// 是否是监控的客户端
   if (is_monitoring) {
     ProcessMonitor(argv);
   }
 
   // Initial
-  c_ptr->Initial(argv, current_table_);
+  c_ptr->Initial(argv, current_table_);// 初始化命令信息
   if (!c_ptr->res().ok()) {
     return c_ptr;
   }
@@ -117,7 +117,7 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
     }
   }
 
-  // Process Command
+  // Process Command执行命令
   c_ptr->Execute();
 
   if (g_pika_conf->slowlog_slower_than() >= 0) {
@@ -171,14 +171,14 @@ void PikaClientConn::ProcessMonitor(const PikaCmdArgsType& argv) {
 
 void PikaClientConn::ProcessRedisCmds(const std::vector<net::RedisCmdArgsType>& argvs, bool async,
                                       std::string* response) {
-  if (async) {
-    BgTaskArg* arg = new BgTaskArg();
+  if (async) {// 是否是后台任务
+    BgTaskArg* arg = new BgTaskArg();// 新建一个后台任务
     arg->redis_cmds = argvs;
     arg->conn_ptr = std::dynamic_pointer_cast<PikaClientConn>(shared_from_this());
-    g_pika_server->ScheduleClientPool(&DoBackgroundTask, arg);
+    g_pika_server->ScheduleClientPool(&DoBackgroundTask, arg);// 放入PikaClientProcessor的线程池来进行处理
     return;
   }
-  BatchExecRedisCmd(argvs);
+  BatchExecRedisCmd(argvs); // 如果不是则调用响应的线程池直接处理
 }
 
 void PikaClientConn::DoBackgroundTask(void* arg) {
@@ -242,10 +242,10 @@ void PikaClientConn::DoExecTask(void* arg) {
 
 void PikaClientConn::BatchExecRedisCmd(const std::vector<net::RedisCmdArgsType>& argvs) {
   resp_num.store(argvs.size());
-  for (size_t i = 0; i < argvs.size(); ++i) {
+  for (size_t i = 0; i < argvs.size(); ++i) {// 根据解析的输入参数大小来处理
     std::shared_ptr<std::string> resp_ptr = std::make_shared<std::string>();
     resp_array.push_back(resp_ptr);
-    ExecRedisCmd(argvs[i], resp_ptr);
+    ExecRedisCmd(argvs[i], resp_ptr);// 处理对应的命令
   }
   TryWriteResp();
 }
@@ -269,14 +269,14 @@ void PikaClientConn::ExecRedisCmd(const PikaCmdArgsType& argv, std::shared_ptr<s
   // get opt
   std::string opt = argv[0];
   pstd::StringToLower(opt);
-  if (opt == kClusterPrefix) {
+  if (opt == kClusterPrefix) {// 检查是否是集群名称开头
     if (argv.size() >= 2) {
       opt += argv[1];
       pstd::StringToLower(opt);
     }
   }
 
-  std::shared_ptr<Cmd> cmd_ptr = DoCmd(argv, opt, resp_ptr);
+  std::shared_ptr<Cmd> cmd_ptr = DoCmd(argv, opt, resp_ptr); // 执行命令
   // level == 0 or (cmd error) or (is_read)
   if (g_pika_conf->consensus_level() == 0 || !cmd_ptr->res().ok() || !cmd_ptr->is_write()) {
     *resp_ptr = std::move(cmd_ptr->res().message());

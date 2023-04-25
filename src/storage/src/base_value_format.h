@@ -32,6 +32,8 @@ class InternalValue {
   void set_version(int32_t version = 0) { version_ = version; }
   static const size_t kDefaultValueSuffixLength = sizeof(int32_t) * 2;
   virtual const rocksdb::Slice Encode() {
+      //若 key + timestamp + version 拼接后的总长度不大于 200B，
+      // 则 InternalValue::start_ = InternalValue::space_，即使用 InternalValue::space_ 存储序列化后的字节流，否则就在堆上分配一段内存用于存储字节流；
     size_t usize = user_value_.size();
     size_t needed = usize + kDefaultValueSuffixLength;
     char* dst;
@@ -45,6 +47,7 @@ class InternalValue {
         delete[] start_;
       }
     }
+    //调用虚接口AppendTimestampAndVersion 对 key + timestamp + version 进行序列化并存入 InternalValue::start_。
     start_ = dst;
     size_t len = AppendTimestampAndVersion();
     return rocksdb::Slice(start_, len);
@@ -61,15 +64,14 @@ class InternalValue {
 
 class ParsedInternalValue {
  public:
-  // Use this constructor after rocksdb::DB::Get(), since we use this in
-  // the implement of user interfaces and may need to modify the
-  // original value suffix, so the value_ must point to the string
+    // 这个构造函数在 rocksdb::DB::Get() 之后会被调用，
+    // 用户可能在此处对读取到的值修改 timestamp 和 version，
+    // 所以需要把 value 的指针赋值给 value_
   explicit ParsedInternalValue(std::string* value) : value_(value), version_(0), timestamp_(0) {}
 
-  // Use this constructor in rocksdb::CompactionFilter::Filter(),
-  // since we use this in Compaction process, all we need to do is parsing
-  // the rocksdb::Slice, so don't need to modify the original value, value_ can be
-  // set to nullptr
+    // 这个函数在 rocksdb::CompactionFilter::Filter() 之中会被调用，
+    // 用户仅仅仅对 @value 进行分析即可，不会有写动作，所以不需要
+    // 把 value 的指针赋值给 value_
   explicit ParsedInternalValue(const rocksdb::Slice& value) : value_(nullptr), version_(0), timestamp_(0) {}
 
   virtual ~ParsedInternalValue() = default;
@@ -114,7 +116,7 @@ class ParsedInternalValue {
   virtual void SetVersionToValue() = 0;
   virtual void SetTimestampToValue() = 0;
   std::string* value_;
-  rocksdb::Slice user_value_;
+  rocksdb::Slice user_value_;// 用户原始 value
   int32_t version_;
   int32_t timestamp_;
 };

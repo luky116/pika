@@ -142,7 +142,7 @@ Status SyncMasterPartition::ActivateSlaveDbSync(const std::string& ip, int port)
 
 Status SyncMasterPartition::ReadBinlogFileToWq(const std::shared_ptr<SlaveNode>& slave_ptr) {
   int cnt = slave_ptr->sync_win.Remaining();
-  std::shared_ptr<PikaBinlogReader> reader = slave_ptr->binlog_reader;
+  std::shared_ptr<PikaBinlogReader> reader = slave_ptr->binlog_reader;//获取当前binlogreader
   if (reader == nullptr) {
     return Status::OK();
   }
@@ -154,9 +154,9 @@ Status SyncMasterPartition::ReadBinlogFileToWq(const std::shared_ptr<SlaveNode>&
     if (slave_ptr->sync_win.GetTotalBinlogSize() > PIKA_MAX_CONN_RBUF_HB * 2) {
       LOG(INFO) << slave_ptr->ToString()
                 << " total binlog size in sync window is :" << slave_ptr->sync_win.GetTotalBinlogSize();
-      break;
+      break;//检查当前同步窗口的大小
     }
-    Status s = reader->Get(&msg, &filenum, &offset);
+    Status s = reader->Get(&msg, &filenum, &offset);//获取对应的偏移数据
     if (s.IsEndFile()) {
       break;
     } else if (s.IsCorruption() || s.IsIOError()) {
@@ -168,17 +168,17 @@ Status SyncMasterPartition::ReadBinlogFileToWq(const std::shared_ptr<SlaveNode>&
       LOG(WARNING) << "Binlog item decode failed";
       return Status::Corruption("Binlog item decode failed");
     }
-    BinlogOffset sent_b_offset = BinlogOffset(filenum, offset);
+    BinlogOffset sent_b_offset = BinlogOffset(filenum, offset);// 生成发送的偏移量
     LogicOffset sent_l_offset = LogicOffset(item.term_id(), item.logic_id());
     LogOffset sent_offset(sent_b_offset, sent_l_offset);
 
-    slave_ptr->sync_win.Push(SyncWinItem(sent_offset, msg.size()));
-    slave_ptr->SetLastSendTime(pstd::NowMicros());
+    slave_ptr->sync_win.Push(SyncWinItem(sent_offset, msg.size())); //设置同步窗口的大小
+    slave_ptr->SetLastSendTime(pstd::NowMicros());//设置最后的发送时间
     RmNode rm_node(slave_ptr->Ip(), slave_ptr->Port(), slave_ptr->TableName(), slave_ptr->PartitionId(),
                    slave_ptr->SessionId());
     WriteTask task(rm_node, BinlogChip(sent_offset, msg), slave_ptr->sent_offset);
-    tasks.push_back(task);
-    slave_ptr->sent_offset = sent_offset;
+    tasks.push_back(task); // 包装成任务
+    slave_ptr->sent_offset = sent_offset; // 设置当前的发送偏移量
   }
 
   if (!tasks.empty()) {
@@ -243,8 +243,8 @@ Status SyncMasterPartition::WakeUpSlaveBinlogSync() {
   for (auto& slave_iter : slaves) {
     std::shared_ptr<SlaveNode> slave_ptr = slave_iter.second;
     pstd::MutexLock l(&slave_ptr->slave_mu);
-    if (slave_ptr->sent_offset == slave_ptr->acked_offset) {
-      Status s = ReadBinlogFileToWq(slave_ptr);
+    if (slave_ptr->sent_offset == slave_ptr->acked_offset) {// 检查当前同步的数据信息是否跟回复的数据偏移相同
+      Status s = ReadBinlogFileToWq(slave_ptr);// 写binlog任务到该从节点连接上面
       if (!s.ok()) {
         to_del.push_back(slave_ptr);
         LOG(WARNING) << "WakeUpSlaveBinlogSync falied, Delete from RM, slave: " << slave_ptr->ToStringStatus() << " "
@@ -252,7 +252,7 @@ Status SyncMasterPartition::WakeUpSlaveBinlogSync() {
       }
     }
   }
-  for (auto& to_del_slave : to_del) {
+  for (auto& to_del_slave : to_del) {// 如果同步失败则删除该node
     RemoveSlaveNode(to_del_slave->Ip(), to_del_slave->Port());
   }
   return Status::OK();
@@ -367,13 +367,43 @@ Status SyncMasterPartition::CheckSyncTimeout(uint64_t now) {
 
   std::vector<Node> to_del;
   for (auto& slave_iter : slaves) {
-    std::shared_ptr<SlaveNode> slave_ptr = slave_iter.second;
+    std::shared_ptr<SlaveNode> slave_ptr = slave_iter.second;// 获取所有slave的连接信息
     pstd::MutexLock l(&slave_ptr->slave_mu);
-    if (slave_ptr->LastRecvTime() + kRecvKeepAliveTimeout < now) {
+    if (slave_ptr->LastRecvTime() + kRecvKeepAliveTimeout < now) {// 如果最后的时间超时则删除该连接
       to_del.push_back(Node(slave_ptr->Ip(), slave_ptr->Port()));
     } else if (slave_ptr->LastSendTime() + kSendKeepAliveTimeout < now &&
-               slave_ptr->sent_offset == slave_ptr->acked_offset) {
-      std::vector<WriteTask> task;
+               slave_ptr->sent_offset == slave_ptr->acked_offset) {Status SyncMasterPartition::CheckSyncTimeout(uint64_t now) {
+            std::unordered_map<std::string, std::shared_ptr<SlaveNode>> slaves = GetAllSlaveNodes();
+
+            std::vector<Node> to_del;
+            for (auto& slave_iter : slaves) {
+                std::shared_ptr<SlaveNode> slave_ptr = slave_iter.second;   // 获取所有slave的连接信息
+                slash::MutexLock l(&slave_ptr->slave_mu);
+                if (slave_ptr->LastRecvTime() + kRecvKeepAliveTimeout < now) {  // 如果最后的时间超时则删除该连接
+                    to_del.push_back(Node(slave_ptr->Ip(), slave_ptr->Port()));
+                } else if (slave_ptr->LastSendTime() + kSendKeepAliveTimeout < now && slave_ptr->sent_offset == slave_ptr->acked_offset) {  // 如果最后的发送时间未超时 并且主从同步的偏移量发送的与回复的相同则发送binlogchips请求并且更新当前的最后发送时间
+                    std::vector<WriteTask> task;
+                    RmNode rm_node(slave_ptr->Ip(), slave_ptr->Port(), slave_ptr->TableName(), slave_ptr->PartitionId(), slave_ptr->SessionId());
+                    WriteTask empty_task(rm_node, BinlogChip(LogOffset(), ""), LogOffset());
+                    task.push_back(empty_task);
+                    Status s = g_pika_rm->SendSlaveBinlogChipsRequest(slave_ptr->Ip(), slave_ptr->Port(), task);// 同步当前的主从同步的信息    // 同步当前的主从同步的信息
+                    slave_ptr->SetLastSendTime(now);
+                    if (!s.ok()) {
+                        LOG(INFO)<< "Send ping failed: " << s.ToString();
+                        return Status::Corruption("Send ping failed: " + slave_ptr->Ip() + ":" + std::to_string(slave_ptr->Port()));
+                    }
+                }
+            }
+
+            for (auto& node : to_del) {  // 将超时的连接信息都删除掉
+                coordinator_.SyncPros().RemoveSlaveNode(node.Ip(), node.Port());
+                g_pika_rm->DropItemInWriteQueue(node.Ip(), node.Port());
+                LOG(WARNING) << SyncPartitionInfo().ToString() << " Master del Recv Timeout slave success " << node.ToString();
+            }
+            return Status::OK();
+        }
+
+        std::vector<WriteTask> task;
       RmNode rm_node(slave_ptr->Ip(), slave_ptr->Port(), slave_ptr->TableName(), slave_ptr->PartitionId(),
                      slave_ptr->SessionId());
       WriteTask empty_task(rm_node, BinlogChip(LogOffset(), ""), LogOffset());
@@ -570,12 +600,12 @@ Status SyncSlavePartition::CheckSyncTimeout(uint64_t now) {
   pstd::MutexLock l(&partition_mu_);
   // no need to do session keepalive return ok
   if (repl_state_ != ReplState::kWaitDBSync && repl_state_ != ReplState::kConnected) {
-    return Status::OK();
+    return Status::OK();// 如果从节点的信息不是waitdb或者连接状态则返回ok
   }
   if (m_info_.LastRecvTime() + kRecvKeepAliveTimeout < now) {
     // update slave state to kTryConnect, and try reconnect to master node
     repl_state_ = ReplState::kTryConnect;
-    g_pika_server->SetLoopPartitionStateMachine(true);
+    g_pika_server->SetLoopPartitionStateMachine(true);// 否则就设置成tryconnect状态去尝试连接主节点
   }
   return Status::OK();
 }
@@ -720,7 +750,7 @@ int PikaReplicaManager::ConsumeWriteQueue() {
     pstd::MutexLock l(&write_queue_mu_);
     for (auto& iter : write_queues_) {
       const std::string& ip_port = iter.first;
-      std::unordered_map<uint32_t, std::queue<WriteTask>>& p_map = iter.second;
+      std::unordered_map<uint32_t, std::queue<WriteTask>>& p_map = iter.second;//获取队列
       for (auto& partition_queue : p_map) {
         std::queue<WriteTask>& queue = partition_queue.second;
         for (int i = 0; i < kBinlogSendPacketNum; ++i) {
@@ -737,7 +767,7 @@ int PikaReplicaManager::ConsumeWriteQueue() {
             if (batch_size > PIKA_MAX_CONN_RBUF_HB) {
               break;
             }
-            to_send.push_back(task);
+            to_send.push_back(task); // 放入可发送的队列中
             queue.pop();
             counter++;
           }
@@ -758,10 +788,10 @@ int PikaReplicaManager::ConsumeWriteQueue() {
       continue;
     }
     for (auto& to_send : iter.second) {
-      Status s = pika_repl_server_->SendSlaveBinlogChips(ip, port, to_send);
+      Status s = pika_repl_server_->SendSlaveBinlogChips(ip, port, to_send);// 发送Binglog任务
       if (!s.ok()) {
         LOG(WARNING) << "send binlog to " << ip << ":" << port << " failed, " << s.ToString();
-        to_delete.push_back(iter.first);
+        to_delete.push_back(iter.first);// 如果发送失败则放入失败队列中
         continue;
       }
     }
@@ -771,7 +801,7 @@ int PikaReplicaManager::ConsumeWriteQueue() {
     {
       pstd::MutexLock l(&write_queue_mu_);
       for (auto& del_queue : to_delete) {
-        write_queues_.erase(del_queue);
+        write_queues_.erase(del_queue); //删除发送失败的任务
       }
     }
   }
@@ -864,7 +894,7 @@ Status PikaReplicaManager::WakeUpBinlogSync() {
   pstd::RWLock l(&partitions_rw_, false);
   for (auto& iter : sync_master_partitions_) {
     std::shared_ptr<SyncMasterPartition> partition = iter.second;
-    Status s = partition->WakeUpSlaveBinlogSync();
+    Status s = partition->WakeUpSlaveBinlogSync();// 检查每个节点是否需要生成binlog同步任务
     if (!s.ok()) {
       return s;
     }
@@ -877,14 +907,14 @@ Status PikaReplicaManager::CheckSyncTimeout(uint64_t now) {
 
   for (auto& iter : sync_master_partitions_) {
     std::shared_ptr<SyncMasterPartition> partition = iter.second;
-    Status s = partition->CheckSyncTimeout(now);
+    Status s = partition->CheckSyncTimeout(now);// 获取所有的master的同步节点检查是否超时
     if (!s.ok()) {
       LOG(WARNING) << "CheckSyncTimeout Failed " << s.ToString();
     }
   }
   for (auto& iter : sync_slave_partitions_) {
     std::shared_ptr<SyncSlavePartition> partition = iter.second;
-    Status s = partition->CheckSyncTimeout(now);
+    Status s = partition->CheckSyncTimeout(now); // 获取所有slave的同步节点信息检查是否超时
     if (!s.ok()) {
       LOG(WARNING) << "CheckSyncTimeout Failed " << s.ToString();
     }
@@ -1138,26 +1168,26 @@ std::shared_ptr<SyncSlavePartition> PikaReplicaManager::GetSyncSlavePartitionByN
 
 Status PikaReplicaManager::RunSyncSlavePartitionStateMachine() {
   pstd::RWLock l(&partitions_rw_, false);
-  for (const auto& item : sync_slave_partitions_) {
+  for (const auto& item : sync_slave_partitions_) {// 获取所有的从节点同步信息
     PartitionInfo p_info = item.first;
     std::shared_ptr<SyncSlavePartition> s_partition = item.second;
-    if (s_partition->State() == ReplState::kTryConnect) {
+    if (s_partition->State() == ReplState::kTryConnect) {// 如果同步的信息是kTryConnect则发送TrySync的同步请求
       SendPartitionTrySyncRequest(p_info.table_name_, p_info.partition_id_);
-    } else if (s_partition->State() == ReplState::kTryDBSync) {
+    } else if (s_partition->State() == ReplState::kTryDBSync) {// 如果是kTryDB的状态则发送DB同步的请求
       SendPartitionDBSyncRequest(p_info.table_name_, p_info.partition_id_);
-    } else if (s_partition->State() == ReplState::kWaitReply) {
+    } else if (s_partition->State() == ReplState::kWaitReply) {// 如果是wait状态则什么都不做
       continue;
-    } else if (s_partition->State() == ReplState::kWaitDBSync) {
+    } else if (s_partition->State() == ReplState::kWaitDBSync) {// 如果是waitdb状态则等待
       std::shared_ptr<Partition> partition =
           g_pika_server->GetTablePartitionById(p_info.table_name_, p_info.partition_id_);
       if (partition) {
-        partition->TryUpdateMasterOffset();
+        partition->TryUpdateMasterOffset();// 更新和主之间的offset
       } else {
         LOG(WARNING) << "Partition not found, Table Name: " << p_info.table_name_
                      << " Partition Id: " << p_info.partition_id_;
       }
     } else if (s_partition->State() == ReplState::kConnected || s_partition->State() == ReplState::kNoConnect ||
-               s_partition->State() == ReplState::kDBNoConnect) {
+               s_partition->State() == ReplState::kDBNoConnect) {// 如果是已连接或者失联则什么都不处理
       continue;
     }
   }

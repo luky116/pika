@@ -632,7 +632,8 @@ void Cmd::ProcessFlushAllCmd() {
 void Cmd::ProcessSinglePartitionCmd() {
   std::shared_ptr<Partition> partition;
   if (g_pika_conf->classic_mode()) {
-    // in classic mode a table has only one partition
+    // in classic mode a table has only one partition classic模式一个table只有一个分片
+    //先找到partition
     partition = g_pika_server->GetPartitionByDbName(table_name_);
   } else {
     std::vector<std::string> cur_key = current_key();
@@ -640,7 +641,7 @@ void Cmd::ProcessSinglePartitionCmd() {
       res_.SetRes(CmdRes::kErrOther, "Internal Error");
       return;
     }
-    // in sharding mode we select partition by key
+    // in sharding mode we select partition by key sharding模式根据命令的key来决定
     partition = g_pika_server->GetTablePartitionByKey(table_name_, cur_key.front());
   }
 

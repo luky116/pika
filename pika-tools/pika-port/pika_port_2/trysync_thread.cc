@@ -156,6 +156,12 @@ bool TrysyncThread::TryUpdateMasterOffset() {
     LOG(WARNING) << "Failed to open info file after db sync";
     return false;
   }
+    //info文件格式如下：
+    //0s
+    //0.0.0.0
+    //9221
+    //0
+    //92
   std::string line, master_ip;
   int lineno = 0;
   int64_t filenum = 0, offset = 0, tmp = 0, master_port = 0;
@@ -187,16 +193,19 @@ bool TrysyncThread::TryUpdateMasterOffset() {
             << ", filenum: " << filenum << ", offset: " << offset;
 
   // Sanity check
+    //校验master ip 和 master port
   if (master_ip != g_port_conf.master_ip || master_port != g_port_conf.master_port) {
     LOG(WARNING) << "Error master ip port: " << master_ip << ":" << master_port;
     return false;
   }
 
   // Replace the old db
+    // 重新加载db
   slash::StopRsync(db_sync_path);
   slash::DeleteFile(info_path);
 
   // Update master offset
+    //设置binlog
   g_pika_port->logger()->SetProducerStatus(filenum, offset);
   Retransmit();
   g_pika_port->WaitDBSyncFinish();
@@ -297,15 +306,16 @@ int TrysyncThread::Retransmit() {
 void* TrysyncThread::ThreadMain() {
   while (!should_stop()) {
     sleep(1);
-
+    //状态是否是PIKA_REPL_WAIT_DBSYNC?
     if (g_pika_port->IsWaitingDBSync()) {
       LOG(INFO) << "Waiting db sync";
       // Try to update offset by db sync
+      //判断db文件是否全部传输过来，如果db文件全部传输完成，修改状态为PIKA_REPL_CONNECT
       if (TryUpdateMasterOffset()) {
         LOG(INFO) << "Success Update Master Offset";
       }
     }
-
+      //状态是否是PIKA_REPL_CONNECT?
     if (!g_pika_port->ShouldConnectMaster()) {
       continue;
     }
@@ -317,6 +327,8 @@ void* TrysyncThread::ThreadMain() {
     std::string dbsync_path = g_port_conf.dump_path;
 
     // Start rsync service
+      // Start rsync
+      //启动rsync进程
     PrepareRsync();
     std::string ip_port = slash::IpPortString(g_port_conf.master_ip, g_port_conf.master_port);
     int ret = slash::StartRsync(dbsync_path, kDBSyncModule + "_" + ip_port, g_port_conf.local_ip,
@@ -326,18 +338,23 @@ void* TrysyncThread::ThreadMain() {
       return false;
     }
     LOG(INFO) << "Finish to start rsync, path:" << dbsync_path;
-
+      //连接master
     if ((cli_->Connect(master_ip, master_port, g_port_conf.local_ip)).ok()) {
       LOG(INFO) << "Connect to master{ip:" << master_ip << ", port: " << master_port << "}";
+        //设置读写超时时间
       cli_->set_send_timeout(5000);
       cli_->set_recv_timeout(5000);
+        //将当前binlog位置发送给master，接收master返回结果
       if (Send() && RecvProc()) {
+          //修改状态为PIKA_REPL_CONNECTING
         g_pika_port->ConnectMasterDone();
         // Stop rsync, binlog sync with master is begin
+          //停止rsync进程
         slash::StopRsync(dbsync_path);
 
         delete g_pika_port->ping_thread_;
         g_pika_port->ping_thread_ = new SlavepingThread(sid_);
+          //启动ping线程
         g_pika_port->ping_thread_->StartThread();
         DLOG(INFO) << "Trysync success";
       }
