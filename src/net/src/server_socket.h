@@ -70,7 +70,7 @@ class ServerSocket {
   int sockfd_;
 
   /*
-   * No allowed copy and copy assign operator
+   * No allowed copy and copy assign pika_operator
    */
 
   ServerSocket(const ServerSocket&);

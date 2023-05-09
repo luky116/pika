@@ -76,7 +76,7 @@ class BaseConf {
   Rep* rep_ = nullptr;
 
   /*
-   * No copy && no assign operator
+   * No copy && no assign pika_operator
    */
   BaseConf(const BaseConf&);
   void operator=(const BaseConf&);

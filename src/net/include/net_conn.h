@@ -110,7 +110,7 @@ class NetConn : public std::enable_shared_from_this<NetConn> {
   NetMultiplexer* net_multiplexer_ = nullptr;
 
   /*
-   * No allowed copy and copy assign operator
+   * No allowed copy and copy assign pika_operator
    */
   NetConn(const NetConn&);
   void operator=(const NetConn&);
