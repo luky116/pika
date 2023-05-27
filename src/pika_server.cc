@@ -47,7 +47,7 @@ PikaServer::PikaServer()
       slot_state_(INFREE),
       have_scheduled_crontask_(false),
       last_check_compact_time_({0, 0}),
-      master_ip_(""),
+      master_ip_(""), // todo 为啥使用()来赋值啊？
       master_port_(0),
       repl_state_(PIKA_REPL_NO_CONNECT),
       role_(PIKA_ROLE_SINGLE),
@@ -1494,6 +1494,7 @@ void PikaServer::InitStorageOptions() {
     storage_options_.table_options.no_block_cache = true;
   } else if (storage_options_.share_block_cache) {
     storage_options_.table_options.block_cache =
+        // block 缓存
         rocksdb::NewLRUCache(storage_options_.block_cache_size, static_cast<int>(g_pika_conf->num_shard_bits()));
   }
 

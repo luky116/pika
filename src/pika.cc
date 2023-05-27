@@ -133,6 +133,7 @@ int main(int argc, char* argv[]) {
   while (-1 != (c = getopt(argc, argv, "c:hv"))) {
     switch (c) {
       case 'c':
+        // 读取配置文件
         snprintf(path, 1024, "%s", optarg);
         path_opt = true;
         break;
@@ -153,7 +154,7 @@ int main(int argc, char* argv[]) {
     usage();
     exit(-1);
   }
-  PikaConfInit(path);
+  PikaConfInit(path); // 初始化配置文件
 
   rlimit limit;
   rlim_t maxfiles = g_pika_conf->maxclients() + PIKA_MIN_RESERVED_FDS;
@@ -163,7 +164,7 @@ int main(int argc, char* argv[]) {
     rlim_t old_limit = limit.rlim_cur;
     limit.rlim_cur = maxfiles;
     limit.rlim_max = maxfiles;
-    if (setrlimit(RLIMIT_NOFILE, &limit) != -1) {
+    if (setrlimit(RLIMIT_NOFILE, &limit) != -1) { // todo 这里是干嘛的？
       LOG(WARNING) << "your 'limit -n ' of " << old_limit
                    << " is not enough for Redis to start. pika have successfully reconfig it to " << limit.rlim_cur;
     } else {
@@ -180,7 +181,7 @@ int main(int argc, char* argv[]) {
   }
 
   PikaGlogInit();
-  PikaSignalSetup();
+  PikaSignalSetup(); // todo why？
 
   LOG(INFO) << "Server at: " << path;
   g_pika_cmd_table_manager = new PikaCmdTableManager();

@@ -30,7 +30,7 @@ class PikaConf : public pstd::BaseConf {
 
   // Getter
   int port() {
-    std::shared_lock l(rwlock_);
+    std::shared_lock l(rwlock_); // l什么意思呢？
     return port_;
   }
   std::string slaveof() {

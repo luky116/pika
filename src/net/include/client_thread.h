@@ -18,10 +18,11 @@
 #include "pstd/include/pstd_status.h"
 
 // remove 'unused parameter' warning
+// 这里的作用是啥呢？
 #define UNUSED(expr) \
   do {               \
     (void)(expr);    \
-  } while (0)
+  } while (0) // TODO 为啥要while(0)？直接写：(void)(expr); 不行吗？
 
 #define kConnWriteBuf (1024 * 1024 * 100)  // cache 100 MB data per connection
 
@@ -35,9 +36,11 @@ class NetConn;
  *  ClientHandle will be invoked at appropriate occasion
  *  in client thread's main loop.
  */
+// todo 为啥声明类在 cc 文件呢？ MyClientHandle
 class ClientHandle {
  public:
   ClientHandle() {}
+  // todo 这是啥意思？
   virtual ~ClientHandle() {}
 
   /*

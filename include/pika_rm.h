@@ -164,6 +164,7 @@ class SyncSlavePartition : public SyncPartition {
   std::string local_ip_;
 };
 
+// 从节点管理？
 class PikaReplicaManager {
  public:
   PikaReplicaManager();

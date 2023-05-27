@@ -202,7 +202,7 @@ void* ServerThread::ThreadMain() {
       }
 
       /*
-       * Handle server event
+       * Handle server event 处理 client 链接的请求
        */
       if (server_fds_.find(fd) != server_fds_.end()) {
         if (pfe->mask & kReadable) {
@@ -223,6 +223,8 @@ void* ServerThread::ThreadMain() {
           // Just ip
           ip_port = inet_ntop(AF_INET, &cliaddr.sin_addr, ip_addr, sizeof(ip_addr));
 
+          // 收到客户端连接，判断当前client'连接数是否超过了最大数量
+          // bool PikaDispatchThread::Handles::AccessHandle(std::string& ip) const {
           if (!handle_->AccessHandle(ip_port) || !handle_->AccessHandle(connfd, ip_port)) {
             close(connfd);
             continue;
@@ -236,7 +238,8 @@ void* ServerThread::ThreadMain() {
            * Handle new connection,
            * implemented in derived class
            */
-          HandleNewConn(connfd, ip_port);
+          // DispatchThread::HandleNewConn(const int connfd, const std::string& ip_port)
+          HandleNewConn(connfd, ip_port); // 90 "127.0.0.1:59389"
 
         } else if (pfe->mask & kErrorEvent) {
           /*

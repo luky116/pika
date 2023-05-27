@@ -238,6 +238,14 @@ void PikaClientConn::DoExecTask(void* arg) {
 }
 
 void PikaClientConn::BatchExecRedisCmd(const std::vector<net::RedisCmdArgsType>& argvs) {
+  for (size_t i = 0; i < argvs.size(); ++i) {
+    std::string command;
+    for (size_t j = 0; j < argvs[0].size(); ++j) {
+      command += argvs[0][j];
+      command += " ";
+    }
+    LOG(INFO) << "【收到client端请求命令】" << command;
+  }
   resp_num.store(argvs.size());
   for (size_t i = 0; i < argvs.size(); ++i) {
     std::shared_ptr<std::string> resp_ptr = std::make_shared<std::string>();
@@ -263,7 +271,7 @@ void PikaClientConn::TryWriteResp() {
 }
 
 void PikaClientConn::ExecRedisCmd(const PikaCmdArgsType& argv, std::shared_ptr<std::string> resp_ptr) {
-  // get opt
+  // opt="get"
   std::string opt = argv[0];
   pstd::StringToLower(opt);
   if (opt == kClusterPrefix) {
