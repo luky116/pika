@@ -371,6 +371,7 @@ class PikaServer {
    */
   int worker_num_ = 0;
   PikaClientProcessor* pika_client_processor_ = nullptr;
+  // 监听1个端口，接收用户连接请求
   PikaDispatchThread* pika_dispatch_thread_ = nullptr;
 
   /*

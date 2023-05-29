@@ -244,7 +244,7 @@ void PikaClientConn::BatchExecRedisCmd(const std::vector<net::RedisCmdArgsType>&
       command += argvs[0][j];
       command += " ";
     }
-    LOG(INFO) << "【收到client端请求命令】" << command;
+//    LOG(INFO) << "【收到client端请求命令】" << command;
   }
   resp_num.store(argvs.size());
   for (size_t i = 0; i < argvs.size(); ++i) {

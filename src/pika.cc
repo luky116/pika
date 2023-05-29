@@ -185,6 +185,7 @@ int main(int argc, char* argv[]) {
 
   LOG(INFO) << "Server at: " << path;
   g_pika_cmd_table_manager = new PikaCmdTableManager();
+  // pika_server 是主线程，其中会启动多个线程来处理client端不同的请求是ASZ
   g_pika_server = new PikaServer();
   g_pika_rm = new PikaReplicaManager();
 

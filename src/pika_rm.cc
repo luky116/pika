@@ -362,6 +362,7 @@ bool SyncMasterPartition::BinlogCloudPurge(uint32_t index) {
   return true;
 }
 
+// 检测客户端
 Status SyncMasterPartition::CheckSyncTimeout(uint64_t now) {
   std::unordered_map<std::string, std::shared_ptr<SlaveNode>> slaves = GetAllSlaveNodes();
 

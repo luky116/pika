@@ -152,6 +152,7 @@ void ServerThread::DoCronTask() {}
 
 void ServerThread::ProcessNotifyEvents(const NetFiredEvent* pfe) { UNUSED(pfe); }
 
+// 每个线程的启动入口
 void* ServerThread::ThreadMain() {
   int nfds;
   NetFiredEvent* pfe;
@@ -191,6 +192,7 @@ void* ServerThread::ThreadMain() {
       }
     }
 
+    // 用来接收用户请求
     nfds = net_multiplexer_->NetPoll(timeout);
     for (int i = 0; i < nfds; i++) {
       pfe = (net_multiplexer_->FiredEvents()) + i;
@@ -206,7 +208,9 @@ void* ServerThread::ThreadMain() {
        */
       if (server_fds_.find(fd) != server_fds_.end()) {
         if (pfe->mask & kReadable) {
+          // 这里会阻塞，直到收到用户的请求
           connfd = accept(fd, (struct sockaddr*)&cliaddr, &clilen);
+          LOG(INFO) << "获得新的连接：" << connfd << std::endl;
           if (connfd == -1) {
             LOG(WARNING) << "accept error, errno numberis " << errno << ", error reason " << strerror(errno);
             continue;

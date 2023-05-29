@@ -60,6 +60,8 @@ bool NetMultiplexer::Register(const NetItem& it, bool force) {
 
   bool success = false;
   notify_queue_protector_.lock();
+  // 判断每个工作线程的queue是否满了，如果满了，直接拒绝
+  // todo 梳理queue_limit多大？哪里赋值的？
   if (force || queue_limit_ == kUnlimitedQueue || notify_queue_.size() < static_cast<size_t>(queue_limit_)) {
     notify_queue_.push(it);
     success = true;

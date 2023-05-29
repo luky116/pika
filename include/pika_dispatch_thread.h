@@ -8,9 +8,14 @@
 
 #include "include/pika_client_conn.h"
 
+// todo 哪里说明继承了 ServerThread ？
 class PikaDispatchThread {
  public:
-  PikaDispatchThread(std::set<std::string>& ips, int port, int work_num, int cron_interval, int queue_limit,
+  PikaDispatchThread(std::set<std::string>& ips,
+                     int port,
+                     int work_num,
+                     int cron_interval,
+                     int queue_limit,
                      int max_conn_rbuf_size);
   ~PikaDispatchThread();
   int StartThread();

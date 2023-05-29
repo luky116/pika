@@ -47,7 +47,7 @@ PikaServer::PikaServer()
       slot_state_(INFREE),
       have_scheduled_crontask_(false),
       last_check_compact_time_({0, 0}),
-      master_ip_(""), // todo 为啥使用()来赋值啊？
+      master_ip_(""),
       master_port_(0),
       repl_state_(PIKA_REPL_NO_CONNECT),
       role_(PIKA_ROLE_SINGLE),
@@ -77,8 +77,10 @@ PikaServer::PikaServer()
   // We estimate the queue size
   int worker_queue_limit = g_pika_conf->maxclients() / worker_num_ + 100;
   LOG(INFO) << "Worker queue limit is " << worker_queue_limit;
+  // 监听1个端口，接收用户连接请求
   pika_dispatch_thread_ =
       new PikaDispatchThread(ips, port_, worker_num_, 3000, worker_queue_limit, g_pika_conf->max_conn_rbuf_size());
+  // 执行了Monitor命令的客户端会被分配在这个线程上，这个线程将目前Pika正在处理的命令返回给挂在这个线程上的客户端
   pika_monitor_thread_ = new PikaMonitorThread();
   pika_rsync_service_ = new PikaRsyncService(g_pika_conf->db_sync_path(), g_pika_conf->port() + kPortShiftRSync);
   pika_pubsub_thread_ = new net::PubSubThread();
@@ -127,12 +129,16 @@ bool PikaServer::ServerInit() {
     return false;
   }
 
+  // 127.0.0.1
   host_ = GetIpByInterface(network_interface);
   if (host_.empty()) {
     LOG(FATAL) << "can't get host ip for " << network_interface;
     return false;
   }
 
+  host_ = "10.17.5.64";
+
+  // 9221
   port_ = g_pika_conf->port();
   LOG(INFO) << "host: " << host_ << " port: " << port_;
   return true;
