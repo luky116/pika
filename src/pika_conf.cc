@@ -250,6 +250,7 @@ int PikaConf::Load() {
       LOG(FATAL) << "config databases error, limit [1 ~ 8], the actual is: " << databases_;
     }
     for (int idx = 0; idx < databases_; ++idx) {
+      // 初始化 db 相关信息，partition 写死了为1
       table_structs_.push_back({"db" + std::to_string(idx), 1, {0}});
     }
   } else {
