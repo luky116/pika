@@ -155,11 +155,11 @@ void DispatchThread::HandleNewConn(const int connfd, const std::string& ip_port)
   LOG(INFO) << "accept new conn " << ti.String();
   int next_thread = last_thread_;
   bool find = false;
-  // todo 待确认 work_num 的数量为多少？24吗？
+  // 配置文件中 thread-num 参数，一般和 CPU 核数相关
   for (int cnt = 0; cnt < work_num_; cnt++) {
     // 实际上监听线程会把连接分发给IO工作线程WorkerThread来处理。
     WorkerThread* worker_thread = worker_thread_[next_thread];
-    // 这里会遍历所有的worker_thread，如果可用则交给他处理
+    // 这里会遍历所有的worker_thread，如果他的 notify_queue 没有
     find = worker_thread->MoveConnIn(ti, false);
     if (find) {
       last_thread_ = (next_thread + 1) % work_num_;

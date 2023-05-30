@@ -87,6 +87,7 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
   }
 
   // reject all the request before new master sync finished
+  // 【注意】主从切换的时候，这里会锁住。所以，如果主从切换失败，这里就会被卡主
   if (g_pika_server->leader_protected_mode()) {
     c_ptr->res().SetRes(CmdRes::kErrOther, "Cannot process command before new leader sync finished");
     return c_ptr;
