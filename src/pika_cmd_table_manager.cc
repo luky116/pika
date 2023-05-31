@@ -14,7 +14,8 @@
 extern PikaConf* g_pika_conf;
 
 PikaCmdTableManager::PikaCmdTableManager() {
-  pthread_rwlock_init(&map_protector_, NULL);
+  //初始化读写锁
+  pthread_rwlock_init(&map_protector_, NULL);x
   cmds_ = new CmdTable();
   cmds_->reserve(300);
   InitCmdTable(cmds_);
@@ -53,9 +54,10 @@ bool PikaCmdTableManager::CheckCurrentThreadDistributionMapExist(const std::thre
 void PikaCmdTableManager::InsertCurrentThreadDistributionMap() {
   auto tid = std::this_thread::get_id();
   PikaDataDistribution* distribution = nullptr;
-  if (g_pika_conf->classic_mode()) {
+  if (g_pika_conf->classic_mode()) {//经典模式
     distribution = new HashModulo();
   } else {
+    //sharding模式
     distribution = new Crc32();
   }
   distribution->Init();

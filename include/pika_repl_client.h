@@ -69,7 +69,7 @@ class PikaReplClient {
                                std::shared_ptr<net::PbConn> conn, void* req_private_data);
   void ScheduleWriteDBTask(const std::shared_ptr<Cmd> cmd_ptr, const LogOffset& offset, const std::string& table_name,
                            uint32_t partition_id);
-
+  //个协议的Send函数
   Status SendMetaSync();
   Status SendPartitionDBSync(const std::string& ip, uint32_t port, const std::string& table_name, uint32_t partition_id,
                              const BinlogOffset& boffset, const std::string& local_ip);
@@ -84,10 +84,11 @@ class PikaReplClient {
  private:
   size_t GetHashIndex(std::string key, bool upper_half);
   void UpdateNextAvail() { next_avail_ = (next_avail_ + 1) % bg_workers_.size(); }
-
+  //异步客户端
   PikaReplClientThread* client_thread_;
   int next_avail_;
   std::hash<std::string> str_hash;
+  //异步处理binlog的读写
   std::vector<PikaReplBgWorker*> bg_workers_;
 };
 

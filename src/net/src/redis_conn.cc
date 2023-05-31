@@ -29,9 +29,9 @@ RedisConn::RedisConn(const int fd, const std::string& ip_port, Thread* thread, N
       last_read_pos_(-1),
       bulk_len_(-1) {
   RedisParserSettings settings;
-  settings.DealMessage = ParserDealMessageCb;
-  settings.Complete = ParserCompleteCb;
-  redis_parser_.RedisParserInit(REDIS_PARSER_REQUEST, settings);
+  settings.DealMessage = ParserDealMessageCb;//ParserDealMessageCb(同步处理)
+  settings.Complete = ParserCompleteCb;//ParserCompleteCb（异步处理）
+  redis_parser_.RedisParserInit(REDIS_PARSER_REQUEST, settings);//redis解析
   redis_parser_.data = this;
 }
 
@@ -195,7 +195,7 @@ void RedisConn::NotifyEpoll(bool success) {
   NetItem ti(fd(), ip_port(), success ? kNotiEpolloutAndEpollin : kNotiClose);
   net_multiplexer()->Register(ti, true);
 }
-
+//同步处理
 int RedisConn::ParserDealMessageCb(RedisParser* parser, const RedisCmdArgsType& argv) {
   RedisConn* conn = reinterpret_cast<RedisConn*>(parser->data);
   if (conn->GetHandleType() == HandleType::kSynchronous) {
@@ -204,7 +204,7 @@ int RedisConn::ParserDealMessageCb(RedisParser* parser, const RedisCmdArgsType& 
     return 0;
   }
 }
-
+//异步处理
 int RedisConn::ParserCompleteCb(RedisParser* parser, const std::vector<RedisCmdArgsType>& argvs) {
   RedisConn* conn = reinterpret_cast<RedisConn*>(parser->data);
   bool async = conn->GetHandleType() == HandleType::kAsynchronous;

@@ -137,13 +137,13 @@ Status PikaConf::DelTableSanityCheck(const std::string& table_name) {
   uint32_t table_index = 0;
   return InternalGetTargetTable(table_name, &table_index);
 }
-
+//load pika配置文件
 int PikaConf::Load() {
   int ret = LoadConf();
   if (ret != 0) {
     return ret;
   }
-
+  //获取pika config超时时常为60s
   GetConfInt("timeout", &timeout_);
   if (timeout_ < 0) {
     timeout_ = 60;  // 60s
@@ -252,8 +252,11 @@ int PikaConf::Load() {
     //根据配置文件判断是classic模式还是sharding模式
   GetConfStr("instance-mode", &instance_mode);
   classic_mode_.store(instance_mode.empty() || !strcasecmp(instance_mode.data(), "classic"));
+  //如果是经典模式
   if (classic_mode_.load()) {
+    //config获取data_base
     GetConfInt("databases", &databases_);
+    //data_base只能是1-8范围内
     if (databases_ < 1 || databases_ > 8) {
       LOG(FATAL) << "config databases error, limit [1 ~ 8], the actual is: " << databases_;
     }
@@ -261,44 +264,57 @@ int PikaConf::Load() {
       table_structs_.push_back({"db" + std::to_string(idx), 1, {0}});
     }
   } else {
+    //分布式模式获取slot-num
     GetConfInt("default-slot-num", &default_slot_num_);
+    //slot_nums不可能小于0
     if (default_slot_num_ <= 0) {
       LOG(FATAL) << "config default-slot-num error,"
                  << " it should greater than zero, the actual is: " << default_slot_num_;
     }
     std::string pika_meta_path = db_path_ + kPikaMeta;
+    //判断pika_meta_path是否存在
     if (!pstd::FileExists(pika_meta_path)) {
       local_meta_->StableSave({{"db0", static_cast<uint32_t>(default_slot_num_), {}}});
     }
+    //通过table_struct解析meta信息
     Status s = local_meta_->ParseMeta(&table_structs_);
     if (!s.ok()) {
       LOG(FATAL) << "parse meta file error";
     }
   }
+  //table_struct的第一个元素就是table_name
   default_table_ = table_structs_[0].table_name;
 
   int tmp_replication_num = 0;
+  //获取replication-num
   GetConfInt("replication-num", &tmp_replication_num);
+  // tmp_replication_num在0-4之间
   if (tmp_replication_num > 4 || tmp_replication_num < 0) {
     LOG(FATAL) << "replication-num " << tmp_replication_num << "is invalid, please pick from [0...4]";
   }
+  //设置原子变量replication_num_的值为tmp_replication_num
   replication_num_.store(tmp_replication_num);
 
   int tmp_consensus_level = 0;
+  //获取tmp_consensus_level
   GetConfInt("consensus-level", &tmp_consensus_level);
+  //不合理的tmp_consensus_level
   if (tmp_consensus_level < 0 || tmp_consensus_level > replication_num_.load()) {
     LOG(FATAL) << "consensus-level " << tmp_consensus_level
                << " is invalid, current replication-num: " << replication_num_.load()
                << ", please pick from 0 to replication-num"
                << " [0..." << replication_num_.load() << "]";
   }
+  //设置原子变量consensus_level_的值
   consensus_level_.store(tmp_consensus_level);
+  //如果是经典模式，并且consensus_level_、replication_num_不为0，需要将其设置成为0
   if (classic_mode_.load() && (consensus_level_.load() != 0 || replication_num_.load() != 0)) {
     LOG(FATAL) << "consensus-level & replication-num only configurable under sharding mode,"
                << " set it to be 0 if you are using classic mode";
   }
 
   compact_cron_ = "";
+  //获取compact-cron
   GetConfStr("compact-cron", &compact_cron_);
   if (compact_cron_ != "") {
     bool have_week = false;
@@ -330,7 +346,7 @@ int PikaConf::Load() {
       }
     }
   }
-
+ //获取compact_interval_
   compact_interval_ = "";
   GetConfStr("compact-interval", &compact_interval_);
   if (compact_interval_ != "") {

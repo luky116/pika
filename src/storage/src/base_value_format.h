@@ -27,6 +27,7 @@ class InternalValue {
   void SetRelativeTimestamp(int32_t ttl) {
     int64_t unix_time;
     rocksdb::Env::Default()->GetCurrentTime(&unix_time);
+
     timestamp_ = static_cast<int32_t>(unix_time) + ttl;
   }
   void set_version(int32_t version = 0) { version_ = version; }

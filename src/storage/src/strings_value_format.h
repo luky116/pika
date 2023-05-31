@@ -12,7 +12,8 @@
 
 namespace storage {
 
-    //序列化 KV value, Strings 没有 version 概念
+//序列化 KV value, Strings 没有 version 概念
+//value + timestamp_
 class StringsValue : public InternalValue {
  public:
   explicit StringsValue(const rocksdb::Slice& user_value) : InternalValue(user_value) {}
@@ -29,7 +30,7 @@ class StringsValue : public InternalValue {
 class ParsedStringsValue : public ParsedInternalValue {
  public:
   // Use this constructor after rocksdb::DB::Get();
-  //反序列化 KV value，获取 V 与 timestamp
+  //反序列化 KV value，获取 Value 与 timestamp
   explicit ParsedStringsValue(std::string* internal_value_str) : ParsedInternalValue(internal_value_str) {
     if (internal_value_str->size() >= kStringsValueSuffixLength) {
       user_value_ = rocksdb::Slice(internal_value_str->data(), internal_value_str->size() - kStringsValueSuffixLength);

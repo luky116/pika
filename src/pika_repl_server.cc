@@ -16,7 +16,9 @@ extern PikaServer* g_pika_server;
 extern PikaReplicaManager* g_pika_rm;
 
 PikaReplServer::PikaReplServer(const std::set<std::string>& ips, int port, int cron_interval) {
+    //内部包含一个小线程池ThreadPool
   server_tp_ = new net::ThreadPool(PIKA_REPL_SERVER_TP_SIZE, 100000);
+  //包含PikaReplServerThread
   pika_repl_server_thread_ = new PikaReplServerThread(ips, port, cron_interval);
   pika_repl_server_thread_->set_thread_name("PikaReplServer");
   pthread_rwlock_init(&client_conn_rwlock_, NULL);
@@ -55,6 +57,7 @@ int PikaReplServer::Stop() {
 pstd::Status PikaReplServer::SendSlaveBinlogChips(const std::string& ip, int port,
                                                   const std::vector<WriteTask>& tasks) {
   InnerMessage::InnerResponse response;
+  //组装binlogSyncResp
   BuildBinlogSyncResp(tasks, &response);
 
   std::string binlog_chip_pb;
@@ -89,7 +92,9 @@ void PikaReplServer::BuildBinlogOffset(const LogOffset& offset, InnerMessage::Bi
 }
 
 void PikaReplServer::BuildBinlogSyncResp(const std::vector<WriteTask>& tasks, InnerMessage::InnerResponse* response) {
+  // set_code
   response->set_code(InnerMessage::kOk);
+  // set_type
   response->set_type(InnerMessage::Type::kBinlogSync);
   LogOffset prev_offset;
   bool founded = false;
@@ -99,13 +104,16 @@ void PikaReplServer::BuildBinlogSyncResp(const std::vector<WriteTask>& tasks, In
       prev_offset = task.prev_offset_;
       founded = true;
     }
+    //set_session_id,set_table_name,set_partition_id
     InnerMessage::InnerResponse::BinlogSync* binlog_sync = response->add_binlog_sync();
     binlog_sync->set_session_id(task.rm_node_.SessionId());
     InnerMessage::Partition* partition = binlog_sync->mutable_partition();
     partition->set_table_name(task.rm_node_.TableName());
     partition->set_partition_id(task.rm_node_.PartitionId());
     InnerMessage::BinlogOffset* boffset = binlog_sync->mutable_binlog_offset();
+    //组装binlogoffset
     BuildBinlogOffset(task.binlog_chip_.offset_, boffset);
+    //set_binlog
     binlog_sync->set_binlog(task.binlog_chip_.binlog_);
   }
   if (g_pika_conf->consensus_level() > 0) {

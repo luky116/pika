@@ -24,18 +24,18 @@ using pstd::Status;
 
 BackendThread::BackendThread(ConnFactory* conn_factory, int cron_interval, int keepalive_timeout, BackendHandle* handle,
                              void* private_data)
-    : keepalive_timeout_(keepalive_timeout),
-      cron_interval_(cron_interval),
-      handle_(handle),
+    : keepalive_timeout_(keepalive_timeout),//超时存活事件
+      cron_interval_(cron_interval),//
+      handle_(handle),//
       own_handle_(false),
-      private_data_(private_data),
+      private_data_(private_data),//私有数据
       conn_factory_(conn_factory) {
   net_multiplexer_.reset(CreateNetMultiplexer());
   net_multiplexer_->Initialize();
 }
 
 BackendThread::~BackendThread() {}
-
+//开启线程
 int BackendThread::StartThread() {
   if (!handle_) {
     handle_ = new BackendHandle();
@@ -354,6 +354,7 @@ void* BackendThread::ThreadMain() {
   NetFiredEvent* pfe = NULL;
 
   struct timeval when;
+  //获取当前时间
   gettimeofday(&when, NULL);
   struct timeval now = when;
 

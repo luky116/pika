@@ -302,7 +302,7 @@ int TrysyncThread::Retransmit() {
 
   return 0;
 }
-
+//pika_sever启动时会在后台启动TrysyncThread线程，主要功能是根据sever的状态执行相应的操作
 void* TrysyncThread::ThreadMain() {
   while (!should_stop()) {
     sleep(1);

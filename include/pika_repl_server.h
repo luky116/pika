@@ -40,9 +40,10 @@ class PikaReplServer {
   void KillAllConns();
 
  private:
+  //线程池ThreadPool
   net::ThreadPool* server_tp_;
+  //维护了主从连接的client和server端的交互功能，auxiliary_thread中状态机触发的连接状态就是依赖于这两个线程来完成交互。
   PikaReplServerThread* pika_repl_server_thread_;
-
   pthread_rwlock_t client_conn_rwlock_;
   std::map<std::string, int> client_conn_map_;
 };

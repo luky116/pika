@@ -56,6 +56,7 @@ void PikaReplBgWorker::HandleBGWorkerWriteBinlog(void* arg) {
   bool only_keepalive = false;
 
   // find the first not keepalive binlogsync
+  //
   for (size_t i = 0; i < index->size(); ++i) {
     const InnerMessage::InnerResponse::BinlogSync& binlog_res = res->binlog_sync((*index)[i]);
     if (i == 0) {

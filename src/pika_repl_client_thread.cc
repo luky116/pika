@@ -36,6 +36,7 @@ void PikaReplClientThread::ReplClientHandle::FdTimeoutHandle(int fd, const std::
   LOG(INFO) << "ReplClient Timeout conn, fd=" << fd << ", ip_port=" << ip_port;
   std::string ip;
   int port = 0;
+  //解析得到ip/port
   if (!pstd::ParseIpPortString(ip_port, ip, port)) {
     LOG(WARNING) << "Parse ip_port error " << ip_port;
     return;

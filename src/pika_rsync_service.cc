@@ -32,20 +32,23 @@ PikaRsyncService::~PikaRsyncService() {
   }
   LOG(INFO) << "PikaRsyncService exit!!!";
 }
-
+//启动rsync
 int PikaRsyncService::StartRsync() {
   int ret = 0;
   std::string auth;
+  //autu鉴权
   if (g_pika_conf->masterauth().empty()) {
-    auth = kDefaultRsyncAuth;
+    auth = kDefaultRsyncAuth;//auth = "default"
   } else {
     auth = g_pika_conf->masterauth();
   }
+  //启动rsync
   ret = pstd::StartRsync(raw_path_, kDBSyncModule, "0.0.0.0", port_, auth);
   if (ret != 0) {
     LOG(WARNING) << "Failed to start rsync, path:" << raw_path_ << " error : " << ret;
     return -1;
   }
+  //创建路径
   ret = CreateSecretFile();
   if (ret != 0) {
     LOG(WARNING) << "Failed to create secret file";
@@ -54,7 +57,7 @@ int PikaRsyncService::StartRsync() {
   // Make sure the listening addr of rsyncd is accessible, avoid the corner case
   // that rsync --daemon process is started but not finished listening on the socket
   sleep(1);
-
+  //判断rsync进程是否存活
   if (!CheckRsyncAlive()) {
     LOG(WARNING) << "Rsync service is no live, path:" << raw_path_;
     return -1;

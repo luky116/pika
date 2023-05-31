@@ -13,6 +13,7 @@
 
 namespace net {
 
+//使用serversocket启动监听端口，用epollo组件对端口上面的可读事件进行监控，如果有连带过来，accept连接
 DispatchThread::DispatchThread(int port, int work_num, ConnFactory* conn_factory, int cron_interval, int queue_limit,
                                const ServerHandle* handle)
     : ServerThread::ServerThread(port, cron_interval, handle),
@@ -20,6 +21,7 @@ DispatchThread::DispatchThread(int port, int work_num, ConnFactory* conn_factory
       work_num_(work_num),
       queue_limit_(queue_limit) {
   worker_thread_ = new WorkerThread*[work_num_];
+  //启动若干个workthread
   for (int i = 0; i < work_num_; i++) {
     worker_thread_[i] = new WorkerThread(conn_factory, this, queue_limit, cron_interval);
   }
@@ -146,12 +148,14 @@ bool DispatchThread::KillConn(const std::string& ip_port) {
 
 void DispatchThread::KillAllConns() { KillConn(kKillAllConnsTask); }
 
+//HandleNewConn处理连接
 void DispatchThread::HandleNewConn(const int connfd, const std::string& ip_port) {
   // Slow workers may consume many fds.
   // We simply loop to find next legal worker.
   NetItem ti(connfd, ip_port);
   int next_thread = last_thread_;
   bool find = false;
+  //监听线程会把连接分发给IO工作线程WorkThread来处理
   for (int cnt = 0; cnt < work_num_; cnt++) {
     WorkerThread* worker_thread = worker_thread_[next_thread];
     find = worker_thread->MoveConnIn(ti, false);
@@ -163,10 +167,8 @@ void DispatchThread::HandleNewConn(const int connfd, const std::string& ip_port)
     next_thread = (next_thread + 1) % work_num_;
   }
 
-  if (!find) {
+  if (!find) {//不需要在处理了，关闭连接
     log_info("all workers are full, queue limit is %d", queue_limit_);
-    // every worker is full
-    // TODO(anan) maybe add log
     close(connfd);
   }
 }

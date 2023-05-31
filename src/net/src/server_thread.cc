@@ -116,8 +116,10 @@ int ServerThread::SetTcpNoDelay(int connfd) {
   return setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val));
 }
 
+//启动监听线程
 int ServerThread::StartThread() {
   int ret = 0;
+  //线程启动时，会先启动ServerThread::InitHandle()，绑定和监听端口
   ret = InitHandle();
   if (ret != kSuccess) return ret;
   return Thread::StartThread();
@@ -125,6 +127,7 @@ int ServerThread::StartThread() {
 //初始化
 int ServerThread::InitHandle() {
   int ret = 0;
+  //绑定和监听端口
   ServerSocket* socket_p;
   if (ips_.find("0.0.0.0") != ips_.end()) {
     ips_.clear();
@@ -133,13 +136,15 @@ int ServerThread::InitHandle() {
   for (std::set<std::string>::iterator iter = ips_.begin(); iter != ips_.end(); ++iter) {
     socket_p = new ServerSocket(port_);
     server_sockets_.push_back(socket_p);
+    //绑定ip
     ret = socket_p->Listen(*iter);
     if (ret != kSuccess) {
       return ret;
     }
 
-    // init pool
+    // 启动线程池
     net_multiplexer_->NetAddEvent(socket_p->sockfd(), kReadable | kWritable);
+    //将套接字加入fds
     server_fds_.insert(socket_p->sockfd());
   }
   return kSuccess;
@@ -149,6 +154,7 @@ void ServerThread::DoCronTask() {}
 
 void ServerThread::ProcessNotifyEvents(const NetFiredEvent* pfe) { UNUSED(pfe); }
 
+//ServerThread类主要提供一个server的框架，也是一个虚类，衍生类需要实现HandleConnEvent HandleNewConn 等函数
 void* ServerThread::ThreadMain() {
   int nfds;
   NetFiredEvent* pfe;
@@ -158,6 +164,7 @@ void* ServerThread::ThreadMain() {
   int fd, connfd;
 
   struct timeval when;
+  //获取今天时间
   gettimeofday(&when, nullptr);
   struct timeval now = when;
 
@@ -174,6 +181,7 @@ void* ServerThread::ThreadMain() {
 
   while (!should_stop()) {
     if (cron_interval_ > 0) {
+      //获取今天时间
       gettimeofday(&now, nullptr);
       if (when.tv_sec > now.tv_sec || (when.tv_sec == now.tv_sec && when.tv_usec > now.tv_usec)) {
         timeout = (when.tv_sec - now.tv_sec) * 1000 + (when.tv_usec - now.tv_usec) / 1000;
@@ -187,7 +195,7 @@ void* ServerThread::ThreadMain() {
         timeout = cron_interval_;
       }
     }
-
+    //ThreadMain()主要逻辑是一个epoll
     nfds = net_multiplexer_->NetPoll(timeout);
     for (int i = 0; i < nfds; i++) {
       pfe = (net_multiplexer_->FiredEvents()) + i;
@@ -201,9 +209,10 @@ void* ServerThread::ThreadMain() {
       /*
        * Handle server event
        */
+      //如果server_fds上存在EPOLL事件，则接受连接请求，建立连接
       if (server_fds_.find(fd) != server_fds_.end()) {
         if (pfe->mask & kReadable) {
-          connfd = accept(fd, (struct sockaddr*)&cliaddr, &clilen);
+          connfd = accept(fd, (struct sockaddr*)&cliaddr, &clilen);//当有新的连接事件来的时候，accept
           if (connfd == -1) {
             log_warn("accept error, errno numberis %d, error reason %s", errno, strerror(errno));
             continue;
@@ -233,7 +242,7 @@ void* ServerThread::ThreadMain() {
            * Handle new connection,
            * implemented in derived class
            */
-          HandleNewConn(connfd, ip_port);
+          HandleNewConn(connfd, ip_port);//然后调用HandleNewConn来处理这个新的连接
 
         } else if (pfe->mask & kErrorEvent) {
           /*

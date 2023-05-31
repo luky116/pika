@@ -295,6 +295,7 @@ class PikaConf : public pstd::BaseConf {
   }
   void SetSlaveof(const std::string value) {
     RWLock l(&rwlock_, true);
+    //push不同的命令
     TryPushDiffCommands("slaveof", value);
     slaveof_ = value;
   }

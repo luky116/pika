@@ -37,12 +37,12 @@ struct SlaveItem {
 #define SLAVE_ITEM_STAGE_TWO 2
 
 // repl_state_
-#define PIKA_REPL_NO_CONNECT 0
+#define PIKA_REPL_NO_CONNECT 0 //不尝试成为任何其他节点
 #define PIKA_REPL_CONNECT 1
-#define PIKA_REPL_CONNECTING 2
-#define PIKA_REPL_CONNECTED 3
-#define PIKA_REPL_WAIT_DBSYNC 4
-#define PIKA_REPL_ERROR 5
+#define PIKA_REPL_CONNECTING 2  //收到master回复可以slave_of,尝试跟master建立心跳
+#define PIKA_REPL_CONNECTED 3   //心跳建立成功
+#define PIKA_REPL_WAIT_DBSYNC 4 //不断检测是否DBSync完成，完成后更新DB并发起新的slaveof
+#define PIKA_REPL_ERROR 5       //连接错误
 
 // role
 #define PIKA_ROLE_SINGLE 0

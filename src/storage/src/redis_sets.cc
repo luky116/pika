@@ -265,10 +265,12 @@ rocksdb::Status RedisSets::SAdd(const Slice& key, const std::vector<std::string>
   }
   return db_->Write(default_write_options_, &batch);
 }
-
+//返回有序集key的基数
 rocksdb::Status RedisSets::SCard(const Slice& key, int32_t* ret) {
   *ret = 0;
   std::string meta_value;
+  //根据传入的key编码出set meta key
+  //调用Get接口获取到set meta value
   rocksdb::Status s = db_->Get(default_read_options_, handles_[0], key, &meta_value);
   if (s.ok()) {
     ParsedSetsMetaValue parsed_sets_meta_value(&meta_value);
@@ -896,16 +898,21 @@ rocksdb::Status RedisSets::SRandmember(const Slice& key, int32_t count, std::vec
   }
   return s;
 }
-
+//移除集合key中的一个member元素，不存在的member元素会被忽略
 rocksdb::Status RedisSets::SRem(const Slice& key, const std::vector<std::string>& members, int32_t* ret) {
   *ret = 0;
   rocksdb::WriteBatch batch;
+  //获取行锁
   ScopeRecordLock l(lock_mgr_, key);
 
   int32_t version = 0;
   uint32_t statistic = 0;
   std::string meta_value;
+  //用key和member编码出set memeber key,调用Get
   rocksdb::Status s = db_->Get(default_read_options_, handles_[0], key, &meta_value);
+  //如果存在，设置返回结果为1
+        //修改set meta value，member数量减1
+        //如果不存在，设置返回结果为0
   if (s.ok()) {
     ParsedSetsMetaValue parsed_sets_meta_value(&meta_value);
     if (parsed_sets_meta_value.IsStale()) {

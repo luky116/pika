@@ -35,7 +35,7 @@ ReadStatus PbConn::GetRequest() {
   while (true) {
     switch (connStatus_) {
       case kHeader: {
-        ssize_t nread = read(fd(), rbuf_ + cur_pos_, COMMAND_HEADER_LENGTH - cur_pos_);
+        ssize_t nread = read(fd(), rbuf_ + cur_pos_, COMMAND_HEADER_LENGTH - cur_pos_);//解析头部信息
         if (nread == -1) {
           if (errno == EAGAIN) {
             return kReadHalf;
@@ -58,7 +58,7 @@ ReadStatus PbConn::GetRequest() {
         }
       }
       case kPacket: {
-        if (header_len_ > rbuf_len_ - COMMAND_HEADER_LENGTH) {
+        if (header_len_ > rbuf_len_ - COMMAND_HEADER_LENGTH) {//解析packet
           uint32_t new_size = header_len_ + COMMAND_HEADER_LENGTH;
           if (new_size < kProtoMaxMessage) {
             rbuf_ = reinterpret_cast<char*>(realloc(rbuf_, sizeof(char) * new_size));
@@ -71,7 +71,7 @@ ReadStatus PbConn::GetRequest() {
             return kFullError;
           }
         }
-        // read msg body
+        // 解析消息体
         ssize_t nread = read(fd(), rbuf_ + cur_pos_, remain_packet_len_);
         if (nread == -1) {
           if (errno == EAGAIN) {
@@ -90,7 +90,7 @@ ReadStatus PbConn::GetRequest() {
         }
         return kReadHalf;
       }
-      case kComplete: {
+      case kComplete: {//解析完成之后调用DealMessage函数来处理
         if (DealMessage() != 0) {
           return kDealError;
         }
@@ -114,10 +114,11 @@ WriteStatus PbConn::SendReply() {
   ssize_t nwritten = 0;
   size_t item_len;
   pstd::MutexLock l(&resp_mu_);
-  while (!write_buf_.queue_.empty()) {
+  while (!write_buf_.queue_.empty()) { //判断写入的队列是否为空
     std::string item = write_buf_.queue_.front();
     item_len = item.size();
     while (item_len - write_buf_.item_pos_ > 0) {
+      // 将数据写入对应的文件描述符
       nwritten = write(fd(), item.data() + write_buf_.item_pos_, item_len - write_buf_.item_pos_);
       if (nwritten <= 0) {
         break;

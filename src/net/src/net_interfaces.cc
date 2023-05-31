@@ -91,7 +91,7 @@ std::string GetDefaultInterface() {
   return name;
 #endif
 }
-
+//通过接口获取ip
 std::string GetIpByInterface(const std::string& network_interface) {
   if (network_interface.empty()) {
     return "";
@@ -113,7 +113,7 @@ std::string GetIpByInterface(const std::string& network_interface) {
     if (!ifa->ifa_addr) {
       continue;
     }
-
+    //判断是否是合法的ipv4地址
     if (ifa->ifa_addr->sa_family == AF_INET) {  // Check it is a valid IPv4 address
       tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
       char addressBuffer[INET_ADDRSTRLEN];
@@ -122,7 +122,9 @@ std::string GetIpByInterface(const std::string& network_interface) {
         host = addressBuffer;
         break;
       }
-    } else if (ifa->ifa_addr->sa_family == AF_INET6) {  // Check it is a valid IPv6 address
+    }
+    //判断是否是合法的ipv6地址
+    else if (ifa->ifa_addr->sa_family == AF_INET6) {  // Check it is a valid IPv6 address
       tmpAddrPtr = &((struct sockaddr_in6*)ifa->ifa_addr)->sin6_addr;
       char addressBuffer[INET6_ADDRSTRLEN];
       inet_ntop(AF_INET6, tmpAddrPtr, addressBuffer, INET6_ADDRSTRLEN);

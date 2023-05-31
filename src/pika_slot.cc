@@ -37,6 +37,7 @@ void SlotsInfoCmd::Do(std::shared_ptr<Partition> partition) {
   }
   table_ptr->KeyScan();
   // this get will get last time scan info
+  //获取scan信息
   KeyScanInfo key_scan_info = table_ptr->GetKeyScanInfo();
 
   std::map<uint32_t, KeyScanInfo> infos;

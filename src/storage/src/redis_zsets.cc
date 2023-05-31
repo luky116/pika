@@ -114,6 +114,7 @@ Status RedisZSets::ScanKeyNum(KeyInfo* key_info) {
   iterator_options.fill_cache = false;
 
   int64_t curtime;
+  //确定当前时间
   rocksdb::Env::Default()->GetCurrentTime(&curtime);
 
   rocksdb::Iterator* iter = db_->NewIterator(iterator_options, handles_[0]);

@@ -16,6 +16,7 @@ namespace net {
 
 NetMultiplexer* CreateNetMultiplexer(int limit) { return new NetEpoll(limit); }
 
+//构造函数
 NetEpoll::NetEpoll(int queue_limit) : NetMultiplexer(queue_limit) {
 #if defined(EPOLL_CLOEXEC)
   multiplexer_ = epoll_create1(EPOLL_CLOEXEC);
@@ -32,7 +33,7 @@ NetEpoll::NetEpoll(int queue_limit) : NetMultiplexer(queue_limit) {
 
   events_.resize(NET_MAX_CLIENTS);
 }
-
+//注册事件
 int NetEpoll::NetAddEvent(int fd, int mask) {
   struct epoll_event ee;
   ee.data.fd = fd;
@@ -43,7 +44,7 @@ int NetEpoll::NetAddEvent(int fd, int mask) {
 
   return epoll_ctl(multiplexer_, EPOLL_CTL_ADD, fd, &ee);
 }
-
+//修改已经注册事件
 int NetEpoll::NetModEvent(int fd, int old_mask, int mask) {
   struct epoll_event ee;
   ee.data.fd = fd;
@@ -54,7 +55,7 @@ int NetEpoll::NetModEvent(int fd, int old_mask, int mask) {
   if ((old_mask | mask) & kWritable) ee.events |= EPOLLOUT;
   return epoll_ctl(multiplexer_, EPOLL_CTL_MOD, fd, &ee);
 }
-
+//从epfd中删除一个fd
 int NetEpoll::NetDelEvent(int fd, int) {
   /*
    * Kernel < 2.6.9 need a non null event point to EPOLL_CTL_DEL
@@ -64,6 +65,7 @@ int NetEpoll::NetDelEvent(int fd, int) {
   return epoll_ctl(multiplexer_, EPOLL_CTL_DEL, fd, &ee);
 }
 
+//事件反应堆，对epoll进行封装，可以更方便的为一个socket添加可读可写等事件的监控
 int NetEpoll::NetPoll(int timeout) {
   int num_events = epoll_wait(multiplexer_, &events_[0], NET_MAX_CLIENTS, timeout);
   if (num_events <= 0) return 0;

@@ -55,7 +55,7 @@ std::string BinlogItem::ToString() const {
   str.append("\n");
   return str;
 }
-
+//binlog编码
 std::string PikaBinlogTransverter::BinlogEncode(BinlogType type, uint32_t exec_time, uint32_t term_id,
                                                 uint64_t logic_id, uint32_t filenum, uint64_t offset,
                                                 const std::string& content, const std::vector<std::string>& extends) {
@@ -71,7 +71,7 @@ std::string PikaBinlogTransverter::BinlogEncode(BinlogType type, uint32_t exec_t
   binlog.append(content);
   return binlog;
 }
-
+//binlog解码
 bool PikaBinlogTransverter::BinlogDecode(BinlogType type, const std::string& binlog, BinlogItem* binlog_item) {
   uint16_t binlog_type = 0;
   uint32_t content_length = 0;

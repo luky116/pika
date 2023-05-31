@@ -114,6 +114,7 @@ void HolyThread::HandleConnEvent(NetFiredEvent* pfe) {
   }
   in_conn = iter->second;
   if (async_) {
+    //判断是否存在epoll事件，如果存在的话，调用in_conn->GetRequest()进行具体的redis命令处理
     if (pfe->mask & kReadable) {
       ReadStatus read_status = in_conn->GetRequest();
       struct timeval now;
@@ -128,6 +129,7 @@ void HolyThread::HandleConnEvent(NetFiredEvent* pfe) {
         should_close = 1;
       }
     }
+    //判断是否存在epoll事件，如果存在的话，调用in_conn->SendReply()发送应答
     if ((pfe->mask & kWritable) && in_conn->is_reply()) {
       WriteStatus write_status = in_conn->SendReply();
       if (write_status == kWriteAll) {

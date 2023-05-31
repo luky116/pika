@@ -17,11 +17,13 @@ class NetEpoll final : public NetMultiplexer {
  public:
   NetEpoll(int queue_limit = kUnlimitedQueue);
   ~NetEpoll() = default;
-
+  //注册事件
   int NetAddEvent(int fd, int mask) override;
+  //从epfd中删除一个fd
   int NetDelEvent(int fd, int) override;
+  //修改已经注册的fd的监听事件
   int NetModEvent(int fd, int old_mask, int mask) override;
-
+  //等待事件触发
   int NetPoll(int timeout) override;
 
  private:

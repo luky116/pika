@@ -8,8 +8,8 @@
 #include <glog/logging.h>
 
 PikaBinlogReader::PikaBinlogReader(uint32_t cur_filenum, uint64_t cur_offset)
-    : cur_filenum_(cur_filenum),
-      cur_offset_(cur_offset),
+    : cur_filenum_(cur_filenum),//当前文件数量
+      cur_offset_(cur_offset),//当前偏移量
       logger_(nullptr),
       queue_(nullptr),
       backing_store_(new char[kBlockSize]),

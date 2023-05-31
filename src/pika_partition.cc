@@ -304,13 +304,14 @@ BgSaveInfo Partition::bgsave_info() {
 void Partition::DoBgSave(void* arg) {
   BgTaskArg* bg_task_arg = static_cast<BgTaskArg*>(arg);
 
-  // Do BgSave
+  // 调用partition->RunBgsaveEngine()进行数据备份
   bool success = bg_task_arg->partition->RunBgsaveEngine();
 
-  // Some output
+  // 获取bgsave_info
   BgSaveInfo info = bg_task_arg->partition->bgsave_info();
   std::ofstream out;
   out.open(info.path + "/" + kBgsaveInfoFile, std::ios::in | std::ios::trunc);
+  //将host\port\binlog filenum\binlog offset写入pika.conf:dump-path/%Y%m%d/info 文件中
   if (out.is_open()) {
     out << (time(NULL) - info.start_time) << "s\n"
         << g_pika_server->host() << "\n"
@@ -322,23 +323,26 @@ void Partition::DoBgSave(void* arg) {
     }
     out.close();
   }
+  //备份失败的话重新命名pika.conf:dump-path/%Y%m%d_FAILED
   if (!success) {
     std::string fail_path = info.path + "_FAILED";
     pstd::RenameFile(info.path.c_str(), fail_path.c_str());
   }
+  //bgsave_info_.bgsaving设置为false
   bg_task_arg->partition->FinishBgsave();
 
   delete bg_task_arg;
 }
-
+//启动BGSave
 bool Partition::RunBgsaveEngine() {
   // Prepare for Bgsaving
+  //准备BgSave
   if (!InitBgsaveEnv() || !InitBgsaveEngine()) {
     ClearBgsave();
     return false;
   }
+  //输出partition_name
   LOG(INFO) << partition_name_ << " after prepare bgsave";
-
   BgSaveInfo info = bgsave_info();
   LOG(INFO) << partition_name_ << " bgsave_info: path=" << info.path << ",  filenum=" << info.offset.b_offset.filenum
             << ", offset=" << info.offset.b_offset.offset;
@@ -356,6 +360,7 @@ bool Partition::RunBgsaveEngine() {
 }
 
 // Prepare engine, need bgsave_protector protect
+// 这个函数主要用于创建数据备份目录
 bool Partition::InitBgsaveEnv() {
   pstd::MutexLock l(&bgsave_protector_);
   // Prepare for bgsave dir
@@ -391,17 +396,18 @@ bool Partition::InitBgsaveEngine() {
     LOG(WARNING) << partition_name_ << " open backup engine failed " << s.ToString();
     return false;
   }
-
+  //通过name获取MasterPartition
   std::shared_ptr<SyncMasterPartition> partition =
       g_pika_rm->GetSyncMasterPartitionByName(PartitionInfo(table_name_, partition_id_));
   if (!partition) {
     LOG(WARNING) << partition_name_ << " not found";
     return false;
   }
-
+  //调用读写锁进行数据写阻止
   {
     RWLock l(&db_rwlock_, true);
     LogOffset bgsave_offset;
+    //获取当前的binlog的filename和offset
     if (g_pika_conf->consensus_level() != 0) {
       bgsave_offset = partition->ConsensusAppliedIndex();
     } else {
@@ -412,6 +418,7 @@ bool Partition::InitBgsaveEngine() {
       pstd::MutexLock l(&bgsave_protector_);
       bgsave_info_.offset = bgsave_offset;
     }
+    //BackupEngine::SetBackupContent()获取快照的内容
     s = bgsave_engine_->SetBackupContent();
     if (!s.ok()) {
       LOG(WARNING) << partition_name_ << " set backup content failed " << s.ToString();

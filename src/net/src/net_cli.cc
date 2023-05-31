@@ -71,6 +71,7 @@ Status NetCli::Connect(const std::string& ip, const int port, const std::string&
   hints.ai_socktype = SOCK_STREAM;
 
   // We do not handle IPv6
+  //不支持ipv6
   if ((rv = getaddrinfo(ip.c_str(), cport, &hints, &servinfo)) != 0) {
     return Status::IOError("connect getaddrinfo error for ", ip);
   }

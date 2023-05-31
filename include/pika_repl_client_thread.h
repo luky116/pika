@@ -13,7 +13,8 @@
 
 #include "net/include/client_thread.h"
 #include "net/include/net_conn.h"
-
+//由于每次client_thread都会将新连接通过PikaReplClientConn来初始化
+//故每次有事件驱动的时候就调用该PikaReplClientConn的Dealmessage函数，来处理解析的数据
 class PikaReplClientThread : public net::ClientThread {
  public:
   PikaReplClientThread(int cron_interval, int keepalive_timeout);

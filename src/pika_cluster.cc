@@ -87,7 +87,7 @@ void PkClusterInfoCmd::ClusterInfoTableAll(std::string* info) {
   }
   info->append(tmp_stream.str());
 }
-
+//集群表信息
 void PkClusterInfoCmd::ClusterInfoTable(std::string* info) {
   std::stringstream tmp_stream;
   std::vector<TableStruct> table_structs = g_pika_conf->table_structs();

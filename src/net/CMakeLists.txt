@@ -12,7 +12,7 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   list(FILTER DIR_SRCS EXCLUDE REGEX ".net_epoll.*")
 endif()
 
-add_library(net STATIC ${DIR_SRCS} )
+add_library(net STATIC ${DIR_SRCS} src/net_epoll.cc)
 
 add_dependencies(net 
   protobuf

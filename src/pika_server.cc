@@ -60,7 +60,8 @@ PikaServer::PikaServer()
       force_full_sync_(false),
       slowlog_entry_id_(0) {
   // Init server ip host
-  if (!ServerInit()) {// 初始化监听的端口和IP
+  //
+  if (!ServerInit()) {
     LOG(FATAL) << "ServerInit iotcl error";
   }
 
@@ -71,7 +72,7 @@ PikaServer::PikaServer()
 #endif
   pthread_rwlock_init(&storage_options_rw_, &storage_options_rw_attr);
 
-  InitStorageOptions();// 初始化StorageOptions，主要配置rocksdb的相关参数
+  InitStorageOptions();// 初始化StorageOptions，主要通过pika_conf配置rocksdb的相关参数
 
   pthread_rwlockattr_t tables_rw_attr;
   pthread_rwlockattr_init(&tables_rw_attr);
@@ -80,8 +81,7 @@ PikaServer::PikaServer()
 #endif
   pthread_rwlock_init(&tables_rw_, &tables_rw_attr);
 
-  // Create thread
-    // Create thread   根据配置来查看有多少的工作线程数
+    // Create thread   创建线程，按照conf中的thread_num和最大线程数取最小启动线程
   worker_num_ = std::min(g_pika_conf->thread_num(), PIKA_MAX_WORKER_THREAD_NUM);
 
   std::set<std::string> ips;
@@ -139,7 +139,7 @@ PikaServer::~PikaServer() {
 
   LOG(INFO) << "PikaServer " << pthread_self() << " exit!!!";
 }
-
+//初始化pika sever端
 bool PikaServer::ServerInit() {
   std::string network_interface = g_pika_conf->network_interface();
   if (network_interface.empty()) {
@@ -150,7 +150,7 @@ bool PikaServer::ServerInit() {
     LOG(FATAL) << "Can't get Networker Interface";
     return false;
   }
-
+  //通过接口获取ip
   host_ = GetIpByInterface(network_interface);
   if (host_.empty()) {
     LOG(FATAL) << "can't get host ip for " << network_interface;
@@ -165,6 +165,7 @@ bool PikaServer::ServerInit() {
 void PikaServer::Start() {
   int ret = 0;
   // start rsync first, rocksdb opened fd will not appear in this fork
+  //先启动rsync进程，
   ret = pika_rsync_service_->StartRsync();
   if (0 != ret) {
     tables_.clear();
@@ -173,7 +174,7 @@ void PikaServer::Start() {
   }
 
   // We Init Table Struct Before Start The following thread
-  InitTableStruct();
+  InitTableStruct();//初始化表结构
 
   ret = pika_client_processor_->Start();
   if (ret != net::kSuccess) {
@@ -181,6 +182,7 @@ void PikaServer::Start() {
     LOG(FATAL) << "Start PikaClientProcessor Error: " << ret
                << (ret == net::kCreateThreadError ? ": create thread error " : ": other error");
   }
+  //启动线程
   ret = pika_dispatch_thread_->StartThread();
   if (ret != net::kSuccess) {
     tables_.clear();
@@ -201,16 +203,22 @@ void PikaServer::Start() {
                << (ret == net::kCreateThreadError ? ": create thread error " : ": other error");
   }
 
-  time(&start_time_s_);
-
+     time(&start_time_s_);
+  //判断是否需要slave of
   std::string slaveof = g_pika_conf->slaveof();
+  //server接收到slave of ${master_host} ${master_port}命令
   if (!slaveof.empty()) {
+      //字符串切割获取ip和port
     int32_t sep = slaveof.find(":");
+    //得到master_ip
     std::string master_ip = slaveof.substr(0, sep);
+    //得到master_port
     int32_t master_port = std::stoi(slaveof.substr(sep + 1));
+    //如果master是本机，表示master要同步master,检查确认是否同步
     if ((master_ip == "127.0.0.1" || master_ip == host_) && master_port == port_) {
       LOG(FATAL) << "you will slaveof yourself as the config file, please check";
     } else {
+      //调用PikaServer::SetMaster将当前server状态修改成为PIKA_REPL_CONNECT
       SetMaster(master_ip, master_port);
     }
   }
@@ -366,7 +374,7 @@ storage::StorageOptions PikaServer::storage_options() {
   pstd::RWLock rwl(&storage_options_rw_, false);
   return storage_options_;
 }
-
+//根据表结构生成table，并且给table创建分区
 void PikaServer::InitTableStruct() {
   std::string db_path = g_pika_conf->db_path();
   std::string log_path = g_pika_conf->log_path();
@@ -376,7 +384,7 @@ void PikaServer::InitTableStruct() {
     std::string name = table.table_name;
     uint32_t num = table.partition_num;
     std::shared_ptr<Table> table_ptr = std::make_shared<Table>(name, num, db_path, log_path);
-    table_ptr->AddPartitions(table.partition_ids);
+    table_ptr->AddPartitions(table.partition_ids);//创建分区
     tables_.emplace(name, table_ptr);
   }
 }
@@ -657,8 +665,8 @@ void PikaServer::BecomeMaster() {
   }
   role_ |= PIKA_ROLE_MASTER;
 }
-
 void PikaServer::DeleteSlave(int fd) {
+
   std::string ip;
   int port = -1;
   bool is_find = false;
@@ -795,20 +803,25 @@ void PikaServer::SyncError() {
 
 void PikaServer::RemoveMaster() {
   {
+    //加读写锁
     pstd::RWLock l(&state_protector_, true);
+    //
     repl_state_ = PIKA_REPL_NO_CONNECT;
     role_ &= ~PIKA_ROLE_SLAVE;
 
     if (master_ip_ != "" && master_port_ != -1) {
+      //关闭连接
       g_pika_rm->CloseReplClientConn(master_ip_, master_port_ + kPortShiftReplServer);
       g_pika_rm->LostConnection(master_ip_, master_port_);
       loop_partition_state_machine_ = false;
+      //个更新数据同步时间戳
       UpdateMetaSyncTimestamp();
       LOG(INFO) << "Remove Master Success, ip_port: " << master_ip_ << ":" << master_port_;
     }
 
     master_ip_ = "";
     master_port_ = -1;
+    //每个分片循环处理
     DoSameThingEveryPartition(TaskType::kResetReplState);
   }
 }
@@ -1242,7 +1255,7 @@ std::unordered_map<std::string, uint64_t> PikaServer::ServerExecCountTable() {
 QpsStatistic PikaServer::ServerTableStat(const std::string& table_name) { return statistic_.TableStat(table_name); }
 
 std::unordered_map<std::string, QpsStatistic> PikaServer::ServerAllTableStat() { return statistic_.AllTableStat(); }
-
+// 将待发送的binlog同步任务发送给从节点
 int PikaServer::SendToPeer() { return g_pika_rm->ConsumeWriteQueue(); }
 
 void PikaServer::SignalAuxiliary() {

@@ -11,6 +11,8 @@
 extern PikaServer* g_pika_server;
 extern PikaReplicaManager* g_pika_rm;
 
+//PikaReplServerThread继承自HolyThread，实现HandleNewConn，单线程轻量级别的server，同时也实现了
+//ReplServerConnFactory 和ReplServerHandle
 PikaReplServerThread::PikaReplServerThread(const std::set<std::string>& ips, int port, int cron_interval)
     : HolyThread(ips, port, &conn_factory_, cron_interval, &handle_, true),
       conn_factory_(this),

@@ -42,8 +42,6 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
   c_ptr->SetConn(std::dynamic_pointer_cast<PikaClientConn>(shared_from_this()));
   c_ptr->SetResp(resp_ptr);
 
-  // Check authed
-  // AuthCmd will set stat_
   if (!auth_stat_.IsAuthed(c_ptr)) {// 检查是否认证
     c_ptr->res().SetRes(CmdRes::kErrOther, "NOAUTH Authentication required.");
     return c_ptr;
@@ -64,11 +62,12 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
   if (!c_ptr->res().ok()) {
     return c_ptr;
   }
-
+  // 更新查询数量，更新tableqps
   g_pika_server->UpdateQueryNumAndExecCountTable(current_table_, opt, c_ptr->is_write());
 
   // PubSub connection
   // (P)SubscribeCmd will set is_pubsub_
+  //是否订阅推送
   if (this->IsPubSub()) {
     if (opt != kCmdNameSubscribe && opt != kCmdNameUnSubscribe && opt != kCmdNamePing && opt != kCmdNamePSubscribe &&
         opt != kCmdNamePUnSubscribe) {
@@ -168,16 +167,17 @@ void PikaClientConn::ProcessMonitor(const PikaCmdArgsType& argv) {
   }
   g_pika_server->AddMonitorMessage(monitor_message);
 }
-
+//net层通过AsynProcessRedisCmds的调用，Pika上层可以自己定义对于接受命令后的后续处理流程
 void PikaClientConn::ProcessRedisCmds(const std::vector<net::RedisCmdArgsType>& argvs, bool async,
                                       std::string* response) {
   if (async) {// 是否是后台任务
     BgTaskArg* arg = new BgTaskArg();// 新建一个后台任务
     arg->redis_cmds = argvs;
     arg->conn_ptr = std::dynamic_pointer_cast<PikaClientConn>(shared_from_this());
-    g_pika_server->ScheduleClientPool(&DoBackgroundTask, arg);// 放入PikaClientProcessor的线程池来进行处理
+    g_pika_server->ScheduleClientPool(&DoBackgroundTask, arg);//ThreadPoolThread调用DoBackgroundTask，检查BgTaskArg 的合法性
     return;
   }
+  //调用BatchExecRedisCmd，在此线程中对所有命令进行逐一处理
   BatchExecRedisCmd(argvs); // 如果不是则调用响应的线程池直接处理
 }
 
@@ -247,7 +247,7 @@ void PikaClientConn::BatchExecRedisCmd(const std::vector<net::RedisCmdArgsType>&
     resp_array.push_back(resp_ptr);
     ExecRedisCmd(argvs[i], resp_ptr);// 处理对应的命令
   }
-  TryWriteResp();
+  TryWriteResp();//取出响应，放在response_中
 }
 
 void PikaClientConn::TryWriteResp() {
@@ -275,7 +275,7 @@ void PikaClientConn::ExecRedisCmd(const PikaCmdArgsType& argv, std::shared_ptr<s
       pstd::StringToLower(opt);
     }
   }
-
+  //调用DoCmd 进行命令的具体处理。
   std::shared_ptr<Cmd> cmd_ptr = DoCmd(argv, opt, resp_ptr); // 执行命令
   // level == 0 or (cmd error) or (is_read)
   if (g_pika_conf->consensus_level() == 0 || !cmd_ptr->res().ok() || !cmd_ptr->is_write()) {

@@ -8,11 +8,12 @@
 
 namespace pstd {
 // Clean files for rsync info, such as the lock, log, pid, conf file
+// 为主从同步清除源文件
 static bool CleanRsyncInfo(const std::string& path) { return pstd::DeleteDirIfExist(path + kRsyncSubDir); }
-
+// 启动同步
 int StartRsync(const std::string& raw_path, const std::string& module, const std::string& ip, const int port,
                const std::string& passwd) {
-  // Sanity check
+  // 判空检查
   if (raw_path.empty() || module.empty() || passwd.empty()) {
     return -1;
   }
@@ -20,10 +21,12 @@ int StartRsync(const std::string& raw_path, const std::string& module, const std
   if (path.back() != '/') {
     path += "/";
   }
+        //rsync_path = path+rsync+"/"
   std::string rsync_path = path + kRsyncSubDir + "/";
+  //创建rsync_path
   CreatePath(rsync_path);
 
-  // Generate secret file
+  // Generate secret file rsync_path+pstd_rsync.secret
   std::string secret_file(rsync_path + kRsyncSecretFile);
   std::ofstream secret_stream(secret_file.c_str());
   if (!secret_stream) {
@@ -34,6 +37,7 @@ int StartRsync(const std::string& raw_path, const std::string& module, const std
   secret_stream.close();
 
   // Generate conf file
+  //创建conf_path rsync_path+pstd_rsync.conf
   std::string conf_file(rsync_path + kRsyncConfFile);
   std::ofstream conf_stream(conf_file.c_str());
   if (!conf_stream) {
@@ -77,6 +81,7 @@ int StartRsync(const std::string& raw_path, const std::string& module, const std
 
 int StopRsync(const std::string& raw_path) {
   // Sanity check
+  //参数检查
   if (raw_path.empty()) {
     log_warn("empty rsync path!");
     return -1;
@@ -85,7 +90,7 @@ int StopRsync(const std::string& raw_path) {
   if (path.back() != '/') {
     path += "/";
   }
-
+  //pid_file = path+rsync+"/"+pstd_rsync.pid
   std::string pid_file(path + kRsyncSubDir + "/" + kRsyncPidFile);
   if (!FileExists(pid_file)) {
     log_warn("no rsync pid file found");
@@ -93,7 +98,9 @@ int StopRsync(const std::string& raw_path) {
   }
 
   // Kill Rsync
+  //杀掉rsyn进程
   SequentialFile* sequential_file;
+  //
   if (!NewSequentialFile(pid_file, &sequential_file).ok()) {
     log_warn("no rsync pid file found");
     return 0;

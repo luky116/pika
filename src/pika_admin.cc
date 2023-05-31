@@ -24,7 +24,7 @@
 extern PikaServer* g_pika_server;
 extern PikaConf* g_pika_conf;
 extern PikaReplicaManager* g_pika_rm;
-
+//订阅通信
 static std::string ConstructPinginPubSubResp(const PikaCmdArgsType& argv) {
   if (argv.size() > 2) {
     return "-ERR wrong number of arguments for " + kCmdNamePing + " command\r\n";
@@ -83,39 +83,44 @@ static AuthResult AuthenticateUser(const std::string& pwd, const std::shared_ptr
  * slaveof ip port force
  */
 void SlaveofCmd::DoInitial() {
+  //参数判断
   if (!CheckArg(argv_.size())) {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlaveof);
     return;
   }
-
+  //如果argv_的size是4，则是有问题的，直接return
   if (argv_.size() > 4) {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlaveof);
     return;
   }
-
+  //如果argv的大小是3但是ip port不对return。
   if (argv_.size() == 3 && !strcasecmp(argv_[1].data(), "no") && !strcasecmp(argv_[2].data(), "one")) {
     is_noone_ = true;
     return;
   }
 
   // self is master of A , want to slavof B
+  //如果自己是A的master，想要同步B，则场景不对，return
   if (g_pika_server->role() & PIKA_ROLE_MASTER) {
     res_.SetRes(CmdRes::kErrOther, "already master of others, invalid usage");
     return;
   }
-
+  //获取master_ip
   master_ip_ = argv_[1];
+  //获取str类型的master_port
   std::string str_master_port = argv_[2];
+  //将master_port转换成为int类型
   if (!pstd::string2int(str_master_port.data(), str_master_port.size(), &master_port_) || master_port_ <= 0) {
     res_.SetRes(CmdRes::kInvalidInt);
     return;
   }
-
+  //判断切割出来的ip和port是否是本地ip和port
+  //如果是是不做同步的直接return
   if ((master_ip_ == "127.0.0.1" || master_ip_ == g_pika_server->host()) && master_port_ == g_pika_server->port()) {
     res_.SetRes(CmdRes::kErrOther, "you fucked up");
     return;
   }
-
+  //判断是否是强制全量同步
   if (argv_.size() == 4) {
     if (!strcasecmp(argv_[3].data(), "force")) {
       g_pika_server->SetForceFullSync(true);
@@ -124,28 +129,30 @@ void SlaveofCmd::DoInitial() {
     }
   }
 }
-
+//执行slave_of命令
 void SlaveofCmd::Do(std::shared_ptr<Partition> partition) {
   // Check if we are already connected to the specified master
+  //判断master是否是本机
   if ((master_ip_ == "127.0.0.1" || g_pika_server->master_ip() == master_ip_) &&
       g_pika_server->master_port() == master_port_) {
     res_.SetRes(CmdRes::kOk);
     return;
   }
-
+  //
   g_pika_server->RemoveMaster();
-
+  //设置slave_of命令
   if (is_noone_) {
     res_.SetRes(CmdRes::kOk);
     g_pika_conf->SetSlaveof(std::string());
     return;
   }
-
+  //设置master_ip，master_port
   bool sm_ret = g_pika_server->SetMaster(master_ip_, master_port_);
 
   if (sm_ret) {
     res_.SetRes(CmdRes::kOk);
     g_pika_conf->SetSlaveof(master_ip_ + ":" + std::to_string(master_port_));
+    //slave向master发送meta_sync请求
     g_pika_server->SetFirstMetaSync(true);
   } else {
     res_.SetRes(CmdRes::kErrOther, "Server is not in correct state for slaveof");
@@ -440,7 +447,7 @@ void SelectCmd::Do(std::shared_ptr<Partition> partition) {
     LOG(WARNING) << name_ << " weak ptr is empty";
     return;
   }
-  conn->SetCurrentTable(table_name_);
+  conn->SetCurrentTable(table_name_);// 修改使用的表
   res_.SetRes(CmdRes::kOk);
 }
 
@@ -877,6 +884,7 @@ void InfoCmd::InfoCPU(std::string& info) {
 void InfoCmd::InfoShardingReplication(std::string& info) {
   int role = 0;
   std::string slave_list_string;
+  //从实例的数量
   uint32_t slave_num = g_pika_server->GetShardingSlaveListString(slave_list_string);
   if (slave_num) {
     role |= PIKA_ROLE_MASTER;
@@ -931,7 +939,7 @@ void InfoCmd::InfoShardingReplication(std::string& info) {
 
 void InfoCmd::InfoReplication(std::string& info) {
   if (!g_pika_conf->classic_mode()) {
-    // In Sharding mode, show different replication info
+    // 在分布式模式下，显示不同的复制信息
     InfoShardingReplication(info);
     return;
   }
@@ -1252,7 +1260,7 @@ static void EncodeInt64(std::string* dst, const int64_t v) {
   dst->append(vstr);
   dst->append("\r\n");
 }
-
+//解析config
 void ConfigCmd::ConfigGet(std::string& ret) {
   size_t elements = 0;
   std::string config_body;

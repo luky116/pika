@@ -93,6 +93,7 @@ Status RedisHashes::ScanKeyNum(KeyInfo* key_info) {
   iterator_options.fill_cache = false;
 
   int64_t curtime;
+  //获取当前时间
   rocksdb::Env::Default()->GetCurrentTime(&curtime);
 
   rocksdb::Iterator* iter = db_->NewIterator(iterator_options, handles_[0]);
@@ -601,9 +602,10 @@ Status RedisHashes::HMSet(const Slice& key, const std::vector<FieldValue>& fvs) 
   UpdateSpecificKeyStatistics(key.ToString(), statistic);
   return s;
 }
-
+//将hash key中的域feild设置成为value
 Status RedisHashes::HSet(const Slice& key, const Slice& field, const Slice& value, int32_t* res) {
   rocksdb::WriteBatch batch;
+  //获取行锁
   ScopeRecordLock l(lock_mgr_, key);
 
   int32_t version = 0;

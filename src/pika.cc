@@ -36,6 +36,7 @@ static void version() {
   std::cout << "pika_build_compile_date: " << pika_build_compile_date << std::endl;
 }
 
+//pikaconfig初始化
 static void PikaConfInit(const std::string& path) {
   printf("path : %s\n", path.c_str());
   g_pika_conf = new PikaConf(path);
@@ -48,7 +49,9 @@ static void PikaConfInit(const std::string& path) {
   printf("-----------Pika config end----------\n");
 }
 
+//启动pika glog
 static void PikaGlogInit() {
+  //如果文件不存在，则创建文件
   if (!pstd::FileExists(g_pika_conf->log_path())) {
     pstd::CreatePath(g_pika_conf->log_path());
   }
@@ -188,7 +191,7 @@ int main(int argc, char* argv[]) {
 
   LOG(INFO) << "Server at: " << path;
   //初始化cmd
-  g_pika_cmd_table_manager = new PikaCmdTableManager();
+  g_pika_cmd_table_manager = new PikaCmdTableManager();//初始化CmdTable
   //初始化server
   g_pika_server = new PikaServer();
   //初始化PikaReplicaManager

@@ -22,9 +22,11 @@ extern PikaServer* g_pika_server;
 extern PikaReplicaManager* g_pika_rm;
 
 PikaReplClient::PikaReplClient(int cron_interval, int keepalive_timeout) : next_avail_(0) {
+    //异步客户端
   client_thread_ = new PikaReplClientThread(cron_interval, keepalive_timeout);
   client_thread_->set_thread_name("PikaReplClient");
   for (int i = 0; i < 2 * g_pika_conf->sync_thread_num(); ++i) {
+      //一组PikaReplClient异步处理binlog的读写
     bg_workers_.push_back(new PikaReplBgWorker(PIKA_SYNC_BUFFER_SIZE));
   }
 }
@@ -37,14 +39,17 @@ PikaReplClient::~PikaReplClient() {
   }
   LOG(INFO) << "PikaReplClient exit!!!";
 }
-
+// pika_reple_client的最核心的原理就是通过一个基于epoll（linux平台）的事件驱动，去完成多个连接的事件驱动，
+// 并通过加入线程池来提供epoll的处理性能。接下来就大致了解一下pika_repl_client完成的交互的相关功能。
+// 在主从同步过程中，无论是pika_repl_client还是pika_repl_server_底层都利用了pink库的PbConn模式来进行的数据交互。
+// 通过client_thread的逻辑流程来简单分析一下PbConn的执行流程。
 int PikaReplClient::Start() {
-  int res = client_thread_->StartThread();
+  int res = client_thread_->StartThread();//启动一个epoll事件驱动
   if (res != net::kSuccess) {
     LOG(FATAL) << "Start ReplClient ClientThread Error: " << res
                << (res == net::kCreateThreadError ? ": create thread error " : ": other error");
   }
-  for (size_t i = 0; i < bg_workers_.size(); ++i) {
+  for (size_t i = 0; i < bg_workers_.size(); ++i) { //通过将epoll事件驱动执行分发到线程池中去执行
     res = bg_workers_[i]->StartThread();
     if (res != net::kSuccess) {
       LOG(FATAL) << "Start Pika Repl Worker Thread Error: " << res

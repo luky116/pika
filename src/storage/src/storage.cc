@@ -89,7 +89,7 @@ Storage::~Storage() {
   delete zsets_db_;
   delete cursors_store_;
 }
-
+//订阅路径
 static std::string AppendSubDirectory(const std::string& db_path, const std::string& sub_db) {
   if (db_path.back() == '/') {
     return db_path + sub_db;
@@ -97,7 +97,7 @@ static std::string AppendSubDirectory(const std::string& db_path, const std::str
     return db_path + "/" + sub_db;
   }
 }
-
+//入口
 Status Storage::Open(const StorageOptions& storage_options, const std::string& db_path) {
   mkpath(db_path.c_str(), 0755);
 

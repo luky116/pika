@@ -11,7 +11,7 @@
 #include "net/src/net_item.h"
 
 namespace net {
-
+//使用net_epoll组件对分配到当前线程的连接进行监控可读、可写事件，并最后执行socket上面的读写操作
 WorkerThread::WorkerThread(ConnFactory* conn_factory, ServerThread* server_thread, int queue_limit, int cron_interval)
     : private_data_(nullptr),
       server_thread_(server_thread),
@@ -26,7 +26,7 @@ WorkerThread::WorkerThread(ConnFactory* conn_factory, ServerThread* server_threa
 }
 
 WorkerThread::~WorkerThread() {}
-
+//woker线程连接数
 int WorkerThread::conn_num() const {
   pstd::ReadLock l(&rwlock_);
   return conns_.size();
@@ -86,6 +86,7 @@ void* WorkerThread::ThreadMain() {
 
   while (!should_stop()) {
     if (cron_interval_ > 0) {
+        //获取当前时间
       gettimeofday(&now, NULL);
       if (when.tv_sec > now.tv_sec || (when.tv_sec == now.tv_sec && when.tv_usec > now.tv_usec)) {
         timeout = (when.tv_sec - now.tv_sec) * 1000 + (when.tv_usec - now.tv_usec) / 1000;

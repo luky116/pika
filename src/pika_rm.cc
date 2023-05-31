@@ -139,7 +139,7 @@ Status SyncMasterPartition::ActivateSlaveDbSync(const std::string& ip, int port)
 
   return Status::OK();
 }
-
+//通过获取偏移量，然后生成任务并放入发送队列中等待处理
 Status SyncMasterPartition::ReadBinlogFileToWq(const std::shared_ptr<SlaveNode>& slave_ptr) {
   int cnt = slave_ptr->sync_win.Remaining();
   std::shared_ptr<PikaBinlogReader> reader = slave_ptr->binlog_reader;//获取当前binlogreader
@@ -238,7 +238,7 @@ Status SyncMasterPartition::GetSlaveState(const std::string& ip, int port, Slave
 }
 
 Status SyncMasterPartition::WakeUpSlaveBinlogSync() {
-  std::unordered_map<std::string, std::shared_ptr<SlaveNode>> slaves = GetAllSlaveNodes();
+  std::unordered_map<std::string, std::shared_ptr<SlaveNode>> slaves = GetAllSlaveNodes();//获取所有的从节点
   std::vector<std::shared_ptr<SlaveNode>> to_del;
   for (auto& slave_iter : slaves) {
     std::shared_ptr<SlaveNode> slave_ptr = slave_iter.second;
@@ -252,7 +252,8 @@ Status SyncMasterPartition::WakeUpSlaveBinlogSync() {
       }
     }
   }
-  for (auto& to_del_slave : to_del) {// 如果同步失败则删除该node
+  for (auto& to_del_slave : to_del) {
+    // 如果同步失败则删除该node
     RemoveSlaveNode(to_del_slave->Ip(), to_del_slave->Port());
   }
   return Status::OK();
@@ -603,7 +604,7 @@ Status SyncSlavePartition::CheckSyncTimeout(uint64_t now) {
     return Status::OK();// 如果从节点的信息不是waitdb或者连接状态则返回ok
   }
   if (m_info_.LastRecvTime() + kRecvKeepAliveTimeout < now) {
-    // update slave state to kTryConnect, and try reconnect to master node
+    // 将slave的状态更新成为kTryConnect，尝试去连接master节点
     repl_state_ = ReplState::kTryConnect;
     g_pika_server->SetLoopPartitionStateMachine(true);// 否则就设置成tryconnect状态去尝试连接主节点
   }
@@ -1027,14 +1028,17 @@ Status PikaReplicaManager::DeactivateSyncSlavePartition(const PartitionInfo& p_i
   sync_slave_partitions_[p_info]->Deactivate();
   return Status::OK();
 }
-
+//发送数据同步请求
 Status PikaReplicaManager::SendMetaSyncRequest() {
   Status s;
   if (time(NULL) - g_pika_server->GetMetaSyncTimestamp() >= PIKA_META_SYNC_MAX_WAIT_TIME ||
       g_pika_server->IsFirstMetaSync() == true) {
+      //同步请求数据
     s = pika_repl_client_->SendMetaSync();
     if (s.ok()) {
+        //更新数据同步时间
       g_pika_server->UpdateMetaSyncTimestamp();
+      //设置第一个meta同步为false
       g_pika_server->SetFirstMetaSync(false);
     }
   }
@@ -1066,6 +1070,7 @@ Status PikaReplicaManager::SendRemoveSlaveNodeRequest(const std::string& table, 
 
 Status PikaReplicaManager::SendPartitionTrySyncRequest(const std::string& table_name, size_t partition_id) {
   BinlogOffset boffset;
+  //获取table的分片offset
   if (!g_pika_server->GetTablePartitionBinlogOffset(table_name, partition_id, &boffset)) {
     LOG(WARNING) << "Partition: " << table_name << ":" << partition_id << ",  Get partition binlog offset failed";
     return Status::Corruption("Partition get binlog offset error");

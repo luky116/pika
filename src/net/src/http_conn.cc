@@ -118,7 +118,7 @@ bool HTTPRequest::ParseHeadLine(const char* data, int line_start, int line_end) 
   }
   return true;
 }
-
+//解析GetUrl
 bool HTTPRequest::ParseGetUrl() {
   path_ = url_;
   // Format path

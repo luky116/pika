@@ -12,7 +12,7 @@
 #include "pstd/include/xdebug.h"
 
 namespace net {
-
+//对客户端连接的抽象类
 NetConn::NetConn(const int fd, const std::string& ip_port, Thread* thread, NetMultiplexer* net_mpx)
     : fd_(fd),
       ip_port_(ip_port),

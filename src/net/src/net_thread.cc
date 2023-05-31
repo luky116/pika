@@ -22,22 +22,25 @@ void* Thread::RunThread(void* arg) {
   thread->ThreadMain();
   return nullptr;
 }
-
+//启动线程
 int Thread::StartThread() {
   pstd::MutexLock l(&running_mu_);
   should_stop_ = false;
   if (!running_) {
     running_ = true;
+    //创建线程
     return pthread_create(&thread_id_, nullptr, RunThread, (void*)this);
   }
   return 0;
 }
-
+//  停止线程
 int Thread::StopThread() {
+    //加锁
   pstd::MutexLock l(&running_mu_);
   should_stop_ = true;
   if (running_) {
     running_ = false;
+    //以阻塞的方式等待thread指定的线程结束。当函数返回时，被等待线程的资源被收回
     return pthread_join(thread_id_, nullptr);
   }
   return 0;

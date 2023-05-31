@@ -35,13 +35,14 @@ ClientThread::ClientThread(ConnFactory* conn_factory, int cron_interval, int kee
 }
 
 ClientThread::~ClientThread() {}
-
+//线程开启函数
 int ClientThread::StartThread() {
   if (!handle_) {
     handle_ = new ClientHandle();
     own_handle_ = true;
   }
   own_handle_ = false;
+  //创建
   int res = handle_->CreateWorkerSpecificData(&private_data_);
   if (res != 0) {
     return res;
@@ -380,7 +381,8 @@ void* ClientThread::ThreadMain() {
         timeout = (when.tv_sec - now.tv_sec) * 1000 + (when.tv_usec - now.tv_usec) / 1000;
       } else {
         // do user defined cron
-        handle_->CronHandle();
+        //调用CronHandle，检测是否存在需要执行的定时任务，如果有则执行
+        handle_->CronHandle(); //执行定时任务
 
         DoCronTask();
         when.tv_sec = now.tv_sec + (cron_interval_ / 1000);
@@ -391,14 +393,14 @@ void* ClientThread::ThreadMain() {
     //{
     // InternalDebugPrint();
     //}
-    nfds = net_multiplexer_->NetPoll(timeout);
+    nfds = net_multiplexer_->NetPoll(timeout); //事件驱动
     for (int i = 0; i < nfds; i++) {
       pfe = (net_multiplexer_->FiredEvents()) + i;
       if (pfe == NULL) {
         continue;
       }
 
-      if (pfe->fd == net_multiplexer_->NotifyReceiveFd()) {
+      if (pfe->fd == net_multiplexer_->NotifyReceiveFd()) { //处理驱动
         ProcessNotifyEvents(pfe);
         continue;
       }
@@ -422,7 +424,7 @@ void* ClientThread::ThreadMain() {
       }
 
       if (!should_close && (pfe->mask & kWritable) && conn->is_reply()) {
-        WriteStatus write_status = conn->SendReply();
+        WriteStatus write_status = conn->SendReply();// 如果当前是可以写数据则调用SendReply
         conn->set_last_interaction(now);
         if (write_status == kWriteAll) {
           net_multiplexer_->NetModEvent(pfe->fd, 0, kReadable);
@@ -436,7 +438,7 @@ void* ClientThread::ThreadMain() {
       }
 
       if (!should_close && (pfe->mask & kReadable)) {
-        ReadStatus read_status = conn->GetRequest();
+        ReadStatus read_status = conn->GetRequest();// 如果是接受数据则调用GetRequest来解析
         conn->set_last_interaction(now);
         if (read_status == kReadAll) {
           // net_multiplexer_->NetModEvent(pfe->fd, 0, EPOLLOUT);
@@ -451,7 +453,7 @@ void* ClientThread::ThreadMain() {
       if ((pfe->mask & kErrorEvent) || should_close) {
         {
           log_info("close connection %d reason %d %d\n", pfe->fd, pfe->mask, should_close);
-          net_multiplexer_->NetDelEvent(pfe->fd, 0);
+          net_multiplexer_->NetDelEvent(pfe->fd, 0);// 如果关闭则删除该事件
           CloseFd(conn);
           fd_conns_.erase(pfe->fd);
           if (ipport_conns_.count(conn->ip_port())) {

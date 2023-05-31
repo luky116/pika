@@ -38,7 +38,7 @@ void BGThread::QueueClear() {
 
 void BGThread::SwallowReadyTasks() {
   // it's safe to swallow all the remain tasks in ready and timer queue,
-  // while the schedule function would stop to add any tasks.
+  // while the schedule function would stop to add any tasks.`
   mu_.Lock();
   while (!queue_.empty()) {
     void (*function)(void*) = queue_.front().function;

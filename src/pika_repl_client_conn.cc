@@ -44,6 +44,7 @@ int PikaReplClientConn::DealMessage() {
   ::google::protobuf::io::ArrayInputStream input(rbuf_ + cur_pos_ - header_len_, header_len_);
   ::google::protobuf::io::CodedInputStream decoder(&input);
   decoder.SetTotalBytesLimit(g_pika_conf->max_conn_rbuf_size());
+  //解析消息体得到response->type
   bool success = response->ParseFromCodedStream(&decoder) && decoder.ConsumedEntireMessage();
   if (!success) {
     LOG(WARNING) << "ParseFromArray FAILED! "
@@ -51,7 +52,7 @@ int PikaReplClientConn::DealMessage() {
     g_pika_server->SyncError();
     return -1;
   }
-  switch (response->type()) {
+  switch (response->type()) {// 根据协议解析的类型来判断执行什么操作
     case InnerMessage::kMetaSync: {
       ReplClientTaskArg* task_arg =
           new ReplClientTaskArg(response, std::dynamic_pointer_cast<PikaReplClientConn>(shared_from_this()));
@@ -71,7 +72,7 @@ int PikaReplClientConn::DealMessage() {
       break;
     }
     case InnerMessage::kBinlogSync: {
-      DispatchBinlogRes(response);
+      DispatchBinlogRes(response);// binlog同步处理
       break;
     }
     case InnerMessage::kRemoveSlaveNode: {
@@ -302,6 +303,7 @@ void PikaReplClientConn::DispatchBinlogRes(const std::shared_ptr<InnerMessage::I
   std::shared_ptr<SyncSlavePartition> slave_partition = nullptr;
   for (auto& binlog_nums : par_binlog) {
     RmNode node(binlog_nums.first.table_name_, binlog_nums.first.partition_id_);
+    //获取slave_partition_info
     slave_partition = g_pika_rm->GetSyncSlavePartitionByName(
         PartitionInfo(binlog_nums.first.table_name_, binlog_nums.first.partition_id_));
     if (!slave_partition) {

@@ -68,6 +68,7 @@ BinlogImpl::BinlogImpl(const std::string& path, const int file_size)
 }
 
 Status BinlogImpl::Recover() {
+    //创建目录
   CreateDir(path_);
 
   std::string manifest = path_ + kManifest;
@@ -106,7 +107,7 @@ Status BinlogImpl::Recover() {
     // mem->Ref();
     // memtables_[pro_num_] = mem;
   }
-
+   //初始化offset
   InitOffset();
   return s;
 }

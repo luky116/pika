@@ -25,7 +25,7 @@ PikaDispatchThread::~PikaDispatchThread() {
   LOG(INFO) << "dispatch thread " << thread_rep_->thread_id() << " exit!!!";
   delete thread_rep_;
 }
-
+//启动线程
 int PikaDispatchThread::StartThread() { return thread_rep_->StartThread(); }
 
 int64_t PikaDispatchThread::ThreadClientList(std::vector<ClientInfo>* clients) {

@@ -18,12 +18,12 @@ PikaReplServerConn::PikaReplServerConn(int fd, std::string ip_port, net::Thread*
     : PbConn(fd, ip_port, thread, mpx) {}
 
 PikaReplServerConn::~PikaReplServerConn() {}
-
+// 处理数据同步请求
 void PikaReplServerConn::HandleMetaSyncRequest(void* arg) {
   ReplServerTaskArg* task_arg = static_cast<ReplServerTaskArg*>(arg);
   const std::shared_ptr<InnerMessage::InnerRequest> req = task_arg->req;
   std::shared_ptr<net::PbConn> conn = task_arg->conn;
-
+  //meta sync之后每个partition会单独做TrySync
   InnerMessage::InnerRequest::MetaSync meta_sync_request = req->meta_sync();
   InnerMessage::Node node = meta_sync_request.node();
   std::string masterauth = meta_sync_request.has_auth() ? meta_sync_request.auth() : "";
@@ -346,7 +346,7 @@ void PikaReplServerConn::HandleDBSyncRequest(void* arg) {
       }
     }
   }
-
+  //调用TryDBSync的BgSavePartition，异步将对应的partition打快照
   g_pika_server->TryDBSync(node.ip(), node.port() + kPortShiftRSync, table_name, partition_id, slave_boffset.filenum());
 
   std::string reply_str;
@@ -356,6 +356,7 @@ void PikaReplServerConn::HandleDBSyncRequest(void* arg) {
     delete task_arg;
     return;
   }
+  //异步通知
   conn->NotifyWrite();
   delete task_arg;
 }

@@ -21,6 +21,7 @@ const rocksdb::Comparator* ListsDataKeyComparator() {
 RedisLists::RedisLists(Storage* const s, const DataType& type) : Redis(s, type) {}
 
 Status RedisLists::Open(const StorageOptions& storage_options, const std::string& db_path) {
+  //设置容量
   statistics_store_->SetCapacity(storage_options.statistics_max_size);
   small_compaction_threshold_ = storage_options.small_compaction_threshold;
 
@@ -196,12 +197,14 @@ Status RedisLists::PKPatternMatchDel(const std::string& pattern, int32_t* ret) {
 Status RedisLists::LIndex(const Slice& key, int64_t index, std::string* element) {
   rocksdb::ReadOptions read_options;
   const rocksdb::Snapshot* snapshot;
-
+  //打快照
   ScopeSnapshot ss(db_, &snapshot);
   read_options.snapshot = snapshot;
   std::string meta_value;
+  //根据传入的key，编码出list meta key,调用Get接口得到list meta value
   Status s = db_->Get(read_options, handles_[0], key, &meta_value);
   if (s.ok()) {
+      //解码出来得到链表长度,链表首部序号,链表尾部序号,下一次可用序号
     ParsedListsMetaValue parsed_lists_meta_value(&meta_value);
     int32_t version = parsed_lists_meta_value.version();
     if (parsed_lists_meta_value.IsStale()) {
@@ -210,6 +213,7 @@ Status RedisLists::LIndex(const Slice& key, int64_t index, std::string* element)
       return Status::NotFound();
     } else {
       std::string tmp_element;
+      //
       uint64_t target_index =
           index >= 0 ? parsed_lists_meta_value.left_index() + index + 1 : parsed_lists_meta_value.right_index() + index;
       if (parsed_lists_meta_value.left_index() < target_index && target_index < parsed_lists_meta_value.right_index()) {
@@ -321,12 +325,14 @@ Status RedisLists::LInsert(const Slice& key, const BeforeOrAfter& before_or_afte
   }
   return s;
 }
-
+//返回列表key的长度
 Status RedisLists::LLen(const Slice& key, uint64_t* len) {
   *len = 0;
   std::string meta_value;
+  //直接获取list meta key对应的list meta value
   Status s = db_->Get(default_read_options_, handles_[0], key, &meta_value);
   if (s.ok()) {
+      //把其中的链表长度解析出来返回即可
     ParsedListsMetaValue parsed_lists_meta_value(&meta_value);
     if (parsed_lists_meta_value.IsStale()) {
       return Status::NotFound("Stale");
@@ -343,8 +349,10 @@ Status RedisLists::LLen(const Slice& key, uint64_t* len) {
 Status RedisLists::LPop(const Slice& key, std::string* element) {
   uint32_t statistic = 0;
   rocksdb::WriteBatch batch;
+  //加行锁
   ScopeRecordLock l(lock_mgr_, key);
   std::string meta_value;
+  //根据传入的key,编码得出list_meta_value,调用Get接口得到list meta value,解码出来得到链表的长度、链表的首部序号、链表的尾部序号，下一次可用的序号
   Status s = db_->Get(default_read_options_, handles_[0], key, &meta_value);
   if (s.ok()) {
     ParsedListsMetaValue parsed_lists_meta_value(&meta_value);
@@ -356,6 +364,7 @@ Status RedisLists::LPop(const Slice& key, std::string* element) {
       int32_t version = parsed_lists_meta_value.version();
       uint64_t first_node_index = parsed_lists_meta_value.left_index() + 1;
       ListsDataKey lists_data_key(key, version, first_node_index);
+        //根据list_meta_value 中的首节点编号，编码list data key，通过Get接口得到首节点的List data value.
       s = db_->Get(default_read_options_, handles_[1], lists_data_key.Encode(), element);
       if (s.ok()) {
         batch.Delete(handles_[1], lists_data_key.Encode());
@@ -373,18 +382,22 @@ Status RedisLists::LPop(const Slice& key, std::string* element) {
   }
   return s;
 }
-
+//将一个value插入到列表key的表尾(最左边)
 Status RedisLists::LPush(const Slice& key, const std::vector<std::string>& values, uint64_t* ret) {
   *ret = 0;
   rocksdb::WriteBatch batch;
+  //加行锁
   ScopeRecordLock l(lock_mgr_, key);
 
   uint64_t index = 0;
   int32_t version = 0;
   std::string meta_value;
+  //根据传入的key，编码出list meta key,调用Get接口得到list meta value
   Status s = db_->Get(default_read_options_, handles_[0], key, &meta_value);
   if (s.ok()) {
+      //解码得到链表长度
     ParsedListsMetaValue parsed_lists_meta_value(&meta_value);
+    //判断链表的首部序号是否大于0，如果大于0，说明当前链表有节点，则需要对首部的值进行更改，需要修改这个
     if (parsed_lists_meta_value.IsStale() || parsed_lists_meta_value.count() == 0) {
       version = parsed_lists_meta_value.InitialMetaValue();
     } else {
@@ -415,6 +428,7 @@ Status RedisLists::LPush(const Slice& key, const std::vector<std::string>& value
   } else {
     return s;
   }
+  //修改list meta value
   return db_->Write(default_write_options_, &batch);
 }
 

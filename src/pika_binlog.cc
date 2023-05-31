@@ -206,7 +206,7 @@ Status Binlog::Put(const char* item, int len) {
     delete queue_;
     queue_ = queue;
     pro_num_++;
-
+    //pro_num自增加1，初始化新的日志文件
     {
       pstd::RWLock l(&(version_->rwlock_), true);
       version_->pro_offset_ = 0;

@@ -15,13 +15,15 @@ void* ThreadPool::Worker::WorkerMain(void* arg) {
   tp->runInThread();
   return nullptr;
 }
-
+//启动woker线程
 int ThreadPool::Worker::start() {
   if (!start_.load()) {
+      //创建线程
     if (pthread_create(&thread_id_, NULL, &WorkerMain, thread_pool_)) {
       return -1;
     } else {
       start_.store(true);
+      //设置线程名 线程池名+worker
       SetThreadName(thread_id_, thread_pool_->thread_pool_name() + "Worker");
     }
   }
@@ -89,15 +91,15 @@ int ThreadPool::stop_thread_pool() {
 bool ThreadPool::should_stop() { return should_stop_.load(); }
 
 void ThreadPool::set_should_stop() { should_stop_.store(true); }
-
+//将参数封装成为task
 void ThreadPool::Schedule(TaskFunc func, void* arg) {
   mu_.Lock();
   while (queue_.size() >= max_queue_size_ && !should_stop()) {
     wsignal_.Wait();
   }
   if (!should_stop()) {
-    queue_.push(Task(func, arg));
-    rsignal_.Signal();
+    queue_.push(Task(func, arg));//push到线程池的任务队列
+    rsignal_.Signal();//通知线程池处理
   }
   mu_.Unlock();
 }

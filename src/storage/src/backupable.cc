@@ -12,9 +12,11 @@ namespace storage {
 
 BackupEngine::~BackupEngine() {
   // Wait all children threads
+  // 等待所有的孩子线程
   StopBackup();
   WaitBackupPthread();
   // Delete engines
+  //删除
   for (auto& engine : engines_) {
     delete engine.second;
   }
@@ -39,16 +41,18 @@ Status BackupEngine::Open(storage::Storage* storage, BackupEngine** backup_engin
   }
 
   // Create BackupEngine for each db type
+  //为每种类型的db创建副本
   rocksdb::Status s;
   rocksdb::DB* rocksdb_db;
   std::string types[] = {STRINGS_DB, HASHES_DB, LISTS_DB, ZSETS_DB, SETS_DB};
   for (const auto& type : types) {
+      //获取db的类型
     if ((rocksdb_db = storage->GetDBByType(type)) == NULL) {
       s = Status::Corruption("Error db type");
     }
 
     if (s.ok()) {
-      s = (*backup_engine_ptr)->NewCheckpoint(rocksdb_db, type);
+      s = (*backup_engine_ptr)->NewCheckpoint(rocksdb_db, type); //快照
     }
 
     if (!s.ok()) {

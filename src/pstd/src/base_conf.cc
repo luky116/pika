@@ -19,8 +19,9 @@ static const int kConfItemLen = 1024 * 1024;
 BaseConf::BaseConf(const std::string& path) : rep_(new Rep(path)) {}
 
 BaseConf::~BaseConf() { delete rep_; }
-
+//load conf
 int BaseConf::LoadConf() {
+  //判断conf文件是否存在
   if (!FileExists(rep_->path)) {
     return -1;
   }
@@ -28,7 +29,7 @@ int BaseConf::LoadConf() {
   NewSequentialFile(rep_->path, &sequential_file);
 
   // read conf items
-
+  //读取conf参数
   char line[kConfItemLen];
   char name[kConfItemLen], value[kConfItemLen];
   int line_len = 0;
