@@ -103,6 +103,7 @@ void PikaReplServerConn::HandleTrySyncRequest(void* arg) {
 
   if (pre_success && req->has_consensus_meta()) {
     if (partition->GetNumberOfSlaveNode() >= g_pika_conf->replication_num() &&
+        // master check if this slave is already exist
         !partition->CheckSlaveNodeExist(node.ip(), node.port())) {
       LOG(WARNING) << "Current replication num: " << partition->GetNumberOfSlaveNode()
                    << " hits configuration replication-num " << g_pika_conf->replication_num() << " stop trysync.";
@@ -194,14 +195,17 @@ bool PikaReplServerConn::TrySyncConsensusOffsetCheck(const std::shared_ptr<SyncM
   if (!s.ok()) {
     if (s.IsNotFound()) {
       LOG(INFO) << "Partition: " << partition_name << " need full sync";
+      // 如果自己的同步点位，在主节点已经被清除。则进行全量同步，发送DbSync 消息。
       try_sync_response->set_reply_code(InnerMessage::InnerResponse::TrySync::kSyncPointBePurged);
       return false;
     } else {
+      // 如果从点位比主超前，说明从上的数据有一部分是脏数据，将同步终止（kError），需要管理员介入。
       LOG(WARNING) << "Partition:" << partition_name << " error " << s.ToString();
       try_sync_response->set_reply_code(InnerMessage::InnerResponse::TrySync::kError);
       return false;
     }
   }
+  // 如果从返回没有问题，则进行增量同步，发送BinlogSync消息。
   try_sync_response->set_reply_code(InnerMessage::InnerResponse::TrySync::kOk);
   uint32_t term = partition->ConsensusTerm();
   BuildConsensusMeta(reject, hints, term, response);
@@ -343,6 +347,8 @@ void PikaReplServerConn::HandleDBSyncRequest(void* arg) {
     }
   }
 
+  // 调用TryDBSync的BgSavePartition，异步将对应的partition打快照。
+  // 启动 rsync 进程，开始进行
   g_pika_server->TryDBSync(node.ip(), node.port() + kPortShiftRSync, table_name, partition_id, slave_boffset.filenum());
 
   std::string reply_str;

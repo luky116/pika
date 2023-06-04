@@ -284,6 +284,7 @@ void Partition::BgSavePartition() {
   bgsave_info_.bgsaving = true;
   BgTaskArg* bg_task_arg = new BgTaskArg();
   bg_task_arg->partition = shared_from_this();
+  // 打快照任务放入bgsave_thread的消费队列中。
   g_pika_server->BGSaveTaskSchedule(&DoBgSave, static_cast<void*>(bg_task_arg));
 }
 
@@ -292,6 +293,7 @@ BgSaveInfo Partition::bgsave_info() {
   return bgsave_info_;
 }
 
+// 对当前的DB状态打快照并且生成info文件，info文件是代表这个快照对应的binlog filenum和offset 的位置。
 void Partition::DoBgSave(void* arg) {
   std::unique_ptr<BgTaskArg> bg_task_arg(static_cast<BgTaskArg*>(arg));
 

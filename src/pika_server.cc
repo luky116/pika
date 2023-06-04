@@ -36,6 +36,7 @@ void DoPurgeDir(void* arg) {
   LOG(INFO) << "Delete dir: " << *path << " done";
 }
 
+// 3、将发送文件的任务放入bgsave_thread的消费队列中
 void DoDBSync(void* arg) {
   std::unique_ptr<DBSyncArg> dbsa(static_cast<DBSyncArg*>(arg));
   PikaServer* const ps = dbsa->p;
@@ -193,6 +194,7 @@ void PikaServer::Start() {
     if ((master_ip == "127.0.0.1" || master_ip == host_) && master_port == port_) {
       LOG(FATAL) << "you will slaveof yourself as the config file, please check";
     } else {
+      // 设置 pika_server 的成员变量
       SetMaster(master_ip, master_port);
     }
   }
@@ -778,6 +780,12 @@ void PikaServer::SyncError() {
 void PikaServer::RemoveMaster() {
   {
     std::lock_guard l(state_protector_);
+    // info 命令可以看到，master_link_status 为 done
+    /**
+     pika_admin.cc
+      tmp_stream << "master_link_status:"
+      << (((g_pika_server->repl_state() == PIKA_REPL_META_SYNC_DONE) && all_partition_sync) ? "up" : "down")
+     */
     repl_state_ = PIKA_REPL_NO_CONNECT;
     role_ &= ~PIKA_ROLE_SLAVE;
 
@@ -936,6 +944,8 @@ void PikaServer::DBSync(const std::string& ip, int port, const std::string& tabl
   }
   // Reuse the bgsave_thread_
   // Since we expect BgSave and DBSync execute serially
+  // 为保证打快照和发送的文件的先后循序，这两个任务由同一个线程完成。
+  // 这个线程会根据放入其消费队列的顺序依次执行任务。这里一定是先执行打快照任务，再执行发送文件任务。
   bgsave_thread_.StartThread();
   DBSyncArg* arg = new DBSyncArg(this, ip, port, table_name, partition_id);
   bgsave_thread_.Schedule(&DoDBSync, reinterpret_cast<void*>(arg));
@@ -962,11 +972,14 @@ void PikaServer::TryDBSync(const std::string& ip, int port, const std::string& t
       !pstd::FileExists(NewFileName(logger_filename, bgsave_info.offset.b_offset.filenum)) ||
       top - bgsave_info.offset.b_offset.filenum > kDBSyncMaxGap) {
     // Need Bgsave first
+    // 异步将对应的partition打快照。
+    // 调用BGSaveTaskSchedule将打快照任务放入bgsave_thread的消费队列中。
     partition->BgSavePartition();
   }
   DBSync(ip, port, table_name, partition_id);
 }
 
+// 2、依次发送快照的文件。最后发送info文件。
 void PikaServer::DbSyncSendFile(const std::string& ip, int port, const std::string& table_name, uint32_t partition_id) {
   std::shared_ptr<Partition> partition = GetTablePartitionById(table_name, partition_id);
   if (!partition) {
@@ -1208,7 +1221,7 @@ void PikaServer::ResetLastSecQuerynum() {
 
 void PikaServer::UpdateQueryNumAndExecCountTable(const std::string& table_name, const std::string& command,
                                                  bool is_write) {
-  std::string cmd(command);
+  std::string cmd(command); // command="get"；这个方法是更新系统统计信息
   statistic_.server_stat.qps.querynum++;
   statistic_.server_stat.exec_count_table[pstd::StringToUpper(cmd)]++;
   statistic_.UpdateTableQps(table_name, command, is_write);

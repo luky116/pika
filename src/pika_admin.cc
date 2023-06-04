@@ -19,6 +19,7 @@
 #include "include/pika_version.h"
 #include "pstd/include/rsync.h"
 
+// 注意，pikaServer是一个全局变量，是唯一的
 extern PikaServer* g_pika_server;
 extern PikaConf* g_pika_conf;
 extern PikaReplicaManager* g_pika_rm;
@@ -91,11 +92,14 @@ void SlaveofCmd::DoInitial() {
     return;
   }
 
+  // 是否执行了 slaveof no one
+  // todo 这里不需要断开和之前master 的链接吗？
   if (argv_.size() == 3 && !strcasecmp(argv_[1].data(), "no") && !strcasecmp(argv_[2].data(), "one")) {
     is_none_ = true;
     return;
   }
 
+  // master 节点不允许设置从节点，即不支持级联主从
   // self is master of A , want to slavof B
   if (g_pika_server->role() & PIKA_ROLE_MASTER) {
     res_.SetRes(CmdRes::kErrOther, "already master of others, invalid usage");
@@ -109,12 +113,14 @@ void SlaveofCmd::DoInitial() {
     return;
   }
 
+  // 不能设置自己为自己的 master
   if ((master_ip_ == "127.0.0.1" || master_ip_ == g_pika_server->host()) && master_port_ == g_pika_server->port()) {
     res_.SetRes(CmdRes::kErrOther, "you fucked up");
     return;
   }
 
   if (argv_.size() == 4) {
+    // 强制同步
     if (!strcasecmp(argv_[3].data(), "force")) {
       g_pika_server->SetForceFullSync(true);
     } else {
@@ -125,12 +131,15 @@ void SlaveofCmd::DoInitial() {
 
 void SlaveofCmd::Do(std::shared_ptr<Partition> partition) {
   // Check if we are already connected to the specified master
+  // 如果已经设置过该节点为 master 节点，则直接返回
+  // 注意：pikaServer 是全局变量，所以他的状态，就是这个pika服务的状态
   if ((master_ip_ == "127.0.0.1" || g_pika_server->master_ip() == master_ip_) &&
       g_pika_server->master_port() == master_port_) {
     res_.SetRes(CmdRes::kOk);
     return;
   }
 
+  // 将之前的 master 节点移除
   g_pika_server->RemoveMaster();
 
   if (is_none_) {
@@ -139,6 +148,9 @@ void SlaveofCmd::Do(std::shared_ptr<Partition> partition) {
     return;
   }
 
+  // 设置 pika_server 的成员变量
+  // 将 role 设置为 PIKA_ROLE_SLAVE;
+  // 将 repl_state 设置为 PIKA_REPL_SHOULD_META_SYNC;
   bool sm_ret = g_pika_server->SetMaster(master_ip_, master_port_);
 
   if (sm_ret) {
@@ -1117,6 +1129,11 @@ void InfoCmd::InfoKeyspace(std::string& info) {
 void InfoCmd::InfoData(std::string& info) {
   std::stringstream tmp_stream;
   std::stringstream db_fatal_msg_stream;
+
+  // 收集所有的tableName，作为正则表达式的模糊匹配项
+  //  for (const auto& table_item : g_pika_server->tables_) {
+  //      table_name = table_item.second->GetTableName();
+  //    }
 
   int64_t db_size = pstd::Du(g_pika_conf->db_path());
   tmp_stream << "# Data"
@@ -2221,7 +2238,6 @@ std::string PaddingCmd::ToBinlog(uint32_t exec_time, uint32_t term_id, uint64_t 
       BinlogType::TypeFirst,
       argv_[1].size() + BINLOG_ITEM_HEADER_SIZE + PADDING_BINLOG_PROTOCOL_SIZE + SPACE_STROE_PARAMETER_LENGTH);
 }
-
 
 void PKPatternMatchDelCmd::DoInitial() {
   if (!CheckArg(argv_.size())) {

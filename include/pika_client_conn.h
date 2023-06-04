@@ -15,7 +15,7 @@ class PikaClientConn : public net::RedisConn {
   struct BgTaskArg {
     std::shared_ptr<Cmd> cmd_ptr;
     std::shared_ptr<PikaClientConn> conn_ptr;
-    std::vector<net::RedisCmdArgsType> redis_cmds;
+    std::vector<net::RedisCmdArgsType> redis_cmds; // todo 确认下这个是谁赋值的
     std::shared_ptr<std::string> resp_ptr;
     LogOffset offset;
     std::string table_name;

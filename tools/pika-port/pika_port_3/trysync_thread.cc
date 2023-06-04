@@ -57,6 +57,7 @@ void TrysyncThread::PrepareRsync() {
   pstd::StopRsync(db_sync_path);
   pstd::CreatePath(db_sync_path);
 
+  // 创建 dbsync 下面的 5 个文件夹，用来暂存备份的数据
   pstd::CreatePath(db_sync_path + "strings");
   pstd::CreatePath(db_sync_path + "hashes");
   pstd::CreatePath(db_sync_path + "lists");
@@ -181,6 +182,12 @@ bool TrysyncThread::TryUpdateMasterOffset() {
     LOG(WARNING) << "Failed to open info file after db sync";
     return false;
   }
+  //info文件格式如下：
+  //0s
+  //0.0.0.0
+  //9221
+  //0
+  //92
   std::string line, master_ip;
   int lineno = 0;
   int64_t filenum = 0, offset = 0, tmp = 0, master_port = 0;
@@ -212,6 +219,7 @@ bool TrysyncThread::TryUpdateMasterOffset() {
             << ", filenum: " << filenum << ", offset: " << offset;
 
   // Sanity check
+  //校验master ip 和 master port
   if (  // master_ip != g_conf.master_ip ||
       master_port != g_conf.master_port) {
     LOG(WARNING) << "Error master{" << master_ip << ":" << master_port << "} != g_config.master{"
@@ -220,12 +228,15 @@ bool TrysyncThread::TryUpdateMasterOffset() {
   }
 
   // Replace the old db
+  // 重新加载db
   pstd::StopRsync(db_sync_path);
   pstd::DeleteFile(info_path);
 
   // Update master offset
+  //设置binlog
   g_pika_port->logger()->SetProducerStatus(filenum, offset);
   Retransmit();
+  //将`slave`状态从`PIKA_REPL_WAIT_DBSYNC`修改为`PIKA_REPL_CONNECT`
   g_pika_port->WaitDBSyncFinish();
 
   return true;
@@ -383,6 +394,15 @@ void* TrysyncThread::ThreadMain() {
   while (!should_stop()) {
     sleep(1);
 
+//    bool PikaPort::IsWaitingDBSync() {
+//      std::shared_lock l(state_protector_);
+//      if (repl_state_ == PIKA_REPL_WAIT_DBSYNC) {
+//        return true;
+//      }
+//      return false;
+//    }
+    // 发现需要进行同步数据
+    // repl_state_ == PIKA_REPL_WAIT_DBSYNC
     if (g_pika_port->IsWaitingDBSync()) {
       LOG(INFO) << "Waiting db sync";
       static time_t wait_start = 0;
@@ -391,6 +411,7 @@ void* TrysyncThread::ThreadMain() {
         wait_start = cur_time;
       }
       // Try to update offset by db sync
+      //判断db文件是否全部传输过来，如果db文件全部传输完成，修改状态为PIKA_REPL_CONNECT
       if (TryUpdateMasterOffset()) {
         LOG(INFO) << "Success Update Master Offset";
       } else {
@@ -401,6 +422,7 @@ void* TrysyncThread::ThreadMain() {
       }
     }
 
+    // repl_state_ == PIKA_REPL_CONNECT?
     if (!g_pika_port->ShouldConnectMaster()) {
       continue;
     }
@@ -412,7 +434,10 @@ void* TrysyncThread::ThreadMain() {
     std::string dbsync_path = g_conf.dump_path;
 
     // Start rsync service
+    // 在 dbsync 目录下面创建 5 个文件夹
     PrepareRsync();
+
+    // 连接master
     Status connectStatus = cli_->Connect(master_ip, master_port, g_conf.local_ip);
     if (!connectStatus.ok()) {
       LOG(WARNING) << "Failed to connect to master " << master_ip << ":" << master_port
@@ -420,6 +445,7 @@ void* TrysyncThread::ThreadMain() {
       continue;
     }
     LOG(INFO) << "Connect to master " << master_ip << ":" << master_port;
+    //设置读写超时时间
     cli_->set_send_timeout(30000);
     cli_->set_recv_timeout(30000);
 
@@ -436,6 +462,8 @@ void* TrysyncThread::ThreadMain() {
     // We append the master ip port after module name
     // To make sure only data from current master is received
     int rsync_port = g_conf.local_port + 3000;
+
+    // 启动 rsync 进程
     int ret = pstd::StartRsync(dbsync_path, kDBSyncModule + "_" + ip_port, lip, rsync_port, g_conf.passwd);
     if (0 != ret) {
       LOG(WARNING) << "Failed to start rsync, path: " << dbsync_path << ", error: " << ret;
@@ -460,13 +488,17 @@ void* TrysyncThread::ThreadMain() {
       LOG(FATAL) << "connecting to rsync failed, address " << lip << ":" << rsync_port;
     }
 
+    //将当前binlog位置发送给master，接收master返回结果
     if (Send(lip) && RecvProc()) {
+      //修改状态为PIKA_REPL_CONNECTING
       g_pika_port->ConnectMasterDone();
       // Stop rsync, binlog sync with master is begin
+      //停止rsync进程
       pstd::StopRsync(dbsync_path);
 
       delete g_pika_port->ping_thread_;
       g_pika_port->ping_thread_ = new SlavepingThread(sid_);
+      //启动ping线程
       g_pika_port->ping_thread_->StartThread();
       LOG(INFO) << "Trysync success";
     }

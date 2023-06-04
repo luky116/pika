@@ -54,6 +54,11 @@ Status Version::Init() {
 /*
  * Binlog
  */
+//file_size可以在配置文件指定，默认为100MB，由 binlog-file-size 配置决定
+// 1.1 创建binlog文件目录。
+// 1.2 检查log目录下manifest文件是否存在，不存在则新建。
+// 1.3 根据manifest文件初始化Version类。
+// 1.4 根据manifest中的filenum找到对应的日志文件，根据pro_offset定位到文件append的位置，初始化日志指针、记录日志内容长度、Block块数量。
 Binlog::Binlog(const std::string& binlog_path, const int file_size)
     : opened_(false),
       version_(nullptr),

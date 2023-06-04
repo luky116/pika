@@ -362,7 +362,7 @@ class CmdRes {
 
  private:
   std::string message_;
-  CmdRet ret_ = kNone;
+  CmdRet ret_ = kNone; // todo 待确认这个字段的含义？？？？？
 };
 
 class Cmd : public std::enable_shared_from_this<Cmd> {

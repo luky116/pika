@@ -498,7 +498,7 @@ void DestoryCmdTable(CmdTable* cmd_table) {
 }
 
 void Cmd::Initial(const PikaCmdArgsType& argv, const std::string& table_name) {
-  argv_ = argv;
+  argv_ = argv; // argv=["get","name"]
   table_name_ = table_name;
   res_.clear();  // Clear res content
   Clear();       // Clear cmd, Derived class can has own implement
@@ -580,7 +580,7 @@ void Cmd::ProcessSinglePartitionCmd() {
   std::shared_ptr<Partition> partition;
   if (g_pika_conf->classic_mode()) {
     // in classic mode a table has only one partition
-    partition = g_pika_server->GetPartitionByDbName(table_name_);
+    partition = g_pika_server->GetPartitionByDbName(table_name_); // classic下，table==db，db==partition todo 待理解是怎么获取的？
   } else {
     std::vector<std::string> cur_key = current_key();
     if (cur_key.empty()) {
@@ -596,7 +596,7 @@ void Cmd::ProcessSinglePartitionCmd() {
     return;
   }
 
-  std::shared_ptr<SyncMasterPartition> sync_partition =
+  std::shared_ptr<SyncMasterPartition> sync_partition = // todo 待理解，sync_partition是啥意思呢？
       g_pika_rm->GetSyncMasterPartitionByName(PartitionInfo(partition->GetTableName(), partition->GetPartitionId()));
   if (!sync_partition) {
     res_.SetRes(CmdRes::kErrOther, "Partition not found");
@@ -608,7 +608,7 @@ void Cmd::ProcessSinglePartitionCmd() {
 void Cmd::ProcessCommand(std::shared_ptr<Partition> partition, std::shared_ptr<SyncMasterPartition> sync_partition,
                          const HintKeys& hint_keys) {
   if (stage_ == kNone) {
-    InternalProcessCommand(partition, sync_partition, hint_keys);
+    InternalProcessCommand(partition, sync_partition, hint_keys); // 执行命令
   } else {
     if (stage_ == kBinlogStage) {
       DoBinlog(sync_partition);
@@ -625,12 +625,12 @@ void Cmd::InternalProcessCommand(std::shared_ptr<Partition> partition,
     if (!hint_keys.empty() && is_multi_partition() && !g_pika_conf->classic_mode()) {
       record_lock.Lock(hint_keys.keys);
     } else {
-      record_lock.Lock(current_key());
+      record_lock.Lock(current_key()); // 写命令，会上写锁
     }
   }
 
   uint64_t start_us = 0;
-  if (g_pika_conf->slowlog_slower_than() >= 0) {
+  if (g_pika_conf->slowlog_slower_than() >= 0) { // 如果设置了慢查询标准，这里记录开始执行时间
     start_us = pstd::NowMicros();
   }
   DoCommand(partition, hint_keys);
@@ -650,13 +650,13 @@ void Cmd::InternalProcessCommand(std::shared_ptr<Partition> partition,
 
 void Cmd::DoCommand(std::shared_ptr<Partition> partition, const HintKeys& hint_keys) {
   if (!is_suspend()) {
-    partition->DbRWLockReader();
+    partition->DbRWLockReader(); // todo 这里为啥要加锁啊？读写要加锁吗？
   }
 
   if (!hint_keys.empty() && is_multi_partition() && !g_pika_conf->classic_mode()) {
     Split(partition, hint_keys);
   } else {
-    Do(partition);
+    Do(partition); // classic模式的执行逻辑
   }
 
   if (!is_suspend()) {

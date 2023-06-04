@@ -22,6 +22,7 @@ int StartRsync(const std::string& raw_path, const std::string& module, const std
   if (path.back() != '/') {
     path += "/";
   }
+  // 创建 rsync 文件夹
   std::string rsync_path = path + kRsyncSubDir + "/";
   CreatePath(rsync_path);
 
@@ -144,6 +145,7 @@ int RsyncSendFile(const std::string& local_file_path, const std::string& remote_
   return ret;
 }
 
+// 1、master 开始通过 rsync 发送文件
 int RsyncSendClearTarget(const std::string& local_dir_path, const std::string& remote_dir_path,
                          const std::string& secret_file_path, const RsyncRemote& remote) {
   if (local_dir_path.empty() || remote_dir_path.empty()) {

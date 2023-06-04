@@ -67,7 +67,7 @@ class Table : public std::enable_shared_from_this<Table> {
   // partitions_rw_ > key_scan_protector_
 
   std::shared_mutex partitions_rw_;
-  std::map<uint32_t, std::shared_ptr<Partition>> partitions_;
+  std::map<uint32_t, std::shared_ptr<Partition>> partitions_; // todo 这里是啥时候更新的呢？
 
   /*
    * KeyScan use

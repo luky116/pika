@@ -358,7 +358,7 @@ class PikaServer {
    */
   std::atomic<SlotState> slot_state_;
   std::shared_mutex tables_rw_;
-  std::map<std::string, std::shared_ptr<Table>> tables_;
+  std::map<std::string, std::shared_ptr<Table>> tables_; // todo 待确认table是什么时候更新的
 
   /*
    * CronTask used

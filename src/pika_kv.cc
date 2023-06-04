@@ -133,7 +133,7 @@ std::string SetCmd::ToBinlog(uint32_t exec_time, uint32_t term_id, uint64_t logi
   }
 }
 
-void GetCmd::DoInitial() {
+void GetCmd::DoInitial() { // 做一些check校验的操作
   if (!CheckArg(argv_.size())) {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameGet);
     return;
@@ -144,7 +144,7 @@ void GetCmd::DoInitial() {
 
 void GetCmd::Do(std::shared_ptr<Partition> partition) {
   std::string value;
-  rocksdb::Status s = partition->db()->Get(key_, &value);
+  rocksdb::Status s = partition->db()->Get(key_, &value); // key="name"
   if (s.ok()) {
     res_.AppendStringLen(value.size());
     res_.AppendContent(value);

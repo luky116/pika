@@ -87,6 +87,7 @@ int PikaReplClientConn::DealMessage() {
   return 0;
 }
 
+// 在正式建立同步之前需要对于主从进程的的db个数进行确认，这一过程称之为MetaSync。
 void PikaReplClientConn::HandleMetaSyncResponse(void* arg) {
   std::unique_ptr<ReplClientTaskArg> task_arg(static_cast<ReplClientTaskArg*>(arg));
   std::shared_ptr<net::PbConn> conn = task_arg->conn;
@@ -108,6 +109,7 @@ void PikaReplClientConn::HandleMetaSyncResponse(void* arg) {
   }
 
   const InnerMessage::InnerResponse_MetaSync meta_sync = response->meta_sync();
+  // 两边的模式是否相同
   if (g_pika_conf->classic_mode() != meta_sync.classic_mode()) {
     LOG(WARNING) << "Self in " << (g_pika_conf->classic_mode() ? "classic" : "sharding") << " mode, but master in "
                  << (meta_sync.classic_mode() ? "classic" : "sharding")
@@ -124,6 +126,7 @@ void PikaReplClientConn::HandleMetaSyncResponse(void* arg) {
   }
 
   std::vector<TableStruct> self_table_structs = g_pika_conf->table_structs();
+  // 判断主从的db数量是否一致
   if (!PikaReplClientConn::IsTableStructConsistent(self_table_structs, master_table_structs)) {
     LOG(WARNING) << "Self table structs(number of databases: " << self_table_structs.size()
                  << ") inconsistent with master(number of databases: " << master_table_structs.size()
@@ -167,6 +170,10 @@ void PikaReplClientConn::HandleDBSyncResponse(void* arg) {
   slave_partition->SetMasterSessionId(session_id);
 
   std::string partition_name = slave_partition->PartitionName();
+  // 从收到DBSyncResponse 将partition置为kWaitDBSync。
+  //  2，辅助线程PikaAuxiliaryThread 周期性检查DbSync 有没有结束，结束的标志为在本地检测到Info文件的存在。
+  //  3，如果DbSync 检测完，解析info文件的filenum
+  //  offset，替换本地的Db，本地替换成新的filenum和offset，并且重走TrySync流程，同步DbSync期间产生的增量。
   slave_partition->SetReplState(ReplState::kWaitDBSync);
   LOG(INFO) << "Partition: " << partition_name << " Need Wait To Sync";
 }

@@ -32,14 +32,14 @@ PikaClientConn::PikaClientConn(int fd, std::string ip_port, net::Thread* thread,
 
 std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const std::string& opt,
                                            std::shared_ptr<std::string> resp_ptr) {
-  // Get command info
+  // argv=["get","name"],opt="get" Get command info；从cmdTable中获取命令对象（注意，这里每次都会clone返回一个新的对象，这个cmd对象是带状态的）
   std::shared_ptr<Cmd> c_ptr = g_pika_cmd_table_manager->GetCmd(opt);
   if (!c_ptr) {
     std::shared_ptr<Cmd> tmp_ptr = std::make_shared<DummyCmd>(DummyCmd());
     tmp_ptr->res().SetRes(CmdRes::kErrOther, "unknown command \"" + opt + "\"");
     return tmp_ptr;
   }
-  c_ptr->SetConn(std::dynamic_pointer_cast<PikaClientConn>(shared_from_this()));
+  c_ptr->SetConn(std::dynamic_pointer_cast<PikaClientConn>(shared_from_this())); // 将client的连接信息发到cmd中，方便cmd向client返回执行结果
   c_ptr->SetResp(resp_ptr);
 
   // Check authed
@@ -50,7 +50,7 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
   }
 
   uint64_t start_us = 0;
-  if (g_pika_conf->slowlog_slower_than() >= 0) {
+  if (g_pika_conf->slowlog_slower_than() >= 0) { // 如果配置了慢查询标志，这里记录开始执行时间
     start_us = pstd::NowMicros();
   }
 
@@ -60,12 +60,12 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
   }
 
   // Initial
-  c_ptr->Initial(argv, current_table_);
+  c_ptr->Initial(argv, current_table_); // argv=["get","name"],current_table_="db0"
   if (!c_ptr->res().ok()) {
     return c_ptr;
   }
 
-  g_pika_server->UpdateQueryNumAndExecCountTable(current_table_, opt, c_ptr->is_write());
+  g_pika_server->UpdateQueryNumAndExecCountTable(current_table_, opt, c_ptr->is_write()); // 更新系统统计信息
 
   // PubSub connection
   // (P)SubscribeCmd will set is_pubsub_
@@ -78,10 +78,10 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
     }
   }
 
-  if (g_pika_conf->consensus_level() != 0 && c_ptr->is_write()) {
+  if (g_pika_conf->consensus_level() != 0 && c_ptr->is_write()) { // 判断共识程度
     c_ptr->SetStage(Cmd::kBinlogStage);
   }
-  if (!g_pika_server->IsCommandSupport(opt)) {
+  if (!g_pika_server->IsCommandSupport(opt)) { // 主要是判断classic和sharding模式下支持哪些命令
     c_ptr->res().SetRes(CmdRes::kErrOther, "This command is not supported in current configuration");
     return c_ptr;
   }
@@ -93,7 +93,7 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
     return c_ptr;
   }
 
-  if (!g_pika_server->IsTableExist(current_table_)) {
+  if (!g_pika_server->IsTableExist(current_table_)) { // todo 待梳理，这里是怎么赋值的
     c_ptr->res().SetRes(CmdRes::kErrOther, "Table not found");
     return c_ptr;
   }
@@ -183,10 +183,10 @@ void PikaClientConn::ProcessRedisCmds(const std::vector<net::RedisCmdArgsType>& 
 }
 
 // 这里会处理用户的请求，并将执行结果返回
-void PikaClientConn::DoBackgroundTask(void* arg) {
+void PikaClientConn::DoBackgroundTask(void* arg) { // todo 疑问：这里的tasks你怎么运行的？
   std::unique_ptr<BgTaskArg> bg_arg(static_cast<BgTaskArg*>(arg));
   std::shared_ptr<PikaClientConn> conn_ptr = bg_arg->conn_ptr;
-  if (bg_arg->redis_cmds.size() == 0) {
+  if (bg_arg->redis_cmds.size() == 0) {  // redis_cmds = ["get","name"]
     conn_ptr->NotifyEpoll(false);
     return;
   }
@@ -246,9 +246,9 @@ void PikaClientConn::BatchExecRedisCmd(const std::vector<net::RedisCmdArgsType>&
       command += argvs[0][j];
       command += " ";
     }
-//    LOG(INFO) << "【收到client端请求命令】" << command;
+    //    LOG(INFO) << "【收到client端请求命令】" << command;
   }
-  resp_num.store(argvs.size());
+  resp_num.store(argvs.size()); // argvs = [["get","name"]]
   for (size_t i = 0; i < argvs.size(); ++i) {
     std::shared_ptr<std::string> resp_ptr = std::make_shared<std::string>();
     resp_array.push_back(resp_ptr);
@@ -273,7 +273,7 @@ void PikaClientConn::TryWriteResp() {
 }
 
 void PikaClientConn::ExecRedisCmd(const PikaCmdArgsType& argv, std::shared_ptr<std::string> resp_ptr) {
-  // opt="get"
+  // argv=["get","name"]   opt="get"
   std::string opt = argv[0];
   pstd::StringToLower(opt);
   if (opt == kClusterPrefix) {
@@ -302,7 +302,7 @@ void PikaClientConn::AuthStat::Init() {
 
 // Check permission for current command
 bool PikaClientConn::AuthStat::IsAuthed(const std::shared_ptr<Cmd> cmd_ptr) {
-  std::string opt = cmd_ptr->name();
+  std::string opt = cmd_ptr->name(); // "get"
   if (opt == kCmdNameAuth) {
     return true;
   }
