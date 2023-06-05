@@ -321,7 +321,7 @@ RedisParserStatus RedisParser::ProcessInputBuffer(const char* input_buf, int len
     input_buf_ = input_str_.c_str();
     length_ = length + half_argv_.size();
     if (redis_parser_type_ == REDIS_PARSER_REQUEST) {
-      ProcessRequestBuffer();
+      ProcessRequestBuffer(); // 处理请求
     } else if (redis_parser_type_ == REDIS_PARSER_RESPONSE) {
       ProcessResponseBuffer();
     } else {
@@ -383,6 +383,8 @@ RedisParserStatus RedisParser::ProcessRequestBuffer() {
     ResetCommandStatus();
   }
   if (parser_settings_.Complete) {
+    // 处理请求
+    // Complete == redisConn.ParserCompleteCb 方法，间接调用了 PikaClientConn::ProcessRedisCmds 方法，该逻辑在子类中实现，负责处理请求会拿到执行结果
     if (parser_settings_.Complete(this, argvs_) != 0) {
       SetParserStatus(kRedisParserError, kRedisParserCompleteError);
       return status_code_;

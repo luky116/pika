@@ -76,6 +76,7 @@ PikaServer::PikaServer()
     ips.insert(host_);
   }
   // We estimate the queue size
+  // 每一个队列请求的排队数量，总 client 连接数/线程数 + 100
   int worker_queue_limit = g_pika_conf->maxclients() / worker_num_ + 100;
   LOG(INFO) << "Worker queue limit is " << worker_queue_limit;
   // 监听1个端口，接收用户连接请求

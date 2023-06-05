@@ -30,6 +30,9 @@ RedisConn::RedisConn(const int fd, const std::string& ip_port, Thread* thread, N
       wbuf_pos_(0),
       last_read_pos_(-1),
       bulk_len_(-1) {
+  // 初始化 将redis conn的ParserDealMessageCb ParserCompleteCb挂载到
+  // redis parser中，redis parser 解析出完整的一条redis 命令会调用相
+  // 应的ParserDealMessageCb 或者ParserCompleteCb 函数
   RedisParserSettings settings;
   settings.DealMessage = ParserDealMessageCb;
   settings.Complete = ParserCompleteCb;
@@ -67,6 +70,7 @@ ReadStatus RedisConn::ParseRedisParserStatus(RedisParserStatus status) {
   }
 }
 
+// 这个方法会被 serverthread 或者 worker thread 调用
 ReadStatus RedisConn::GetRequest() {
   ssize_t nread = 0;
   int next_read_pos = last_read_pos_ + 1;
@@ -114,6 +118,9 @@ ReadStatus RedisConn::GetRequest() {
   }
 
   int processed_len = 0;
+  // read from socket
+  // forward to redis_parser_, redis_parser will invoke callback
+  // 处理请求
   RedisParserStatus ret = redis_parser_.ProcessInputBuffer(rbuf_ + next_read_pos, nread, &processed_len);
   ReadStatus read_status = ParseRedisParserStatus(ret);
   if (read_status == kReadAll || read_status == kReadHalf) {
@@ -166,6 +173,7 @@ WriteStatus RedisConn::SendReply() {
   }
 }
 
+// RedisConn 使用者调用
 int RedisConn::WriteResp(const std::string& resp) {
   response_.append(resp);
   set_is_reply(true);
@@ -198,6 +206,8 @@ void RedisConn::NotifyEpoll(bool success) {
   net_multiplexer()->Register(ti, true);
 }
 
+// 根据具体的RedisConn 的配置是否为异步模式 调用RedisConn的DealMessage
+// 函数或者AsynProcessRedisCmds
 int RedisConn::ParserDealMessageCb(RedisParser* parser, const RedisCmdArgsType& argv) {
   RedisConn* conn = reinterpret_cast<RedisConn*>(parser->data);
   if (conn->GetHandleType() == HandleType::kSynchronous) {
@@ -210,7 +220,7 @@ int RedisConn::ParserDealMessageCb(RedisParser* parser, const RedisCmdArgsType& 
 int RedisConn::ParserCompleteCb(RedisParser* parser, const std::vector<RedisCmdArgsType>& argvs) {
   RedisConn* conn = reinterpret_cast<RedisConn*>(parser->data);
   bool async = conn->GetHandleType() == HandleType::kAsynchronous;
-  conn->ProcessRedisCmds(argvs, async, &(conn->response_));
+  conn->ProcessRedisCmds(argvs, async, &(conn->response_)); // 处理请求
   return 0;
 }
 

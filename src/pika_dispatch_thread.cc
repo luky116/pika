@@ -16,7 +16,7 @@ extern PikaServer* g_pika_server;
 
 PikaDispatchThread::PikaDispatchThread(std::set<std::string>& ips, int port, int work_num, int cron_interval,
                                        int queue_limit, int max_conn_rbuf_size)
-    : conn_factory_(max_conn_rbuf_size),
+    : conn_factory_(max_conn_rbuf_size), // todo 这里怎么初始化的？？
       handles_(this) {
   // 核心类是 DispatchThread ，继承了 ServerThread，继承了 Thread，线程启动时实际上运行的是子类的ThreadMain方法、
   // 入口是ServerThread::ThreadMain()，线程启动会先ServerThread::InitHandle()，绑定和监听端口

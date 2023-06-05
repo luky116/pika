@@ -89,6 +89,7 @@ void* WorkerThread::ThreadMain() {
   }
 
   while (!should_stop()) {
+
     if (cron_interval_ > 0) {
       gettimeofday(&now, nullptr);
       if (when.tv_sec > now.tv_sec || (when.tv_sec == now.tv_sec && when.tv_usec > now.tv_usec)) {
@@ -101,6 +102,7 @@ void* WorkerThread::ThreadMain() {
       }
     }
 
+    // 这里阻塞3秒，监听是否有client段的请求；todo 这样不会导致处理不及时吗？？？
     nfds = net_multiplexer_->NetPoll(timeout);
 
     for (int i = 0; i < nfds; i++) {
@@ -117,6 +119,7 @@ void* WorkerThread::ThreadMain() {
             for (int32_t idx = 0; idx < nread; ++idx) {
               NetItem ti = net_multiplexer_->NotifyQueuePop();
               if (ti.notify_type() == kNotiConnect) {
+                // 按照使用者的实现方式新建一个connection负责后续的数据读写。conn_factory_=ClientConnFactory, tc==PikaClientConn
                 std::shared_ptr<NetConn> tc = conn_factory_->NewNetConn(ti.fd(), ti.ip_port(), server_thread_,
                                                                         private_data_, net_multiplexer_.get());
                 if (!tc || !tc->SetNonblock()) {
@@ -185,6 +188,7 @@ void* WorkerThread::ThreadMain() {
         }
 
         if (!should_close && (pfe->mask & kReadable)) {
+          // 调用 Conn 解析 redis 命令，并调用 Pi卡ClientConn::ProcessRedisCmds处理命令
           ReadStatus read_status = in_conn->GetRequest();
           in_conn->set_last_interaction(now);
           if (read_status == kReadAll) {

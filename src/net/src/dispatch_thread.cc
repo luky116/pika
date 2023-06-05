@@ -38,6 +38,7 @@ DispatchThread::DispatchThread(const std::string& ip, int port, int work_num, Co
   }
 }
 
+// work_num = thread_num 参数
 DispatchThread::DispatchThread(const std::set<std::string>& ips, int port, int work_num, ConnFactory* conn_factory,
                                int cron_interval, int queue_limit, const ServerHandle* handle)
     : ServerThread::ServerThread(ips, port, cron_interval, handle),
@@ -169,6 +170,7 @@ void DispatchThread::HandleNewConn(const int connfd, const std::string& ip_port)
     next_thread = (next_thread + 1) % work_num_;
   }
 
+  // 处理的线程都满了，直接关闭连接
   if (!find) {
     LOG(INFO) << "all workers are full, queue limit is " << queue_limit_;
     // every worker is full

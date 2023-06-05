@@ -177,6 +177,7 @@ void* ServerThread::ThreadMain() {
   char ip_addr[INET_ADDRSTRLEN] = "";
 
   while (!should_stop()) {
+    // 执行定时任务
     if (cron_interval_ > 0) {
       gettimeofday(&now, nullptr);
       if (when.tv_sec > now.tv_sec || (when.tv_sec == now.tv_sec && when.tv_usec > now.tv_usec)) {
@@ -198,13 +199,15 @@ void* ServerThread::ThreadMain() {
       pfe = (net_multiplexer_->FiredEvents()) + i;
       fd = pfe->fd;
 
+      // NotifyReceiveFd：从 notify_queue 读取消息；其他线程通过 PinkEpoll 来写入 notify_send_fd；
       if (pfe->fd == net_multiplexer_->NotifyReceiveFd()) {
+        // ProcessNotifyEvents serverthread处理异步通信用的
         ProcessNotifyEvents(pfe);
         continue;
       }
 
       /*
-       * Handle server event 处理 client 链接的请求
+       * Handle server event 处理 client 新建连接的请求
        */
       if (server_fds_.find(fd) != server_fds_.end()) {
         if (pfe->mask & kReadable) {

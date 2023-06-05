@@ -170,13 +170,14 @@ void PikaClientConn::ProcessMonitor(const PikaCmdArgsType& argv) {
   g_pika_server->AddMonitorMessage(monitor_message);
 }
 
+// 父类 RedisConn 使用了模板模式，子类重写这个方法即可
 void PikaClientConn::ProcessRedisCmds(const std::vector<net::RedisCmdArgsType>& argvs, bool async,
-                                      std::string* response) {
+                                      std::string* response) { // 实际处理命令的逻辑
   if (async) {
     BgTaskArg* arg = new BgTaskArg();
     arg->redis_cmds = argvs;
     arg->conn_ptr = std::dynamic_pointer_cast<PikaClientConn>(shared_from_this());
-    g_pika_server->ScheduleClientPool(&DoBackgroundTask, arg);
+    g_pika_server->ScheduleClientPool(&DoBackgroundTask, arg); // 处理请求
     return;
   }
   BatchExecRedisCmd(argvs);
