@@ -27,7 +27,7 @@ extern void InitCRC32Table();
 extern uint32_t CRC32Update(uint32_t crc, const char *buf, int len);
 extern uint32_t CRC32CheckSum(const char *buf, int len);
 
-int GetSlotNum(const std::string &str);
+int GetSlotID(const std::string &str);
 int GetKeyType(const std::string key, std::string &key_type, std::shared_ptr<Slot>slot);
 void AddSlotKey(const std::string type, const std::string key, std::shared_ptr<Slot>slot);
 void RemKeyNotExists(const std::string type, const std::string key, std::shared_ptr<Slot>slot);
@@ -150,44 +150,5 @@ class SlotsHashKeyCmd : public Cmd {
   std::vector<std::string> keys_;
   virtual void DoInitial();
 };
-
-
-class SlotsMgrtSenderThread: public net::Thread {
- public:
-  SlotsMgrtSenderThread();
-  virtual ~SlotsMgrtSenderThread();
-  int SlotsMigrateOne(const std::string &key, std::shared_ptr<Slot>slot);
-  bool SlotsMigrateBatch(const std::string &ip, int64_t port, int64_t time_out, int64_t slots, int64_t keys_num, std::shared_ptr<Slot>slot);
-  bool GetSlotsMigrateResult(int64_t *moved, int64_t *remained);
-  void GetSlotsMgrtSenderStatus(std::string *ip, int64_t *port, int64_t *slot, bool *migrating, int64_t *moved, int64_t *remained);
-  bool SlotsMigrateAsyncCancel();
- private:
-  std::string dest_ip_;
-  int64_t dest_port_;
-  int64_t timeout_ms_;
-  int64_t slot_num_;
-  int64_t keys_num_;
-  int64_t moved_keys_num_; // during one batch moved
-  int64_t moved_keys_all_; // all keys moved in the slot
-  int64_t remained_keys_num_;
-  bool error_;
-  std::vector<std::pair<const char, std::string>> migrating_batch_;
-  std::vector<std::pair<const char, std::string>> migrating_ones_;
-  net::NetCli *cli_;
-  pstd::Mutex rwlock_;
-  pstd::Mutex rwlock_db_;
-  pstd::Mutex rwlock_batch_;
-  pstd::Mutex rwlock_ones_;
-  pstd::Mutex slotsmgrt_cond_mutex_;
-  pstd::Mutex mutex_;
-  std::atomic<bool> is_migrating_ = false;
-  pstd::CondVar slotsmgrt_cond_;
-  std::shared_ptr<Slot>slot_;
-
-  void* ThreadMain() override;
-
-  bool ElectMigrateKeys(std::shared_ptr<Slot>slot);
-};
-
 
 #endif
