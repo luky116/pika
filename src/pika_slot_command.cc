@@ -14,6 +14,7 @@
 #include "storage/include/storage/storage.h"
 
 #define min(a, b) (((a) > (b)) ? (b) : (a))
+#define MAX_MEMBERS_NUM 512
 
 extern std::unique_ptr<PikaServer> g_pika_server;
 extern std::unique_ptr<PikaConf> g_pika_conf;
@@ -45,6 +46,701 @@ uint32_t CRC32Update(uint32_t crc, const char *buf, int len) {
   return ~crc;
 }
 
+PikaMigrate::PikaMigrate() { migrate_clients_.clear(); }
+
+PikaMigrate::~PikaMigrate() {
+  // close and release all client
+  // get the mutex lock
+  std::lock_guard lm(mutex_);
+  KillAllMigrateClient();
+}
+
+net::NetCli *PikaMigrate::GetMigrateClient(const std::string &host, const int port, int timeout) {
+  std::string ip_port = host + ":" + std::to_string(port);
+  net::NetCli *migrate_cli;
+  pstd::Status s;
+
+  std::map<std::string, void *>::iterator migrate_clients_iter = migrate_clients_.find(ip_port);
+  if (migrate_clients_iter == migrate_clients_.end()) {
+    migrate_cli = net::NewRedisCli();
+    s = migrate_cli->Connect(host, port, g_pika_server->host());
+    if (!s.ok()) {
+      LOG(ERROR) << "GetMigrateClient: new  migrate_cli[" << ip_port.c_str() << "] failed";
+
+      delete migrate_cli;
+      return NULL;
+    }
+
+    LOG(INFO) << "GetMigrateClient: new  migrate_cli[" << ip_port.c_str() << "]";
+
+    std::string userpass = g_pika_conf->userpass();
+    if (userpass != "") {
+      net::RedisCmdArgsType argv;
+      std::string wbuf_str;
+      argv.push_back("auth");
+      argv.push_back(userpass);
+      net::SerializeRedisCommand(argv, &wbuf_str);
+
+      s = migrate_cli->Send(&wbuf_str);
+      if (!s.ok()) {
+        LOG(ERROR) << "GetMigrateClient: new  migrate_cli Send, error: " << s.ToString();
+        delete migrate_cli;
+        return NULL;
+      }
+
+      s = migrate_cli->Recv(&argv);
+      if (!s.ok()) {
+        LOG(ERROR) << "GetMigrateClient: new  migrate_cli Recv, error: " << s.ToString();
+        delete migrate_cli;
+        return NULL;
+      }
+
+      if (strcasecmp(argv[0].data(), kInnerReplOk.data())) {
+        LOG(ERROR) << "GetMigrateClient: new  migrate_cli auth error";
+        delete migrate_cli;
+        return NULL;
+      }
+    }
+
+    // add new migrate client to the map
+    migrate_clients_[ip_port] = migrate_cli;
+  } else {
+    // LOG(INFO) << "GetMigrateClient: find  migrate_cli[" << ip_port.c_str() << "]";
+    migrate_cli = static_cast<net::NetCli *>(migrate_clients_iter->second);
+  }
+
+  // set the client connect timeout
+  migrate_cli->set_send_timeout(timeout);
+  migrate_cli->set_recv_timeout(timeout);
+
+  // modify the client last time
+  //  migrate_cli->
+  gettimeofday(&migrate_cli->last_interaction_, NULL);
+
+  return migrate_cli;
+}
+
+void PikaMigrate::KillMigrateClient(net::NetCli *migrate_cli) {
+  std::map<std::string, void *>::iterator migrate_clients_iter = migrate_clients_.begin();
+  while (migrate_clients_iter != migrate_clients_.end()) {
+    if (migrate_cli == static_cast<net::NetCli *>(migrate_clients_iter->second)) {
+      LOG(INFO) << "KillMigrateClient: kill  migrate_cli[" << migrate_clients_iter->first.c_str() << "]";
+
+      migrate_cli->Close();
+      delete migrate_cli;
+      migrate_cli = NULL;
+
+      migrate_clients_.erase(migrate_clients_iter);
+      break;
+    }
+
+    ++migrate_clients_iter;
+  }
+}
+
+// clean and realse timeout client
+void PikaMigrate::CleanMigrateClient() {
+  struct timeval now;
+
+  // if the size of migrate_clients_ <= 0, don't need clean
+  if (migrate_clients_.size() <= 0) {
+    return;
+  }
+
+  gettimeofday(&now, NULL);
+  std::map<std::string, void *>::iterator migrate_clients_iter = migrate_clients_.begin();
+  while (migrate_clients_iter != migrate_clients_.end()) {
+    net::NetCli *migrate_cli = static_cast<net::NetCli *>(migrate_clients_iter->second);
+    // pika_server do DoTimingTask every 10s, so we Try colse the migrate_cli before pika timeout, do it at least 20s in
+    // advance
+    int timeout = (g_pika_conf->timeout() > 0) ? g_pika_conf->timeout() : 60;
+    if (now.tv_sec - migrate_cli->last_interaction_.tv_sec > timeout - 20) {
+      LOG(INFO) << "CleanMigrateClient: clean  migrate_cli[" << migrate_clients_iter->first.c_str() << "]";
+      migrate_cli->Close();
+      delete migrate_cli;
+
+      migrate_clients_iter = migrate_clients_.erase(migrate_clients_iter);
+    } else {
+      ++migrate_clients_iter;
+    }
+  }
+}
+
+// clean and realse all client
+void PikaMigrate::KillAllMigrateClient() {
+  std::map<std::string, void *>::iterator migrate_clients_iter = migrate_clients_.begin();
+  while (migrate_clients_iter != migrate_clients_.end()) {
+    net::NetCli *migrate_cli = static_cast<net::NetCli *>(migrate_clients_iter->second);
+
+    LOG(INFO) << "KillAllMigrateClient: kill  migrate_cli[" << migrate_clients_iter->first.c_str() << "]";
+
+    migrate_cli->Close();
+    delete migrate_cli;
+
+    migrate_clients_iter = migrate_clients_.erase(migrate_clients_iter);
+  }
+}
+
+/* *
+ * do migrate a key-value for slotsmgrt/slotsmgrtone commands
+ * return value:
+ *    -1 - error happens
+ *   >=0 - # of success migration (0 or 1)
+ * */
+int PikaMigrate::MigrateKey(const std::string &host, const int port, int db, int timeout, const std::string &key,
+                            const char type, std::string &detail, std::shared_ptr<Slot> slot) {
+  int send_command_num = -1;
+
+  net::NetCli *migrate_cli = GetMigrateClient(host, port, timeout);
+  if (NULL == migrate_cli) {
+    detail = "GetMigrateClient failed";
+    LOG(INFO) << "GetMigrateClient failed, key: " << key;
+    return -1;
+  }
+
+  send_command_num = MigrateSend(migrate_cli, key, type, detail, slot);
+  if (send_command_num <= 0) {
+    return send_command_num;
+  }
+
+  if (MigrateRecv(migrate_cli, send_command_num, detail)) {
+    return send_command_num;
+  }
+
+  return -1;
+}
+
+int PikaMigrate::MigrateSend(net::NetCli *migrate_cli, const std::string &key, const char type, std::string &detail,
+                             std::shared_ptr<Slot> slot) {
+  std::string wbuf_str;
+  pstd::Status s;
+  int command_num = -1;
+
+  // chech the client is alive
+  if (NULL == migrate_cli) {
+    return -1;
+  }
+
+  command_num = ParseKey(key, type, wbuf_str, slot);
+  if (command_num < 0) {
+    detail = "ParseKey failed";
+    return command_num;
+  }
+
+  // dont need seed data, key is not exist
+  if (command_num == 0 || wbuf_str.empty()) {
+    return 0;
+  }
+
+  s = migrate_cli->Send(&wbuf_str);
+  if (!s.ok()) {
+    LOG(ERROR) << "Connect slots target, Send error: " << s.ToString();
+    detail = "Connect slots target, Send error: " + s.ToString();
+    KillMigrateClient(migrate_cli);
+    return -1;
+  }
+
+  return command_num;
+}
+
+bool PikaMigrate::MigrateRecv(net::NetCli *migrate_cli, int need_receive, std::string &detail) {
+  pstd::Status s;
+  std::string reply;
+  int64_t ret;
+
+  if (NULL == migrate_cli || need_receive < 0) {
+    return false;
+  }
+
+  net::RedisCmdArgsType argv;
+  while (need_receive) {
+    s = migrate_cli->Recv(&argv);
+    if (!s.ok()) {
+      LOG(ERROR) << "Connect slots target, Recv error: " << s.ToString();
+      detail = "Connect slots target, Recv error: " + s.ToString();
+      KillMigrateClient(migrate_cli);
+      return false;
+    }
+
+    reply = argv[0];
+    need_receive--;
+
+    // set   return ok
+    // zadd  return number
+    // hset  return 0 or 1
+    // hmset return ok
+    // sadd  return number
+    // rpush return length
+    if (argv.size() == 1 &&
+        (kInnerReplOk == pstd::StringToLower(reply) || pstd::string2int(reply.data(), reply.size(), &ret))) {
+      // success
+
+      // continue reiceve response
+      if (need_receive > 0) {
+        continue;
+      }
+
+      // has got all response
+      break;
+    }
+
+    // failed
+    detail = "something wrong with slots migrate, reply: " + reply;
+    LOG(ERROR) << "something wrong with slots migrate, reply:" << reply;
+    return false;
+  }
+
+  return true;
+}
+
+// return -1 is error; 0 dont migrate; >0 the number of commond
+int PikaMigrate::ParseKey(const std::string &key, const char type, std::string &wbuf_str, std::shared_ptr<Slot> slot) {
+  int command_num = -1;
+  int64_t ttl = 0;
+  rocksdb::Status s;
+
+  switch (type) {
+    case 'k':
+      command_num = ParseKKey(key, wbuf_str, slot);
+      break;
+    case 'h':
+      command_num = ParseHKey(key, wbuf_str, slot);
+      break;
+    case 'l':
+      command_num = ParseLKey(key, wbuf_str, slot);
+      break;
+    case 'z':
+      command_num = ParseZKey(key, wbuf_str, slot);
+      break;
+    case 's':
+      command_num = ParseSKey(key, wbuf_str, slot);
+      break;
+    default:
+      LOG(INFO) << "ParseKey key[" << key << "], the type[" << type << "] is not support.";
+      return -1;
+      break;
+  }
+
+  // error or key is not exist
+  if (command_num <= 0) {
+    LOG(INFO) << "ParseKey key[" << key << "], parse return " << command_num
+              << ", the key maybe is not exist or expired.";
+    return command_num;
+  }
+
+  // skip kv, because kv cmd: SET key value ttl
+  if (type == 'k') {
+    return command_num;
+  }
+
+  ttl = TTLByType(type, key, slot);
+
+  //-1 indicates the key is valid forever
+  if (ttl == -1) {
+    return command_num;
+  }
+
+  // key is expired or not exist, dont migrate
+  if (ttl == 0 or ttl == -2) {
+    wbuf_str.clear();
+    return 0;
+  }
+
+  // no kv, because kv cmd: SET key value ttl
+  if (SetTTL(key, wbuf_str, ttl)) {
+    command_num += 1;
+  }
+
+  return command_num;
+}
+
+bool PikaMigrate::SetTTL(const std::string &key, std::string &wbuf_str, int64_t ttl) {
+  //-1 indicates the key is valid forever
+  if (ttl == -1) {
+    return false;
+  }
+
+  // if ttl = -2 indicates the key is not exist
+  if (ttl < 0) {
+    LOG(INFO) << "SetTTL key[" << key << "], ttl is " << ttl;
+    ttl = 0;
+  }
+
+  net::RedisCmdArgsType argv;
+  std::string cmd;
+
+  argv.push_back("EXPIRE");
+  argv.push_back(key);
+  argv.push_back(std::to_string(ttl));
+
+  net::SerializeRedisCommand(argv, &cmd);
+  wbuf_str.append(cmd);
+
+  return true;
+}
+
+// return -1 is error; 0 dont migrate; >0 the number of commond
+int PikaMigrate::ParseKKey(const std::string &key, std::string &wbuf_str, std::shared_ptr<Slot> slot) {
+  net::RedisCmdArgsType argv;
+  std::string cmd;
+  std::string value;
+  int64_t ttl = 0;
+  rocksdb::Status s;
+
+  s = slot->db()->Get(key, &value);
+
+  // key is not exist, dont migrate
+  if (s.IsNotFound()) {
+    return 0;
+  }
+
+  if (!s.ok()) {
+    return -1;
+  }
+
+  argv.push_back("SET");
+  argv.push_back(key);
+  argv.push_back(value);
+
+  ttl = TTLByType('k', key, slot);
+
+  // ttl = -1 indicates the key is valid forever, dont process
+  // key is expired or not exist, dont migrate
+  // todo check ttl
+  if (ttl == 0 || ttl == -2) {
+    wbuf_str.clear();
+    return 0;
+  }
+
+  if (ttl > 0) {
+    argv.push_back("EX");
+    argv.push_back(std::to_string(ttl));
+  }
+  net::SerializeRedisCommand(argv, &cmd);
+  wbuf_str.append(cmd);
+  return 1;
+}
+
+int64_t PikaMigrate::TTLByType(const char key_type, const std::string &key, std::shared_ptr<Slot> slot) {
+  std::map<storage::DataType, int64_t> type_timestamp;
+  std::map<storage::DataType, rocksdb::Status> type_status;
+  type_timestamp = slot->db()->TTL(key, &type_status);
+
+  switch (key_type) {
+    case 'k': {
+      return type_timestamp[storage::kStrings];
+    } break;
+    case 'h': {
+      return type_timestamp[storage::kHashes];
+    } break;
+    case 'z': {
+      return type_timestamp[storage::kZSets];
+    } break;
+    case 's': {
+      return type_timestamp[storage::kSets];
+    } break;
+    case 'l': {
+      return type_timestamp[storage::kLists];
+    } break;
+    default:
+      return -3;
+  }
+}
+
+int PikaMigrate::ParseZKey(const std::string &key, std::string &wbuf_str, std::shared_ptr<Slot> slot) {
+  int command_num = 0;
+
+  int64_t next_cursor = 0;
+  std::vector<storage::ScoreMember> score_members;
+  do {
+    score_members.clear();
+    rocksdb::Status s = slot->db()->ZScan(key, next_cursor, "*", MAX_MEMBERS_NUM, &score_members, &next_cursor);
+    if (s.ok()) {
+      if (score_members.empty()) {
+        break;
+      }
+
+      net::RedisCmdArgsType argv;
+      std::string cmd;
+      argv.push_back("ZADD");
+      argv.push_back(key);
+
+      for (const auto &score_member : score_members) {
+        argv.push_back(std::to_string(score_member.score));
+        argv.push_back(score_member.member);
+      }
+
+      net::SerializeRedisCommand(argv, &cmd);
+      wbuf_str.append(cmd);
+      command_num++;
+    } else if (s.IsNotFound()) {
+      wbuf_str.clear();
+      return 0;
+    } else {
+      wbuf_str.clear();
+      return -1;
+    }
+  } while (next_cursor > 0);
+
+  return command_num;
+}
+
+// return -1 is error; 0 dont migrate; >0 the number of commond
+int PikaMigrate::ParseHKey(const std::string &key, std::string &wbuf_str, std::shared_ptr<Slot> slot) {
+  int64_t next_cursor = 0;
+  int command_num = 0;
+  std::vector<storage::FieldValue> field_values;
+  do {
+    field_values.clear();
+    rocksdb::Status s = slot->db()->HScan(key, next_cursor, "*", MAX_MEMBERS_NUM, &field_values, &next_cursor);
+    if (s.ok()) {
+      if (field_values.empty()) {
+        break;
+      }
+
+      net::RedisCmdArgsType argv;
+      std::string cmd;
+      argv.push_back("HMSET");
+      argv.push_back(key);
+
+      for (const auto &field_value : field_values) {
+        argv.push_back(field_value.field);
+        argv.push_back(field_value.value);
+      }
+
+      net::SerializeRedisCommand(argv, &cmd);
+      wbuf_str.append(cmd);
+      command_num++;
+    } else if (s.IsNotFound()) {
+      wbuf_str.clear();
+      return 0;
+    } else {
+      wbuf_str.clear();
+      return -1;
+    }
+  } while (next_cursor > 0);
+
+  return command_num;
+}
+
+// return -1 is error; 0 dont migrate; >0 the number of commond
+int PikaMigrate::ParseSKey(const std::string &key, std::string &wbuf_str, std::shared_ptr<Slot> slot) {
+  int command_num = 0;
+  int64_t next_cursor = 0;
+  std::vector<std::string> members;
+
+  do {
+    members.clear();
+    rocksdb::Status s = slot->db()->SScan(key, next_cursor, "*", MAX_MEMBERS_NUM, &members, &next_cursor);
+
+    if (s.ok()) {
+      if (members.empty()) {
+        break;
+      }
+
+      net::RedisCmdArgsType argv;
+      std::string cmd;
+      argv.push_back("SADD");
+      argv.push_back(key);
+
+      for (const auto &member : members) {
+        argv.push_back(member);
+      }
+
+      net::SerializeRedisCommand(argv, &cmd);
+      wbuf_str.append(cmd);
+      command_num++;
+    } else if (s.IsNotFound()) {
+      wbuf_str.clear();
+      return 0;
+    } else {
+      wbuf_str.clear();
+      return -1;
+    }
+  } while (next_cursor > 0);
+
+  return command_num;
+}
+
+// return -1 is error; 0 dont migrate; >0 the number of commond
+int PikaMigrate::ParseLKey(const std::string &key, std::string &wbuf_str, std::shared_ptr<Slot> slot) {
+  int64_t left = 0;
+  int64_t len = MAX_MEMBERS_NUM;  // original 512
+  int command_num = 0;
+  std::vector<std::string> values;
+
+  net::RedisCmdArgsType argv;
+  std::string cmd;
+
+  // del old key, before migrate list; prevent redo when failed
+  argv.push_back("DEL");
+  argv.push_back(key);
+  net::SerializeRedisCommand(argv, &cmd);
+  wbuf_str.append(cmd);
+  command_num++;
+
+  do {
+    values.clear();
+    rocksdb::Status s = slot->db()->LRange(key, left, left + (len - 1), &values);
+    if (s.ok()) {
+      if (values.empty()) {
+        break;
+      }
+
+      net::RedisCmdArgsType argv;
+      std::string cmd;
+
+      argv.push_back("RPUSH");
+      argv.push_back(key);
+
+      for (const auto &value : values) {
+        argv.push_back(value);
+      }
+
+      net::SerializeRedisCommand(argv, &cmd);
+      wbuf_str.append(cmd);
+      command_num++;
+
+      left += len;
+    } else if (s.IsNotFound()) {
+      wbuf_str.clear();
+      return 0;
+    } else {
+      wbuf_str.clear();
+      return -1;
+    }
+  } while (!values.empty());
+
+  if (command_num == 1) {
+    wbuf_str.clear();
+    command_num = 0;
+  }
+
+  return command_num;
+}
+
+/* *
+ * do migrate a key-value for slotsmgrt/slotsmgrtone commands
+ * return value:
+ *    -1 - error happens
+ *   >=0 - # of success migration (0 or 1)
+ * */
+static int SlotsMgrtOne(const std::string &host, const int port, int timeout, const std::string &key, const char type,
+                        std::string &detail, std::shared_ptr<Slot> slot) {
+  int send_command_num = 0;
+  rocksdb::Status s;
+  std::map<storage::DataType, rocksdb::Status> type_status;
+
+  send_command_num = g_pika_server->pika_migrate_->MigrateKey(host, port, 0, timeout, key, type, detail, slot);
+
+  // the key is migrated to target, delete key and slotsinfo
+  if (send_command_num >= 1) {
+    LOG(INFO) << "【send command success】Migrate key: " << key << " success, host: " << host << ", port: " << port;
+    std::vector<std::string> keys;
+    keys.push_back(key);
+    int64_t count = slot->db()->Del(keys, &type_status);
+    if (count > 0) {
+      // todo add bin log
+      //      WriteDelKeyToBinlog(key);
+    }
+
+    // del slots info
+    SlotKeyRemByType(std::string(1, type), key, slot);
+    return 1;
+  }
+
+  // key is not exist, only del slotsinfo
+  if (send_command_num == 0) {
+    // del slots info
+    SlotKeyRemByType(std::string(1, type), key, slot);
+    return 0;
+  }
+  return -1;
+}
+
+void SlotKeyRemByType(const std::string &type, const std::string &key, std::shared_ptr<Slot> slot) {
+  uint32_t crc;
+  int hastag;
+  int slotNum = GetSlotsID(key, &crc, &hastag);
+
+  std::string slot_key = GetSlotKey(slotNum);
+  int32_t res = 0;
+
+  std::vector<std::string> members;
+  members.push_back(type + key);
+  rocksdb::Status s = slot->db()->SRem(slot_key, members, &res);
+  if (!s.ok()) {
+    LOG(ERROR) << "srem key[" << key << "] from slotKey[" << slot_key << "] failed, error: " << s.ToString();
+    return;
+  }
+
+  if (hastag) {
+    std::string tag_key = GetSlotsTagKey(crc);
+    s = slot->db()->SRem(tag_key, members, &res);
+    if (!s.ok()) {
+      LOG(ERROR) << "srem key[" << key << "] from tagKey[" << tag_key << "] failed, error: " << s.ToString();
+      return;
+    }
+  }
+}
+
+
+/* *
+ * do migrate mutli key-value(s) for {slotsmgrt/slotsmgrtone}with tag commands
+ * return value:
+ *    -1 - error happens
+ *   >=0 - # of success migration
+ * */
+static int SlotsMgrtTag(const std::string &host, const int port, int timeout, const std::string &key, const char type, std::string &detail, std::shared_ptr<Slot> slot) {
+  int count = 0;
+  uint32_t crc;
+  int hastag;
+  GetSlotsID(key, &crc, &hastag);
+  if (!hastag) {
+    if (type == 0) {
+      return 0;
+    }
+    int ret = SlotsMgrtOne(host, port, timeout, key, type, detail, slot);
+    if (ret == 0) {
+      LOG(INFO) << "slots migrate without tag failed, key: " << key << ", detail: " << detail;
+    }
+    return ret;
+  }
+
+  std::string tag_key = GetSlotsTagKey(crc);
+  std::vector<std::string> members;
+
+  //get all key that has the same crc
+  rocksdb::Status s = slot->db()->SMembers(tag_key, &members);
+  if (!s.ok()) {
+    return -1;
+  }
+
+  std::vector<std::string>::const_iterator iter = members.begin();
+  for (; iter != members.end(); iter++) {
+    std::string key = *iter;
+    char type = key.at(0);
+    key.erase(key.begin());
+    int ret = SlotsMgrtOne(host, port, timeout, key, type, detail, slot);
+
+    //the key is migrated to target
+    if (ret == 1){
+      count++;
+      continue;
+    }
+
+    if (ret == 0){
+      LOG(WARNING) << "slots migrate tag failed, key: " << key << ", detail: " << detail;
+      continue;
+    }
+
+    return -1;
+  }
+
+  return count;
+}
+
+
 // get slot tag
 static const char *GetSlotsTag(const std::string &str, int *plen) {
   const char *s = str.data();
@@ -67,13 +763,10 @@ static const char *GetSlotsTag(const std::string &str, int *plen) {
 }
 
 // get key slot number
-int GetSlotID(const std::string &str) {
-  uint32_t crc = CRC32Update(0, str.data(), (int)str.size());
-  return (int)(crc & HASH_SLOTS_MASK);
-}
+int GetSlotID(const std::string &str) { return GetSlotsID(str, NULL, NULL); }
 
 // get the slot number by key
-int GetSlotsNum(const std::string &str, uint32_t *pcrc, int *phastag) {
+int GetSlotsID(const std::string &str, uint32_t *pcrc, int *phastag) {
   const char *s = str.data();
   int taglen;
   int hastag = 0;
@@ -100,12 +793,30 @@ void AddSlotKey(const std::string type, const std::string key, std::shared_ptr<S
   if (g_pika_conf->slotmigrate() != true) {
     return;
   }
-  int32_t count = 0;
-  std::vector<std::string> members(1, type + key);
-  std::string slotKey = SlotKeyPrefix + std::to_string(GetSlotID(key));
-  rocksdb::Status s = slot->db()->SAdd(slotKey, members, &count);
+
+  rocksdb::Status s;
+  int32_t res = -1;
+  uint32_t crc;
+  int hastag;
+  int slotID = GetSlotsID(key, &crc, &hastag);
+  std::string slot_key = GetSlotKey(slotID);
+  std::vector<std::string> members;
+  members.push_back(type + key);
+  s = slot->db()->SAdd(slot_key, members, &res);
   if (!s.ok()) {
-    LOG(WARNING) << "SAdd key: " << key << " to slotKey, error: " << s.ToString();
+    LOG(ERROR) << "sadd key[" << key << "] to slotKey[" << slot_key << "] failed, error: " << s.ToString();
+    return;
+  }
+
+  // if res == 0, indicate the key is exist; may return,
+  // prevent write slot_key success, but write tag_key failed, so always write tag_key
+  if (hastag) {
+    std::string tag_key = GetSlotsTagKey(crc);
+    s = slot->db()->SAdd(tag_key, members, &res);
+    if (!s.ok()) {
+      LOG(ERROR) << "sadd key[" << key << "] to tagKey[" << tag_key << "] failed, error: " << s.ToString();
+      return;
+    }
   }
 }
 
@@ -212,6 +923,9 @@ static int doAuth(net::NetCli *cli) {
 }
 
 std::string GetSlotKey(int slot) { return SlotKeyPrefix + std::to_string(slot); }
+
+// rocksdb namespace function
+std::string GetSlotsTagKey(uint32_t crc) { return SlotTagPrefix + std::to_string(crc); }
 
 // delete key from db
 int DeleteKey(const std::string key, const char key_type, std::shared_ptr<Slot> slot) {
@@ -335,8 +1049,14 @@ void SlotsMgrtTagSlotCmd::DoInitial() {
   pstd::StringToLower(dest_ip_);
 
   std::string str_dest_port = *it++;
-  if (!pstd::string2int(str_dest_port.data(), str_dest_port.size(), &dest_port_) || dest_port_ <= 0) {
-    res_.SetRes(CmdRes::kInvalidInt);
+  if (!pstd::string2int(str_dest_port.data(), str_dest_port.size(), &dest_port_)) {
+    std::string detail = "invalid port nummber = " + dest_port_;
+    res_.SetRes(CmdRes::kErrOther, detail);
+    return;
+  }
+  if (dest_port_ < 0 || dest_port_ > 65535) {
+    std::string detail = "invalid port nummber = " + dest_port_;
+    res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
 
@@ -346,74 +1066,83 @@ void SlotsMgrtTagSlotCmd::DoInitial() {
   }
 
   std::string str_timeout_ms = *it++;
-  if (!pstd::string2int(str_timeout_ms.data(), str_timeout_ms.size(), &timeout_ms_) || timeout_ms_ <= 0) {
+  if (!pstd::string2int(str_timeout_ms.data(), str_timeout_ms.size(), &timeout_ms_)) {
     res_.SetRes(CmdRes::kInvalidInt);
     return;
   }
+  if (timeout_ms_ < 0) {
+    std::string detail = "invalid timeout nummber = " + timeout_ms_;
+    res_.SetRes(CmdRes::kErrOther, detail);
+    return;
+  }
+  if (timeout_ms_ == 0) {
+    timeout_ms_ = 100;
+  }
 
   std::string str_slot_num = *it++;
-  if (!pstd::string2int(str_slot_num.data(), str_slot_num.size(), &slot_num_) || slot_num_ < 0) {
+  if (!pstd::string2int(str_slot_num.data(), str_slot_num.size(), &slot_id_)) {
     res_.SetRes(CmdRes::kInvalidInt);
+    return;
+  }
+  if (slot_id_ < 0 || slot_id_ >= HASH_SLOTS_SIZE) {
+    std::string detail = "invalid slot nummber = " + slot_id_;
+    res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
 }
 
 void SlotsMgrtTagSlotCmd::Do(std::shared_ptr<Slot> slot) {
-  if (SlotKeyPop(slot) < 0) {
+  if (g_pika_conf->slotmigrate() != true) {
+    LOG(WARNING) << "Not in slotmigrate mode";
+    res_.SetRes(CmdRes::kErrOther, "not set slotmigrate");
     return;
   }
-  net::NetCli *cli = net::NewRedisCli();
-  cli->set_connect_timeout(timeout_ms_);
-  if ((cli->Connect(dest_ip_, dest_port_, "")).ok()) {
-    cli->set_send_timeout(timeout_ms_);
-    cli->set_recv_timeout(timeout_ms_);
-    if (doAuth(cli) < 0) {
-      res_.SetRes(CmdRes::kErrOther, "Slot Migrate auth destination server error");
-      cli->Close();
-      delete cli;
-      return;
-    }
 
-    if (g_pika_server->SlotsMigrateOne(key_, slot) < 0) {
-      res_.SetRes(CmdRes::kErrOther, "migrate slot error");
-      cli->Close();
-      delete cli;
-      return;
+  int32_t len = 0;
+  int ret = 0;
+  std::string detail;
+  std::string slot_key = GetSlotKey(slot_id_);
+
+  // first get the count of slot_key, prevent to sscan key very slowly when the key is notfund
+  rocksdb::Status s = slot->db()->SCard(slot_key, &len);
+  LOG(INFO) << "【SlotsMgrtTagSlotCmd::Do】Get count, slot_key: " << slot_key << ", len: " << len;
+  if (len < 0) {
+    detail = "Get the len of slot Error";
+  }
+  // mutex between SlotsMgrtTagSlotCmd、SlotsMgrtTagOneCmd and migrator_thread
+  if (len > 0 && g_pika_server->pika_migrate_->Trylock()) {
+    g_pika_server->pika_migrate_->CleanMigrateClient();
+    int64_t next_cursor = 0;
+    std::vector<std::string> members;
+    rocksdb::Status s = slot->db()->SScan(slot_key, 0, "*", 1, &members, &next_cursor);
+    if (s.ok()) {
+      for (const auto &member : members) {
+        std::string key = member;
+        char type = key.at(0);
+        key.erase(key.begin());
+        ret = SlotsMgrtTag(dest_ip_, dest_port_, timeout_ms_, key, type, detail, slot);
+      }
     }
+    ";
+    // unlock
+    g_pika_server->pika_migrate_->Unlock();
   } else {
-    LOG(WARNING) << "Slot Migrate Connect destination error: " << strerror(errno);
-    res_.SetRes(CmdRes::kErrOther, "Slot Migrate connect destination server error");
-    cli->Close();
-    delete cli;
-    return;
+    LOG(WARNING) << "pika migrate is running, try again later, slot_id_: " << slot_id_;
+  }
+  if (ret == 0) {
+    LOG(WARNING) << "slots migrate without tag failed, slot_id_: " << slot_id_ << ", detail: " << detail;
+  }
+  if (len >= 0 && ret >= 0) {
+    res_.AppendArrayLen(2);
+    res_.AppendInteger(ret);    // the number of keys migrated
+    res_.AppendInteger(len-ret);  // the number of keys remained
+  } else {
+    res_.SetRes(CmdRes::kErrOther, detail);
   }
 
-  cli->Close();
-  delete cli;
-  std::string slotKey = SlotKeyPrefix + std::to_string(slot_num_);
-  SlotKeyLenCheck(slotKey, res_, slot);
   return;
 }
 
-// pop one key from slotkey
-int SlotsMgrtTagSlotCmd::SlotKeyPop(std::shared_ptr<Slot> slot) {
-  std::string slotKey = SlotKeyPrefix + std::to_string(slot_num_);
-  std::vector<std::string> member;
-  rocksdb::Status s = slot->db()->SPop(slotKey, &member, 1);
-  if (!s.ok()) {
-    LOG(WARNING) << "Migrate slot: " << slot_num_ << " error: " << s.ToString();
-    res_.AppendArrayLen(2);
-    res_.AppendInteger(0);
-    res_.AppendInteger(0);
-    return -1;
-  }
-
-  key_type_ = member[0].at(0);
-  key_ = member[0];
-  key_.erase(key_.begin());
-
-  return 0;
-}
 // check key type
 int SlotsMgrtTagOneCmd::KeyTypeCheck(std::shared_ptr<Slot> slot) {
   std::string type_str;
@@ -466,44 +1195,151 @@ int SlotsMgrtTagOneCmd::SlotKeyRemCheck(std::shared_ptr<Slot> slot) {
   return 0;
 }
 
-void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot>slot) {
-  if (KeyTypeCheck(slot) < 0){
+void SlotsMgrtTagOneCmd::DoInitial() {
+  if (!CheckArg(argv_.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsMgrtTagSlot);
     return;
   }
-  if (SlotKeyRemCheck(slot) < 0){
+  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;  // Remember the first args is the opt name
+  dest_ip_ = *it++;
+  pstd::StringToLower(dest_ip_);
+
+  std::string str_dest_port = *it++;
+  if (!pstd::string2int(str_dest_port.data(), str_dest_port.size(), &dest_port_)) {
+    std::string detail = "invalid port nummber = " + dest_port_;
+    res_.SetRes(CmdRes::kErrOther, detail);
+    return;
+  }
+  if (dest_port_ < 0 || dest_port_ > 65535) {
+    std::string detail = "invalid port nummber = " + dest_port_;
+    res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
 
-  net::NetCli *cli = net::NewRedisCli();
-  cli->set_connect_timeout(timeout_ms_);
-  if ((cli->Connect(dest_ip_, dest_port_, "")).ok()) {
-    cli->set_send_timeout(timeout_ms_);
-    cli->set_recv_timeout(timeout_ms_);
-    if (doAuth(cli) < 0) {
-      res_.SetRes(CmdRes::kErrOther, "Slot Migrate auth destination server error");
-      cli->Close();
-      delete cli;
+  if ((dest_ip_ == "127.0.0.1" || dest_ip_ == g_pika_server->host()) && dest_port_ == g_pika_server->port()) {
+    res_.SetRes(CmdRes::kErrOther, "destination address error");
+    return;
+  }
+
+  std::string str_timeout_ms = *it++;
+  if (!pstd::string2int(str_timeout_ms.data(), str_timeout_ms.size(), &timeout_ms_)) {
+    res_.SetRes(CmdRes::kInvalidInt);
+    return;
+  }
+  if (timeout_ms_ < 0) {
+    std::string detail = "invalid timeout nummber = " + timeout_ms_;
+    res_.SetRes(CmdRes::kErrOther, detail);
+    return;
+  }
+  if (timeout_ms_ == 0) {
+    timeout_ms_ = 100;
+  }
+
+  key_ = *it++;
+}
+
+void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
+  if (g_pika_conf->slotmigrate() != true){
+    LOG(WARNING) << "Not in slotmigrate mode";
+    res_.SetRes(CmdRes::kErrOther, "not set slotmigrate");
+    return;
+  }
+
+  int64_t ret = 0;
+  int32_t len = 0;
+  int     hastag = 0;
+  uint32_t crc;
+  std::string detail;
+  rocksdb::Status s;
+  std::map<storage::DataType, rocksdb::Status> type_status;
+
+  //check if need migrate key, if the key is not exist, return
+  GetSlotsID(key_, &crc, &hastag);
+  if (!hastag) {
+    std::vector<std::string> keys;
+    keys.push_back(key_);
+
+    //check the key is not exist
+    ret = slot->db()->Exists(keys, &type_status);
+
+    //when the key is not exist, ret = 0
+    if ( ret == -1 ){
+      res_.SetRes(CmdRes::kErrOther, "exists internal error");
       return;
     }
 
-    // todo
-//    if (MigrateOneKey(cli, key_, key_type_, false, slot) < 0){
-//      res_.SetRes(CmdRes::kErrOther, "migrate one error");
-//      cli->Close();
-//      delete cli;
-//      return;
-//    }
-  } else  {
-    LOG(WARNING) << "Slot Migrate Connect destination error: " <<strerror(errno);
-    res_.SetRes(CmdRes::kErrOther, "Slot Migrate connect destination server error");
-    cli->Close();
-    delete cli;
-    return;
+    if( ret == 0 ) {
+      res_.AppendInteger(0);
+      return;
+    }
+
+    //else need to migrate
+  }else{
+    //key is tag_key, check the number of the tag_key
+    std::string tag_key = GetSlotsTagKey(crc);
+    s = slot->db()->SCard(tag_key, &len);
+    if (!s.ok() || len == -1) {
+      res_.SetRes(CmdRes::kErrOther, "cont get the mumber of tag_key");
+      return;
+    }
+
+    if (len == 0) {
+      res_.AppendInteger(0);
+      return;
+    }
+
+    //else need to migrate
   }
 
-  cli->Close();
-  delete cli;
-  res_.AppendInteger(1);
+  //lock batch migrate, dont do slotsmgrttagslot when do slotsmgrttagone
+  //g_pika_server->mgrttagslot_mutex_.Lock();
+  //pika_server thread exit(~PikaMigrate) and dispatch thread do CronHandle nead lock()
+  g_pika_server->pika_migrate_->Lock();
+
+
+  //codis can guarantee that the operate of the slots key is processed by migrate command only
+  //do record lock for key_
+  //g_pika_server->mutex_record_.Lock(key_);
+
+  //check if need migrate key, if the key is not exist, return
+  //GetSlotsNum(key_, &crc, &hastag);
+  if (!hastag) {
+    std::vector<std::string> keys;
+    keys.push_back(key_);
+    //the key may be deleted by other thread
+    std::map<storage::DataType, rocksdb::Status> type_status;
+    ret = slot->db()->Exists(keys, &type_status);
+
+    //when the key is not exist, ret = 0
+    if (ret == -1) {
+      detail = s.ToString();
+    } else if (KeyTypeCheck(slot) != 0) {
+      detail = "cont get the key type.";
+      ret = -1;
+    } else {
+      ret = SlotsMgrtTag(dest_ip_, dest_port_, timeout_ms_, key_, key_type_, detail, slot);
+    }
+  } else {
+    //key maybe not exist, the key is tag key, migrate the same tag key
+    ret = SlotsMgrtTag(dest_ip_, dest_port_, timeout_ms_, key_, 0, detail, slot);
+  }
+
+  //unlock the record lock
+  //g_pika_server->mutex_record_.Unlock(key_);
+
+  //unlock
+  g_pika_server->pika_migrate_->Unlock();
+
+
+  if(ret >= 0){
+    res_.AppendInteger(ret);
+  }else{
+    if(detail.size() == 0){
+      detail = "Unknown Error";
+    }
+    res_.SetRes(CmdRes::kErrOther, detail);
+  }
+
   return;
 }
 
@@ -712,8 +1548,7 @@ void SlotsHashKeyCmd::Do(std::shared_ptr<Slot> slot) {
 
   res_.AppendArrayLen(keys_.size());
   for (keys_it = keys_.begin(); keys_it != keys_.end(); ++keys_it) {
-    res_.AppendInteger(GetSlotsNum(*keys_it, NULL, NULL));
-    ;
+    res_.AppendInteger(GetSlotsID(*keys_it, NULL, NULL));
   }
 
   return;
