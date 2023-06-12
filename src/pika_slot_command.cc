@@ -511,6 +511,8 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot>slot) {
   return;
 }
 
+void SlotsMgrtTagOneCmd::DoInitial(){}
+
 void SlotsInfoCmd::DoInitial() {
   if (!CheckArg(argv_.size())) {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsInfo);
