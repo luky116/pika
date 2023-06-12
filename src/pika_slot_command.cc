@@ -34,7 +34,9 @@ void CRC32TableInit(uint32_t poly) {
   }
 }
 
-void InitCRC32Table() { CRC32TableInit(IEEE_POLY); }
+void InitCRC32Table() {
+  CRC32TableInit(IEEE_POLY);
+}
 
 uint32_t CRC32Update(uint32_t crc, const char *buf, int len) {
   int i;
@@ -93,7 +95,9 @@ int GetSlotsNum(const std::string &str, uint32_t *pcrc, int *phastag) {
   return (int)(crc & HASH_SLOTS_MASK);
 }
 
-uint32_t CRC32CheckSum(const char *buf, int len) { return CRC32Update(0, buf, len); }
+uint32_t CRC32CheckSum(const char *buf, int len) {
+  return CRC32Update(0, buf, len);
+}
 
 // add key to slotkey
 void AddSlotKey(const std::string type, const std::string key, std::shared_ptr<Slot> slot) {
@@ -116,7 +120,6 @@ void RemKeyNotExists(const std::string type, const std::string key, std::shared_
   }
   std::vector<std::string> vkeys;
   vkeys.push_back(key);
-  //  std::map<storage::DataType, Status> type_status;
   std::map<storage::DataType, rocksdb::Status> type_status;
   int64_t res = slot->db()->Exists(vkeys, &type_status);
   if (res == 0) {
@@ -330,7 +333,8 @@ void SlotsMgrtTagSlotCmd::DoInitial() {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsMgrtTagSlot);
     return;
   }
-  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;  // Remember the first args is the opt name
+  // Remember the first args is the opt name
+  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;
   dest_ip_ = *it++;
   pstd::StringToLower(dest_ip_);
 
@@ -713,7 +717,6 @@ void SlotsHashKeyCmd::Do(std::shared_ptr<Slot> slot) {
   res_.AppendArrayLen(keys_.size());
   for (keys_it = keys_.begin(); keys_it != keys_.end(); ++keys_it) {
     res_.AppendInteger(GetSlotsNum(*keys_it, NULL, NULL));
-    ;
   }
 
   return;
