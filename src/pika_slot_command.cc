@@ -37,7 +37,9 @@ void CRC32TableInit(uint32_t poly) {
   }
 }
 
-void InitCRC32Table() { CRC32TableInit(IEEE_POLY); }
+void InitCRC32Table() {
+  CRC32TableInit(IEEE_POLY);
+}
 
 uint32_t CRC32Update(uint32_t crc, const char *buf, int len) {
   int i;
@@ -833,7 +835,6 @@ void RemKeyNotExists(const std::string type, const std::string key, std::shared_
   }
   std::vector<std::string> vkeys;
   vkeys.push_back(key);
-  //  std::map<storage::DataType, Status> type_status;
   std::map<storage::DataType, rocksdb::Status> type_status;
   int64_t res = slot->db()->Exists(vkeys, &type_status);
   if (res == 0) {
@@ -1049,7 +1050,8 @@ void SlotsMgrtTagSlotCmd::DoInitial() {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsMgrtTagSlot);
     return;
   }
-  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;  // Remember the first args is the opt name
+  // Remember the first args is the opt name
+  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;
   dest_ip_ = *it++;
   pstd::StringToLower(dest_ip_);
 
@@ -1204,7 +1206,8 @@ void SlotsMgrtTagOneCmd::DoInitial() {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsMgrtTagSlot);
     return;
   }
-  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;  // Remember the first args is the opt name
+  // Remember the first args is the opt name
+  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;
   dest_ip_ = *it++;
   pstd::StringToLower(dest_ip_);
 
@@ -1421,7 +1424,8 @@ void SlotsMgrtTagSlotAsyncCmd::DoInitial() {
   if (!CheckArg(argv_.size())) {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsMgrtTagSlotAsync);
   }
-  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;  // Remember the first args is the opt name
+  // Remember the first args is the opt name
+  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;
   dest_ip_ = *it++;
   pstd::StringToLower(dest_ip_);
 
