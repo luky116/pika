@@ -1123,7 +1123,6 @@ void SlotsMgrtTagSlotCmd::Do(std::shared_ptr<Slot> slot) {
         ret = SlotsMgrtTag(dest_ip_, dest_port_, timeout_ms_, key, type, detail, slot);
       }
     }
-    ";
     // unlock
     g_pika_server->pika_migrate_->Unlock();
   } else {
