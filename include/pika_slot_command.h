@@ -132,7 +132,7 @@ class SlotsMgrtTagOneCmd : public Cmd {
   int64_t dest_port_;
   int64_t timeout_ms_;
   std::string key_;
-  int64_t slot_num_;
+  int64_t slot_id_;
   char key_type_;
   void DoInitial() override;
   int SlotKeyRemCheck(std::shared_ptr<Slot>slot);

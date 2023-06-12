@@ -838,7 +838,7 @@ void RemKeyNotExists(const std::string type, const std::string key, std::shared_
   std::map<storage::DataType, rocksdb::Status> type_status;
   int64_t res = slot->db()->Exists(vkeys, &type_status);
   if (res == 0) {
-    std::string slotKey = SlotKeyPrefix + std::to_string(GetSlotID(key));
+    std::string slotKey = GetSlotKey(GetSlotID(key));
     std::vector<std::string> members(1, type + key);
     int32_t count = 0;
     rocksdb::Status s = slot->db()->SRem(slotKey, members, &count);
@@ -860,7 +860,7 @@ void RemSlotKey(const std::string key, std::shared_ptr<Slot> slot) {
     LOG(WARNING) << "SRem key: " << key << " from slotKey error";
     return;
   }
-  std::string slotKey = SlotKeyPrefix + std::to_string(GetSlotID(key));
+  std::string slotKey = GetSlotKey(GetSlotID(key));
   int32_t count = 0;
   std::vector<std::string> members(1, type + key);
   rocksdb::Status s = slot->db()->SRem(slotKey, members, &count);
@@ -1183,14 +1183,14 @@ int SlotsMgrtTagOneCmd::KeyTypeCheck(std::shared_ptr<Slot> slot) {
 
 // delete one key from slotkey
 int SlotsMgrtTagOneCmd::SlotKeyRemCheck(std::shared_ptr<Slot> slot) {
-  std::string slotKey = GetSlotKey(slot_num_);
+  std::string slotKey = GetSlotKey(slot_id_);
   std::string tkey = std::string(1, key_type_) + key_;
   std::vector<std::string> members(1, tkey);
   int32_t count = 0;
   rocksdb::Status s = slot->db()->SRem(slotKey, members, &count);
   if (!s.ok()) {
     if (s.IsNotFound()) {
-      LOG(INFO) << "Migrate slot: " << slot_num_ << " not found ";
+      LOG(INFO) << "Migrate slot: " << slot_id_ << " not found ";
       res_.AppendInteger(0);
     } else {
       LOG(WARNING) << "Migrate slot key: " << key_ << " error: " << s.ToString();
@@ -1302,11 +1302,6 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
   //g_pika_server->mgrttagslot_mutex_.Lock();
   //pika_server thread exit(~PikaMigrate) and dispatch thread do CronHandle nead lock()
   g_pika_server->pika_migrate_->Lock();
-
-
-  //codis can guarantee that the operate of the slots key is processed by migrate command only
-  //do record lock for key_
-  //g_pika_server->mutex_record_.Lock(key_);
 
   //check if need migrate key, if the key is not exist, return
   //GetSlotsNum(key_, &crc, &hastag);
