@@ -6,12 +6,14 @@
 #include "include/pika_slot_command.h"
 #include <algorithm>
 #include <vector>
+#include <string>
 #include "include/pika_conf.h"
 #include "include/pika_data_distribution.h"
 #include "include/pika_server.h"
 #include "pstd/include/pstd_status.h"
 #include "pstd/include/pstd_string.h"
 #include "storage/include/storage/storage.h"
+#include "include/pika_migrate_thread.h"
 
 #define min(a, b) (((a) > (b)) ? (b) : (a))
 #define MAX_MEMBERS_NUM 512
@@ -35,7 +37,9 @@ void CRC32TableInit(uint32_t poly) {
   }
 }
 
-void InitCRC32Table() { CRC32TableInit(IEEE_POLY); }
+void InitCRC32Table() {
+  CRC32TableInit(IEEE_POLY);
+}
 
 uint32_t CRC32Update(uint32_t crc, const char *buf, int len) {
   int i;
@@ -565,7 +569,6 @@ int PikaMigrate::ParseSKey(const std::string &key, std::string &wbuf_str, std::s
 // return -1 is error; 0 dont migrate; >0 the number of commond
 int PikaMigrate::ParseLKey(const std::string &key, std::string &wbuf_str, std::shared_ptr<Slot> slot) {
   int64_t left = 0;
-  int64_t len = MAX_MEMBERS_NUM;  // original 512
   int command_num = 0;
   std::vector<std::string> values;
 
@@ -581,7 +584,7 @@ int PikaMigrate::ParseLKey(const std::string &key, std::string &wbuf_str, std::s
 
   do {
     values.clear();
-    rocksdb::Status s = slot->db()->LRange(key, left, left + (len - 1), &values);
+    rocksdb::Status s = slot->db()->LRange(key, left, left + (MAX_MEMBERS_NUM - 1), &values);
     if (s.ok()) {
       if (values.empty()) {
         break;
@@ -601,7 +604,7 @@ int PikaMigrate::ParseLKey(const std::string &key, std::string &wbuf_str, std::s
       wbuf_str.append(cmd);
       command_num++;
 
-      left += len;
+      left += MAX_MEMBERS_NUM;
     } else if (s.IsNotFound()) {
       wbuf_str.clear();
       return 0;
@@ -762,6 +765,10 @@ static const char *GetSlotsTag(const std::string &str, int *plen) {
   return s + i;
 }
 
+std::string GetSlotKey(int slot){
+  return SlotKeyPrefix + std::to_string(slot);
+}
+
 // get key slot number
 int GetSlotID(const std::string &str) { return GetSlotsID(str, NULL, NULL); }
 
@@ -827,11 +834,10 @@ void RemKeyNotExists(const std::string type, const std::string key, std::shared_
   }
   std::vector<std::string> vkeys;
   vkeys.push_back(key);
-  //  std::map<storage::DataType, Status> type_status;
   std::map<storage::DataType, rocksdb::Status> type_status;
   int64_t res = slot->db()->Exists(vkeys, &type_status);
   if (res == 0) {
-    std::string slotKey = SlotKeyPrefix + std::to_string(GetSlotID(key));
+    std::string slotKey = GetSlotKey(GetSlotID(key));
     std::vector<std::string> members(1, type + key);
     int32_t count = 0;
     rocksdb::Status s = slot->db()->SRem(slotKey, members, &count);
@@ -853,7 +859,7 @@ void RemSlotKey(const std::string key, std::shared_ptr<Slot> slot) {
     LOG(WARNING) << "SRem key: " << key << " from slotKey error";
     return;
   }
-  std::string slotKey = SlotKeyPrefix + std::to_string(GetSlotID(key));
+  std::string slotKey = GetSlotKey(GetSlotID(key));
   int32_t count = 0;
   std::vector<std::string> members(1, type + key);
   rocksdb::Status s = slot->db()->SRem(slotKey, members, &count);
@@ -922,7 +928,6 @@ static int doAuth(net::NetCli *cli) {
   return 0;
 }
 
-std::string GetSlotKey(int slot) { return SlotKeyPrefix + std::to_string(slot); }
 
 // rocksdb namespace function
 std::string GetSlotsTagKey(uint32_t crc) { return SlotTagPrefix + std::to_string(crc); }
@@ -1044,7 +1049,8 @@ void SlotsMgrtTagSlotCmd::DoInitial() {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsMgrtTagSlot);
     return;
   }
-  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;  // Remember the first args is the opt name
+  // Remember the first args is the opt name
+  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;
   dest_ip_ = *it++;
   pstd::StringToLower(dest_ip_);
 
@@ -1176,14 +1182,14 @@ int SlotsMgrtTagOneCmd::KeyTypeCheck(std::shared_ptr<Slot> slot) {
 
 // delete one key from slotkey
 int SlotsMgrtTagOneCmd::SlotKeyRemCheck(std::shared_ptr<Slot> slot) {
-  std::string slotKey = GetSlotKey(slot_num_);
+  std::string slotKey = GetSlotKey(slot_id_);
   std::string tkey = std::string(1, key_type_) + key_;
   std::vector<std::string> members(1, tkey);
   int32_t count = 0;
   rocksdb::Status s = slot->db()->SRem(slotKey, members, &count);
   if (!s.ok()) {
     if (s.IsNotFound()) {
-      LOG(INFO) << "Migrate slot: " << slot_num_ << " not found ";
+      LOG(INFO) << "Migrate slot: " << slot_id_ << " not found ";
       res_.AppendInteger(0);
     } else {
       LOG(WARNING) << "Migrate slot key: " << key_ << " error: " << s.ToString();
@@ -1199,7 +1205,8 @@ void SlotsMgrtTagOneCmd::DoInitial() {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsMgrtTagSlot);
     return;
   }
-  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;  // Remember the first args is the opt name
+  // Remember the first args is the opt name
+  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;
   dest_ip_ = *it++;
   pstd::StringToLower(dest_ip_);
 
@@ -1295,11 +1302,6 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
   //pika_server thread exit(~PikaMigrate) and dispatch thread do CronHandle nead lock()
   g_pika_server->pika_migrate_->Lock();
 
-
-  //codis can guarantee that the operate of the slots key is processed by migrate command only
-  //do record lock for key_
-  //g_pika_server->mutex_record_.Lock(key_);
-
   //check if need migrate key, if the key is not exist, return
   //GetSlotsNum(key_, &crc, &hastag);
   if (!hastag) {
@@ -1342,21 +1344,60 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
   return;
 }
 
+/* *
+ * slotsinfo [start] [count]
+ * */
 void SlotsInfoCmd::DoInitial() {
   if (!CheckArg(argv_.size())) {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsInfo);
+    return;
   }
-  return;
+
+  if(argv_.size() >= 2){
+    if (!pstd::string2int(argv_[1].data(), argv_[1].size(), &begin_)) {
+      res_.SetRes(CmdRes::kInvalidInt);
+      return;
+    }
+
+    if (begin_ < 0 || begin_ >= end_) {
+      std::string detail = "invalid slot begin = " + argv_[1];
+      res_.SetRes(CmdRes::kErrOther, detail);
+      return;
+    }
+  }
+
+  if(argv_.size() >= 3){
+    int64_t count = 0;
+    if (!pstd::string2int(argv_[2].data(), argv_[2].size(), &count)) {
+      res_.SetRes(CmdRes::kInvalidInt);
+      return;
+    }
+
+    if (count < 0) {
+      std::string detail = "invalid slot count = " + argv_[2];
+      res_.SetRes(CmdRes::kErrOther, detail);
+      return;
+    }
+
+    if (begin_ + count < end_) {
+      end_ = begin_ + count;
+    }
+  }
+
+  if (argv_.size() >= 4) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsInfo);
+    return;
+  }
 }
 
-void SlotsInfoCmd::Do(std::shared_ptr<Slot> slot) {
-  std::map<int64_t, int64_t> slotsMap;
-  for (int i = 0; i < HASH_SLOTS_SIZE; ++i) {
+void SlotsInfoCmd::Do(std::shared_ptr<Slot>slot) {
+  std::map<int64_t,int64_t> slotsMap;
+  for (int i = 0; i < HASH_SLOTS_SIZE; ++i){
     int32_t card = 0;
-    rocksdb::Status s = slot->db()->SCard(SlotKeyPrefix + std::to_string(i), &card);
+    rocksdb::Status s = slot->db()->SCard(SlotKeyPrefix+std::to_string(i), &card);
     if (s.ok()) {
       slotsMap[i] = card;
-    } else if (s.IsNotFound()) {
+    } else if (s.IsNotFound()){
       continue;
     } else {
       res_.SetRes(CmdRes::kErrOther, "Slotsinfo scard error");
@@ -1364,8 +1405,8 @@ void SlotsInfoCmd::Do(std::shared_ptr<Slot> slot) {
     }
   }
   res_.AppendArrayLen(slotsMap.size());
-  std::map<int64_t, int64_t>::iterator it;
-  for (it = slotsMap.begin(); it != slotsMap.end(); ++it) {
+  std::map<int64_t,int64_t>::iterator it;
+  for (it = slotsMap.begin(); it != slotsMap.end(); ++it){
     res_.AppendArrayLen(2);
     res_.AppendInteger(it->first);
     res_.AppendInteger(it->second);
@@ -1377,7 +1418,8 @@ void SlotsMgrtTagSlotAsyncCmd::DoInitial() {
   if (!CheckArg(argv_.size())) {
     res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsMgrtTagSlotAsync);
   }
-  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;  // Remember the first args is the opt name
+  // Remember the first args is the opt name
+  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;
   dest_ip_ = *it++;
   pstd::StringToLower(dest_ip_);
 
@@ -1393,19 +1435,19 @@ void SlotsMgrtTagSlotAsyncCmd::DoInitial() {
   }
 
   std::string str_timeout_ms = *it++;
-  if (!pstd::string2int(str_timeout_ms.data(), str_timeout_ms.size(), &timeout_ms_) || timeout_ms_ <= 0) {
+  if (!pstd::string2int(str_dest_port.data(), str_dest_port.size(), &dest_port_) || dest_port_ <= 0) {
     res_.SetRes(CmdRes::kInvalidInt);
     return;
   }
 
   std::string str_max_bulks = *it++;
-  if (!pstd::string2int(str_max_bulks.data(), str_max_bulks.size(), &max_bulks_) || max_bulks_ <= 0) {
+  if (!pstd::string2int(str_dest_port.data(), str_dest_port.size(), &dest_port_) || dest_port_ <= 0) {
     res_.SetRes(CmdRes::kInvalidInt);
     return;
   }
 
   std::string str_max_bytes_ = *it++;
-  if (!pstd::string2int(str_max_bytes_.data(), str_max_bytes_.size(), &max_bytes_) || max_bytes_ <= 0) {
+  if (!pstd::string2int(str_dest_port.data(), str_dest_port.size(), &dest_port_) || dest_port_ <= 0) {
     res_.SetRes(CmdRes::kInvalidInt);
     return;
   }
@@ -1418,7 +1460,7 @@ void SlotsMgrtTagSlotAsyncCmd::DoInitial() {
   }
 
   std::string str_keys_num = *it++;
-  if (!pstd::string2int(str_keys_num.data(), str_keys_num.size(), &keys_num_) || keys_num_ < 0) {
+  if (!pstd::string2int(str_dest_port.data(), str_dest_port.size(), &dest_port_) || dest_port_ <= 0){
     res_.SetRes(CmdRes::kInvalidInt);
     return;
   }
@@ -1552,3 +1594,95 @@ void SlotsHashKeyCmd::Do(std::shared_ptr<Slot> slot) {
 
   return;
 }
+
+void SlotsScanCmd::DoInitial() {
+  if (!CheckArg(argv_.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsScan);
+    return;
+  }
+  key_ = SlotKeyPrefix + argv_[1];
+  if (!pstd::string2int(argv_[2].data(), argv_[2].size(), &cursor_)) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsScan);
+    return;
+  }
+  size_t argc = argv_.size(), index = 3;
+  while (index < argc) {
+    std::string opt = argv_[index];
+    if (!strcasecmp(opt.data(), "match") || !strcasecmp(opt.data(), "count")) {
+      index++;
+      if (index >= argc) {
+        res_.SetRes(CmdRes::kSyntaxErr);
+        return;
+      }
+      if (!strcasecmp(opt.data(), "match")) {
+        pattern_ = argv_[index];
+      } else if (!pstd::string2int(argv_[index].data(), argv_[index].size(), &count_)) {
+        res_.SetRes(CmdRes::kInvalidInt);
+        return;
+      }
+    } else {
+      res_.SetRes(CmdRes::kSyntaxErr);
+      return;
+    }
+    index++;
+  }
+  if (count_ < 0) {
+    res_.SetRes(CmdRes::kSyntaxErr);
+    return;
+  }
+  return;
+}
+
+void SlotsScanCmd::Do(std::shared_ptr<Slot>slot) {
+  std::vector<std::string> members;
+  rocksdb::Status s = slot->db()->SScan(key_, cursor_, pattern_, count_, &members, &cursor_);
+
+  if (members.size() <= 0) {
+    cursor_ = 0;
+  }
+  res_.AppendContent("*2");
+
+  char buf[32];
+  int64_t len = pstd::ll2string(buf, sizeof(buf), cursor_);
+  res_.AppendStringLen(len);
+  res_.AppendContent(buf);
+
+  res_.AppendArrayLen(members.size());
+  std::vector<std::string>::const_iterator iter_member = members.begin();
+  for (; iter_member != members.end(); iter_member++) {
+    res_.AppendStringLen(iter_member->size());
+    res_.AppendContent(*iter_member);
+  }
+  return;
+}
+
+void SlotsMgrtExecWrapperCmd::DoInitial() {
+  if (!CheckArg(argv_.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsMgrtExecWrapper);
+  }
+  PikaCmdArgsType::const_iterator it = argv_.begin() + 1;
+  key_ = *it++;
+  pstd::StringToLower(key_);
+  return;
+}
+
+void SlotsMgrtExecWrapperCmd::Do(std::shared_ptr<Slot> slot) {
+  res_.AppendArrayLen(2);
+  int ret = g_pika_server->SlotsMigrateOne(key_, slot);
+  switch (ret) {
+    case 0:
+      res_.AppendInteger(0);
+      res_.AppendInteger(0);
+      return;
+    case 1:
+      res_.AppendInteger(1);
+      res_.AppendInteger(1);
+      return;
+    default:
+      res_.AppendInteger(-1);
+      res_.AppendInteger(-1);
+      return;
+  }
+  return;
+}
+

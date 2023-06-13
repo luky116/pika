@@ -96,7 +96,7 @@ static int migrateKeyTTl(net::NetCli *cli, const std::string key, storage::DataT
     return 0;
   }
 
-  if (0 > doMigrate(cli, send_str)) {
+  if (doMigrate(cli, send_str) < 0) {
     return -1;
   }
 
@@ -743,7 +743,7 @@ void PikaMigrateThread::GetMigrateStatus(std::string *ip, int64_t *port, int64_t
   *moved = moved_num_;
   std::unique_lock lq(mgrtkeys_queue_mutex_);
   int64_t migrating_keys_num = mgrtkeys_queue_.size();
-  std::string slotKey = GetSlotKey(slot_id_);  // SlotKeyPrefix + std::to_string(slot_id_);
+  std::string slotKey = GetSlotKey(slot_id_);
   int32_t slot_size = 0;
   rocksdb::Status s = slot_->db()->SCard(slotKey, &slot_size);
   if (s.ok()) {
