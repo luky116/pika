@@ -15,6 +15,8 @@
 #  include "storage/storage.h"
 #  include "strings.h"
 
+void WriteDelKeyToBinlog(const std::string &key, std::shared_ptr<Slot> slot);
+
 class PikaMigrateThread;
 class PikaParseSendThread : public net::Thread {
  public:
