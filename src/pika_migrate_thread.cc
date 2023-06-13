@@ -96,7 +96,7 @@ static int migrateKeyTTl(net::NetCli *cli, const std::string key, storage::DataT
     return 0;
   }
 
-  if (0 > doMigrate(cli, send_str)) {
+  if (doMigrate(cli, send_str) < 0) {
     return -1;
   }
 

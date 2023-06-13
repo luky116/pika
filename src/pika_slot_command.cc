@@ -569,7 +569,6 @@ int PikaMigrate::ParseSKey(const std::string &key, std::string &wbuf_str, std::s
 // return -1 is error; 0 dont migrate; >0 the number of commond
 int PikaMigrate::ParseLKey(const std::string &key, std::string &wbuf_str, std::shared_ptr<Slot> slot) {
   int64_t left = 0;
-  int64_t len = MAX_MEMBERS_NUM;  // original 512
   int command_num = 0;
   std::vector<std::string> values;
 
@@ -585,7 +584,7 @@ int PikaMigrate::ParseLKey(const std::string &key, std::string &wbuf_str, std::s
 
   do {
     values.clear();
-    rocksdb::Status s = slot->db()->LRange(key, left, left + (len - 1), &values);
+    rocksdb::Status s = slot->db()->LRange(key, left, left + (MAX_MEMBERS_NUM - 1), &values);
     if (s.ok()) {
       if (values.empty()) {
         break;
@@ -605,7 +604,7 @@ int PikaMigrate::ParseLKey(const std::string &key, std::string &wbuf_str, std::s
       wbuf_str.append(cmd);
       command_num++;
 
-      left += len;
+      left += MAX_MEMBERS_NUM;
     } else if (s.IsNotFound()) {
       wbuf_str.clear();
       return 0;
