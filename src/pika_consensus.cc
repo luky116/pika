@@ -421,8 +421,6 @@ Status ConsensusCoordinator::ProposeLog(const std::shared_ptr<Cmd>& cmd_ptr) {
   item.set_filenum(filenum);
   item.set_offset(offset);
   // make sure stable log and mem log consistent
-//  s = InternalAppendLog(item, cmd_ptr, std::move(conn_ptr), std::move(resp_ptr));
-
   s = InternalAppendBinlog(item, cmd_ptr, &log_offset);
   if (!s.ok()) {
     return s;
