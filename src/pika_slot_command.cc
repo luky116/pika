@@ -18,7 +18,7 @@
 #define min(a, b) (((a) > (b)) ? (b) : (a))
 #define MAX_MEMBERS_NUM 512
 
-extern std::unique_ptr<PikaServer> g_pika_server;
+extern PikaServer *g_pika_server;
 extern std::unique_ptr<PikaConf> g_pika_conf;
 
 uint32_t crc32tab[256];
@@ -1686,3 +1686,32 @@ void SlotsMgrtExecWrapperCmd::Do(std::shared_ptr<Slot> slot) {
   return;
 }
 
+void SlotsReloadCmd::DoInitial() {
+  if (!CheckArg(argv_.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsReload);
+  }
+  return;
+}
+
+void SlotsReloadCmd::Do(std::shared_ptr<Slot> slot) {
+  g_pika_server->Bgslotsreload(slot);
+  const PikaServer::BGSlotsReload& info = g_pika_server->bgslots_reload();
+  char buf[256];
+  snprintf(buf, sizeof(buf), "+%s : %lu",
+           info.s_start_time.c_str(), g_pika_server->GetSlotsreloadingCursor());
+  res_.AppendContent(buf);
+  return;
+}
+
+void SlotsReloadOffCmd::DoInitial() {
+  if (!CheckArg(argv_.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsReloadOff);
+  }
+  return;
+}
+
+void SlotsReloadOffCmd::Do(std::shared_ptr<Slot>slot) {
+  g_pika_server->SetSlotsreloading(false);
+  res_.SetRes(CmdRes::kOk);
+  return;
+}

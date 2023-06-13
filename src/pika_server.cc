@@ -1555,3 +1555,67 @@ bool PikaServer::SlotsMigrateAsyncCancel() {
   pika_migrate_thread_->CancelMigrate();
   return true;
 }
+
+void PikaServer::Bgslotsreload(std::shared_ptr<Slot>slot) {
+  // Only one thread can go through
+  {
+    std::lock_guard ml(bgsave_protector_);
+    if (bgslots_reload_.reloading || bgsave_info_.bgsaving) {
+      return;
+    }
+    bgslots_reload_.reloading = true;
+  }
+
+  bgslots_reload_.start_time = time(NULL);
+  char s_time[32];
+  int len = strftime(s_time, sizeof(s_time), "%Y%m%d%H%M%S", localtime(&bgslots_reload_.start_time));
+  bgslots_reload_.s_start_time.assign(s_time, len);
+  bgslots_reload_.cursor = 0;
+  bgslots_reload_.pattern = "*";
+  bgslots_reload_.count = 100;
+
+  LOG(INFO) << "Start slot reloading";
+
+  // Start new thread if needed
+  bgsave_thread_.StartThread();
+  bgsave_thread_.Schedule(&DoBgslotsreload, static_cast<void*>(this));
+}
+
+void PikaServer::DoBgslotsreload(void* arg) {
+  std::shared_ptr<Slot> slot;
+  PikaServer* p = static_cast<PikaServer*>(arg);
+  BGSlotsReload reload = p->bgslots_reload();
+
+  // Do slotsreload
+  rocksdb::Status s;
+  std::vector<std::string> keys;
+  int64_t cursor_ret = -1;
+  while(cursor_ret != 0 && p->GetSlotsreloading()){
+    cursor_ret = slot->db()->Scan(reload.type_, reload.cursor, reload.pattern, reload.count, &keys);
+
+    std::vector<std::string>::const_iterator iter;
+    for (iter = keys.begin(); iter != keys.end(); iter++){
+      std::string key_type;
+
+      int s = GetKeyType(*iter, key_type, slot);
+      if (s > 0){
+        if (key_type == "s" && (*iter).compare(0, SlotPrefix.length(), SlotPrefix) == 0){
+          continue;
+        }
+
+        AddSlotKey(key_type, *iter, slot);
+      }
+    }
+
+    reload.cursor = cursor_ret;
+    p->SetSlotsreloadingCursor(cursor_ret);
+    keys.clear();
+  }
+  p->SetSlotsreloading(false);
+
+  if (cursor_ret == 0) {
+    LOG(INFO) << "Finish slot reloading";
+  } else{
+    LOG(INFO) << "Stop slot reloading";
+  }
+}
