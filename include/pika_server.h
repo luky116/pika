@@ -383,6 +383,72 @@ class PikaServer : public pstd::noncopyable {
   void Bgslotsreload(std::shared_ptr<Slot> slot);
 
   /*
+   * BGSlotsCleanup used
+   */
+  struct BGSlotsCleanup {
+    bool cleaningup;
+    time_t start_time;
+    std::string s_start_time;
+    int64_t cursor;
+    std::string pattern;
+    int64_t count;
+    storage::DataType type_;
+    std::vector<int> cleanup_slots;
+    BGSlotsCleanup() : cleaningup(false), cursor(0), pattern("*"), count(100){}
+    void Clear() {
+      cleaningup = false;
+      pattern = "*";
+      count = 100;
+      cursor = 0;
+    }
+  };
+
+  /*
+   * BGSlotsCleanup use
+   */
+  BGSlotsCleanup bgslots_cleanup_;
+  net::BGThread bgslots_cleanup_thread_;
+  static void DoBgslotscleanup(void* arg);
+
+
+  BGSlotsCleanup bgslots_cleanup() {
+    std::lock_guard ml(bgsave_protector_);
+    return bgslots_cleanup_;
+  }
+  bool GetSlotscleaningup() {
+    std::lock_guard ml(bgsave_protector_);
+    return bgslots_cleanup_.cleaningup;
+  }
+  void SetSlotscleaningup(bool cleaningup) {
+    std::lock_guard ml(bgsave_protector_);
+    bgslots_cleanup_.cleaningup = cleaningup;
+  }
+  void SetSlotscleaningupCursor(int64_t cursor) {
+    std::lock_guard ml(bgsave_protector_);
+    bgslots_cleanup_.cursor = cursor;
+  }
+  int64_t GetSlotscleaningupCursor() {
+    std::lock_guard ml(bgsave_protector_);
+    return bgslots_cleanup_.cursor;
+  }
+  void SetCleanupSlots(std::vector<int> cleanup_slots) {
+    std::lock_guard ml(bgsave_protector_);
+    bgslots_cleanup_.cleanup_slots.swap(cleanup_slots);
+  }
+  std::vector<int> GetCleanupSlots() {
+    std::lock_guard ml(bgsave_protector_);
+    return bgslots_cleanup_.cleanup_slots;
+  }
+  void Bgslotscleanup(std::vector<int> cleanup_slots);
+  void StopBgslotscleanup() {
+    std::lock_guard ml(bgsave_protector_);
+    bgslots_cleanup_.cleaningup = false;
+    std::vector<int> cleanup_slots;
+    bgslots_cleanup_.cleanup_slots.swap(cleanup_slots);
+  }
+
+
+  /*
    * StorageOptions used
    */
   storage::Status RewriteStorageOptions(const storage::OptionType& option_type,

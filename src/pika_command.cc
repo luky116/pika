@@ -122,6 +122,11 @@ void InitCmdTable(CmdTable* cmd_table) {
   cmd_table->insert(std::pair<std::string, std::unique_ptr<Cmd>>(kCmdNameSlotsReload, std::move(slotsreloadptr)));
   std::unique_ptr<Cmd> slotsreloadoffptr = std::make_unique<SlotsReloadOffCmd>(kCmdNameSlotsReloadOff, -1, kCmdFlagsRead | kCmdFlagsAdmin);
   cmd_table->insert(std::pair<std::string, std::unique_ptr<Cmd>>(kCmdNameSlotsReloadOff, std::move(slotsreloadoffptr)));
+  std::unique_ptr<Cmd> slotscleanupptr = std::make_unique<SlotsCleanupCmd>(kCmdNameSlotsCleanup, -2, kCmdFlagsRead | kCmdFlagsAdmin);
+  cmd_table->insert(std::pair<std::string, std::unique_ptr<Cmd>>(kCmdNameSlotsCleanup, std::move(slotscleanupptr)));
+  std::unique_ptr<Cmd> slotscleanupoffptr = std::make_unique<SlotsCleanupOffCmd>(kCmdNameSlotsCleanupOff, -1, kCmdFlagsRead | kCmdFlagsAdmin);
+  cmd_table->insert(std::pair<std::string, std::unique_ptr<Cmd>>(kCmdNameSlotsCleanupOff, std::move(slotscleanupoffptr)));
+
 
   // Kv
   ////SetCmd

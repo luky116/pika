@@ -1715,3 +1715,49 @@ void SlotsReloadOffCmd::Do(std::shared_ptr<Slot>slot) {
   res_.SetRes(CmdRes::kOk);
   return;
 }
+
+
+void SlotsCleanupCmd::DoInitial() {
+  if (!CheckArg(argv_.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsCleanup);
+  }
+
+  PikaCmdArgsType::const_iterator iter = argv_.begin() + 1; //Remember the first args is the opt name
+  std::string slot;
+  long slotLong;
+  std::vector<int> slots;
+  for (; iter != argv_.end(); iter++){
+    slot = *iter;
+    if (!pstd::string2int(slot.data(), slot.size(), &slotLong) || slotLong < 0) {
+      res_.SetRes(CmdRes::kInvalidInt);
+      return;
+    }
+    slots.push_back(int(slotLong));
+  }
+  cleanup_slots_.swap(slots);
+  return;
+}
+
+void SlotsCleanupCmd::Do(std::shared_ptr<Slot> slot) {
+  g_pika_server->Bgslotscleanup(cleanup_slots_);
+  std::vector<int> cleanup_slots(g_pika_server->GetCleanupSlots());
+  res_.AppendArrayLen(cleanup_slots.size());
+  std::vector<int>::const_iterator iter = cleanup_slots.begin();
+  for (; iter != cleanup_slots.end(); iter++){
+    res_.AppendInteger(*iter);
+  }
+  return;
+}
+
+void SlotsCleanupOffCmd::DoInitial() {
+  if (!CheckArg(argv_.size())) {
+    res_.SetRes(CmdRes::kWrongNum, kCmdNameSlotsCleanupOff);
+  }
+  return;
+}
+
+void SlotsCleanupOffCmd::Do(std::shared_ptr<Slot> slot) {
+  g_pika_server->StopBgslotscleanup();
+  res_.SetRes(CmdRes::kOk);
+  return;
+}

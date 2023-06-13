@@ -259,6 +259,27 @@ class SlotsReloadOffCmd : public Cmd {
   void DoInitial()  override;
 };
 
+class SlotsCleanupCmd : public Cmd {
+ public:
+  SlotsCleanupCmd(const std::string& name, int arity, uint16_t flag):Cmd(name, arity, flag) {}
+  void Do(std::shared_ptr<Slot>slot) override;
+  void Split(std::shared_ptr<Slot> slot, const HintKeys& hint_keys) override {};
+  void Merge() override {};
+  Cmd* Clone() override { return new SlotsCleanupCmd(*this); }
+  std::vector<int> cleanup_slots_;
+ private:
+  void DoInitial()  override;
+};
 
+class SlotsCleanupOffCmd : public Cmd {
+ public:
+  SlotsCleanupOffCmd(const std::string& name, int arity, uint16_t flag):Cmd(name, arity, flag) {}
+  void Do(std::shared_ptr<Slot>slot) override;
+  void Split(std::shared_ptr<Slot> slot, const HintKeys& hint_keys) override {};
+  void Merge() override {};
+  Cmd* Clone() override { return new SlotsCleanupOffCmd(*this); }
+ private:
+  void DoInitial()  override;
+};
 
 #endif

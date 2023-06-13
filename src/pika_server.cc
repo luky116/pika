@@ -1619,3 +1619,65 @@ void PikaServer::DoBgslotsreload(void* arg) {
     LOG(INFO) << "Stop slot reloading";
   }
 }
+
+void PikaServer::Bgslotscleanup(std::vector<int> cleanupSlots) {
+  // Only one thread can go through
+  {
+    std::lock_guard ml(bgsave_protector_);
+    if (bgslots_cleanup_.cleaningup || bgslots_reload_.reloading || bgsave_info_.bgsaving) {
+      return;
+    }
+    bgslots_cleanup_.cleaningup = true;
+  }
+
+  bgslots_cleanup_.start_time = time(NULL);
+  char s_time[32];
+  int len = strftime(s_time, sizeof(s_time), "%Y%m%d%H%M%S", localtime(&bgslots_cleanup_.start_time));
+  bgslots_cleanup_.s_start_time.assign(s_time, len);
+  bgslots_cleanup_.cursor = 0;
+  bgslots_cleanup_.pattern = "*";
+  bgslots_cleanup_.count = 100;
+  bgslots_cleanup_.cleanup_slots.swap(cleanupSlots);
+  LOG(INFO) << "Start slot cleanup!";
+
+  // Start new thread if needed
+  bgslots_cleanup_thread_.StartThread();
+  bgslots_cleanup_thread_.Schedule(&DoBgslotscleanup, static_cast<void*>(this));
+}
+
+void PikaServer::DoBgslotscleanup(void* arg) {
+  std::shared_ptr<Slot> slot;
+  PikaServer* p = static_cast<PikaServer*>(arg);
+  BGSlotsCleanup cleanup = p->bgslots_cleanup();
+
+  // Do slotscleanup
+  std::vector<std::string> keys;
+  int64_t cursor_ret = -1;
+  std::vector<int> cleanupSlots(cleanup.cleanup_slots);
+  while (cursor_ret != 0 && p->GetSlotscleaningup()){
+    cursor_ret = slot->db()->Scan(cleanup.type_, cleanup.cursor, cleanup.pattern, cleanup.count, &keys);
+
+    std::string key_type;
+    std::vector<std::string>::const_iterator iter;
+    for (iter = keys.begin(); iter != keys.end(); iter++){
+      if ((*iter).find(SlotKeyPrefix) != std::string::npos){
+        continue;
+      }
+      if (std::find(cleanupSlots.begin(), cleanupSlots.end(), GetSlotID(*iter)) != cleanupSlots.end()){
+        if (GetKeyType(*iter, key_type, slot) > 0){
+          if (DeleteKey(*iter, key_type[0], slot) <= 0){
+            LOG(WARNING) << "BG slots_cleanup slot " << GetSlotID(*iter) << " key "<< *iter << " error";
+          }
+        }
+      }
+    }
+
+    cleanup.cursor = cursor_ret;
+    p->SetSlotscleaningupCursor(cursor_ret);
+    keys.clear();
+  }
+  p->SetSlotscleaningup(false);
+  std::vector<int> empty;
+  p->SetCleanupSlots(empty);
+  LOG(INFO) << "Finish slots cleanup!";
+}
