@@ -439,7 +439,7 @@ class PikaServer : public pstd::noncopyable {
     std::lock_guard ml(bgsave_protector_);
     return bgslots_cleanup_.cleanup_slots;
   }
-  void Bgslotscleanup(std::vector<int> cleanup_slots);
+  void Bgslotscleanup(std::vector<int> cleanup_slots, std::shared_ptr<Slot> slot);
   void StopBgslotscleanup() {
     std::lock_guard ml(bgsave_protector_);
     bgslots_cleanup_.cleaningup = false;

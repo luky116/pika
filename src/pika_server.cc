@@ -29,6 +29,7 @@ using pstd::Status;
 extern PikaServer* g_pika_server;
 extern std::unique_ptr<PikaReplicaManager> g_pika_rm;
 extern std::unique_ptr<PikaCmdTableManager> g_pika_cmd_table_manager;
+static std::shared_ptr<Slot> slot_;
 
 void DoPurgeDir(void* arg) {
   std::unique_ptr<std::string> path(static_cast<std::string*>(arg));
@@ -1582,7 +1583,6 @@ void PikaServer::Bgslotsreload(std::shared_ptr<Slot>slot) {
 }
 
 void PikaServer::DoBgslotsreload(void* arg) {
-  std::shared_ptr<Slot> slot;
   PikaServer* p = static_cast<PikaServer*>(arg);
   BGSlotsReload reload = p->bgslots_reload();
 
@@ -1591,19 +1591,19 @@ void PikaServer::DoBgslotsreload(void* arg) {
   std::vector<std::string> keys;
   int64_t cursor_ret = -1;
   while(cursor_ret != 0 && p->GetSlotsreloading()){
-    cursor_ret = slot->db()->Scan(reload.type_, reload.cursor, reload.pattern, reload.count, &keys);
+    cursor_ret = slot_->db()->Scan(storage::DataType::kAll, reload.cursor, reload.pattern, reload.count, &keys);
 
     std::vector<std::string>::const_iterator iter;
     for (iter = keys.begin(); iter != keys.end(); iter++){
       std::string key_type;
 
-      int s = GetKeyType(*iter, key_type, slot);
+      int s = GetKeyType(*iter, key_type, slot_);
       if (s > 0){
         if (key_type == "s" && (*iter).compare(0, SlotPrefix.length(), SlotPrefix) == 0){
           continue;
         }
 
-        AddSlotKey(key_type, *iter, slot);
+        AddSlotKey(key_type, *iter, slot_);
       }
     }
 
@@ -1620,7 +1620,8 @@ void PikaServer::DoBgslotsreload(void* arg) {
   }
 }
 
-void PikaServer::Bgslotscleanup(std::vector<int> cleanupSlots) {
+void PikaServer::Bgslotscleanup(std::vector<int> cleanupSlots, std::shared_ptr<Slot> slot) {
+  slot_ = slot;
   // Only one thread can go through
   {
     std::lock_guard ml(bgsave_protector_);
@@ -1646,7 +1647,6 @@ void PikaServer::Bgslotscleanup(std::vector<int> cleanupSlots) {
 }
 
 void PikaServer::DoBgslotscleanup(void* arg) {
-  std::shared_ptr<Slot> slot;
   PikaServer* p = static_cast<PikaServer*>(arg);
   BGSlotsCleanup cleanup = p->bgslots_cleanup();
 
@@ -1655,7 +1655,7 @@ void PikaServer::DoBgslotscleanup(void* arg) {
   int64_t cursor_ret = -1;
   std::vector<int> cleanupSlots(cleanup.cleanup_slots);
   while (cursor_ret != 0 && p->GetSlotscleaningup()){
-    cursor_ret = slot->db()->Scan(cleanup.type_, cleanup.cursor, cleanup.pattern, cleanup.count, &keys);
+    cursor_ret = slot_->db()->Scan(storage::DataType::kAll, cleanup.cursor, cleanup.pattern, cleanup.count, &keys);
 
     std::string key_type;
     std::vector<std::string>::const_iterator iter;
@@ -1664,8 +1664,8 @@ void PikaServer::DoBgslotscleanup(void* arg) {
         continue;
       }
       if (std::find(cleanupSlots.begin(), cleanupSlots.end(), GetSlotID(*iter)) != cleanupSlots.end()){
-        if (GetKeyType(*iter, key_type, slot) > 0){
-          if (DeleteKey(*iter, key_type[0], slot) <= 0){
+        if (GetKeyType(*iter, key_type, slot_) > 0){
+          if (DeleteKey(*iter, key_type[0], slot_) <= 0){
             LOG(WARNING) << "BG slots_cleanup slot " << GetSlotID(*iter) << " key "<< *iter << " error";
           }
         }

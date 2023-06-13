@@ -1739,7 +1739,7 @@ void SlotsCleanupCmd::DoInitial() {
 }
 
 void SlotsCleanupCmd::Do(std::shared_ptr<Slot> slot) {
-  g_pika_server->Bgslotscleanup(cleanup_slots_);
+  g_pika_server->Bgslotscleanup(cleanup_slots_, slot);
   std::vector<int> cleanup_slots(g_pika_server->GetCleanupSlots());
   res_.AppendArrayLen(cleanup_slots.size());
   std::vector<int>::const_iterator iter = cleanup_slots.begin();
