@@ -1286,7 +1286,7 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
       return;
     }
     if (!s.ok() || len == -1) {
-      res_.SetRes(CmdRes::kErrOther, "cont get the mumber of tag_key");
+      res_.SetRes(CmdRes::kErrOther, "can't get the mumber of tag_key");
       return;
     }
 
