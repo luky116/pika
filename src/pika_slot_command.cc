@@ -1306,9 +1306,6 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
   //g_pika_server->mgrttagslot_mutex_.Lock();
   //pika_server thread exit(~PikaMigrate) and dispatch thread do CronHandle nead lock()
   g_pika_server->pika_migrate_->Lock();
-  DEFER {
-    g_pika_server->pika_migrate_->Unlock();
-  };
 
   //check if need migrate key, if the key is not exist, return
   //GetSlotsNum(key_, &crc, &hastag);
@@ -1335,6 +1332,7 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
 
   //unlock the record lock
   //g_pika_server->mutex_record_.Unlock(key_);
+  g_pika_server->pika_migrate_->Unlock();
 
   if(ret >= 0){
     res_.AppendInteger(ret);
