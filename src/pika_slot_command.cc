@@ -1057,12 +1057,12 @@ void SlotsMgrtTagSlotCmd::DoInitial() {
 
   std::string str_dest_port = *it++;
   if (!pstd::string2int(str_dest_port.data(), str_dest_port.size(), &dest_port_)) {
-    std::string detail = "invalid port nummber = " + dest_port_;
+    std::string detail = "invalid port nummber " + std::to_string(dest_port_);
     res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
   if (dest_port_ < 0 || dest_port_ > 65535) {
-    std::string detail = "invalid port nummber = " + dest_port_;
+    std::string detail = "invalid port nummber " + std::to_string(dest_port_);
     res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
@@ -1078,7 +1078,7 @@ void SlotsMgrtTagSlotCmd::DoInitial() {
     return;
   }
   if (timeout_ms_ < 0) {
-    std::string detail = "invalid timeout nummber = " + timeout_ms_;
+    std::string detail = "invalid timeout nummber " + std::to_string(timeout_ms_);
     res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
@@ -1092,7 +1092,7 @@ void SlotsMgrtTagSlotCmd::DoInitial() {
     return;
   }
   if (slot_id_ < 0 || slot_id_ >= HASH_SLOTS_SIZE) {
-    std::string detail = "invalid slot nummber = " + slot_id_;
+    std::string detail = "invalid slot nummber " + std::to_string(slot_id_);
     res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
@@ -1213,12 +1213,12 @@ void SlotsMgrtTagOneCmd::DoInitial() {
 
   std::string str_dest_port = *it++;
   if (!pstd::string2int(str_dest_port.data(), str_dest_port.size(), &dest_port_)) {
-    std::string detail = "invalid port nummber = " + dest_port_;
+    std::string detail = "invalid port nummber " + std::to_string(dest_port_);
     res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
   if (dest_port_ < 0 || dest_port_ > 65535) {
-    std::string detail = "invalid port nummber = " + dest_port_;
+    std::string detail = "invalid port nummber " + std::to_string(dest_port_);
     res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
@@ -1234,7 +1234,7 @@ void SlotsMgrtTagOneCmd::DoInitial() {
     return;
   }
   if (timeout_ms_ < 0) {
-    std::string detail = "invalid timeout nummber = " + timeout_ms_;
+    std::string detail = "invalid timeout nummber " + timeout_ms_;
     res_.SetRes(CmdRes::kErrOther, detail);
     return;
   }
