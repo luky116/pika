@@ -197,7 +197,7 @@ static int MigrateHash(net::NetCli *cli, const std::string key, std::shared_ptr<
     }
   } while (cursor != 0 && s.ok());
 
-  if (0 < send_num) {
+  if (send_num > 0) {
     int r;
     if (0 > (r = migrateKeyTTl(cli, key, storage::kHashes, slot))) {
       return -1;
@@ -324,9 +324,9 @@ static int MigrateZset(net::NetCli *cli, const std::string key, std::shared_ptr<
     }
   } while (cursor != 0 && s.ok());
 
-  if (0 < send_num) {
+  if (send_num > 0) {
     int r;
-    if (0 > (r = migrateKeyTTl(cli, key, storage::kZSets, slot))) {
+    if ((r = migrateKeyTTl(cli, key, storage::kZSets, slot)) < 0) {
       return -1;
     } else {
       send_num += r;
