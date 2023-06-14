@@ -197,7 +197,7 @@ int PikaMigrate::MigrateKey(const std::string &host, const int port, int timeout
   int send_command_num = -1;
 
   net::NetCli *migrate_cli = GetMigrateClient(host, port, timeout);
-  if (NULL == migrate_cli) {
+  if (migrate_cli == NULL) {
     detail = "IOERR error or timeout connecting to the client";
     LOG(INFO) << "GetMigrateClient failed, key: " << key;
     return -1;
@@ -222,7 +222,7 @@ int PikaMigrate::MigrateSend(net::NetCli *migrate_cli, const std::string &key, c
   int command_num = -1;
 
   // chech the client is alive
-  if (NULL == migrate_cli) {
+  if (migrate_cli == NULL) {
     return -1;
   }
 
