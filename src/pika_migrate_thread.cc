@@ -199,7 +199,7 @@ static int MigrateHash(net::NetCli *cli, const std::string key, std::shared_ptr<
 
   if (send_num > 0) {
     int r;
-    if (0 > (r = migrateKeyTTl(cli, key, storage::kHashes, slot))) {
+    if ((r = migrateKeyTTl(cli, key, storage::kHashes, slot)) < 0) {
       return -1;
     } else {
       send_num += r;
