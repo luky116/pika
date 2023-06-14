@@ -14,6 +14,7 @@
 #include "pstd/include/pstd_string.h"
 #include "storage/include/storage/storage.h"
 #include "include/pika_migrate_thread.h"
+#include "pstd/include/pstd_defer.h"
 
 #define min(a, b) (((a) > (b)) ? (b) : (a))
 #define MAX_MEMBERS_NUM 512
@@ -197,7 +198,7 @@ int PikaMigrate::MigrateKey(const std::string &host, const int port, int timeout
 
   net::NetCli *migrate_cli = GetMigrateClient(host, port, timeout);
   if (NULL == migrate_cli) {
-    detail = "GetMigrateClient failed";
+    detail = "IOERR error or timeout connecting to the client";
     LOG(INFO) << "GetMigrateClient failed, key: " << key;
     return -1;
   }
@@ -1284,6 +1285,10 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
     //key is tag_key, check the number of the tag_key
     std::string tag_key = GetSlotsTagKey(crc);
     s = slot->db()->SCard(tag_key, &len);
+    if (s.IsNotFound()) {
+      res_.AppendInteger(0);
+      return;
+    }
     if (!s.ok() || len == -1) {
       res_.SetRes(CmdRes::kErrOther, "cont get the mumber of tag_key");
       return;
@@ -1301,6 +1306,9 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
   //g_pika_server->mgrttagslot_mutex_.Lock();
   //pika_server thread exit(~PikaMigrate) and dispatch thread do CronHandle nead lock()
   g_pika_server->pika_migrate_->Lock();
+  DEFER {
+    g_pika_server->pika_migrate_->Unlock();
+  };
 
   //check if need migrate key, if the key is not exist, return
   //GetSlotsNum(key_, &crc, &hastag);
@@ -1327,10 +1335,6 @@ void SlotsMgrtTagOneCmd::Do(std::shared_ptr<Slot> slot) {
 
   //unlock the record lock
   //g_pika_server->mutex_record_.Unlock(key_);
-
-  //unlock
-  g_pika_server->pika_migrate_->Unlock();
-
 
   if(ret >= 0){
     res_.AppendInteger(ret);
