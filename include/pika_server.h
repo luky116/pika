@@ -329,7 +329,7 @@ class PikaServer : public pstd::noncopyable {
    */
   int SlotsMigrateOne(const std::string &key, std::shared_ptr<Slot>slot);
   bool SlotsMigrateBatch(const std::string &ip, int64_t port, int64_t time_out, int64_t slots,int64_t keys_num, std::shared_ptr<Slot>slot);
-  void GetSlotsMgrtSenderStatus(std::string *ip, int64_t *port, int64_t *slot, bool *migrating, int64_t *moved, int64_t *remained);;
+  void GetSlotsMgrtSenderStatus(std::string *ip, int64_t *port, int64_t *slot, bool *migrating, int64_t *moved, int64_t *remained);
   bool SlotsMigrateAsyncCancel();
 
   std::shared_mutex bgsave_protector_;
