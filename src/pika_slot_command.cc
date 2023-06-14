@@ -763,7 +763,9 @@ static const char *GetSlotsTag(const std::string &str, int *plen) {
   return s + i;
 }
 
-std::string GetSlotKey(int slot) { return SlotKeyPrefix + std::to_string(slot); }
+std::string GetSlotKey(int slot) {
+  return SlotKeyPrefix + std::to_string(slot);
+}
 
 // get key slot number
 int GetSlotID(const std::string &str) { return GetSlotsID(str, NULL, NULL); }
