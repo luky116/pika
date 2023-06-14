@@ -155,7 +155,7 @@ static int MigrateKv(net::NetCli *cli, const std::string key, std::shared_ptr<Sl
   net::SerializeRedisCommand(argv, &send_str);
 
   int send_num = 0;
-  if (0 > doMigrate(cli, send_str)) {
+  if (doMigrate(cli, send_str) < 0) {
     return -1;
   } else {
     ++send_num;
@@ -189,7 +189,7 @@ static int MigrateHash(net::NetCli *cli, const std::string key, std::shared_ptr<
         argv.push_back(field_value.value);
       }
       net::SerializeRedisCommand(argv, &send_str);
-      if (0 > doMigrate(cli, send_str)) {
+      if (doMigrate(cli, send_str) < 0) {
         return -1;
       } else {
         ++send_num;
@@ -217,7 +217,7 @@ static int MigrateList(net::NetCli *cli, const std::string key, std::shared_ptr<
   argv.push_back("DEL");
   argv.push_back(key);
   net::SerializeRedisCommand(argv, &send_str);
-  if (0 > doMigrate(cli, send_str)) {
+  if (doMigrate(cli, send_str) < 0) {
     return -1;
   } else {
     ++send_num;
@@ -238,7 +238,7 @@ static int MigrateList(net::NetCli *cli, const std::string key, std::shared_ptr<
       }
 
       net::SerializeRedisCommand(argv, &send_str);
-      if (0 > doMigrate(cli, send_str)) {
+      if (doMigrate(cli, send_str) < 0) {
         return -1;
       } else {
         ++send_num;
@@ -277,7 +277,7 @@ static int MigrateSet(net::NetCli *cli, const std::string key, std::shared_ptr<S
         argv.push_back(member);
       }
       net::SerializeRedisCommand(argv, &send_str);
-      if (0 > doMigrate(cli, send_str)) {
+      if (doMigrate(cli, send_str) < 0) {
         return -1;
       } else {
         ++send_num;
@@ -316,7 +316,7 @@ static int MigrateZset(net::NetCli *cli, const std::string key, std::shared_ptr<
         argv.push_back(score_member.member);
       }
       net::SerializeRedisCommand(argv, &send_str);
-      if (0 > doMigrate(cli, send_str)) {
+      if (doMigrate(cli, send_str) < 0) {
         return -1;
       } else {
         ++send_num;
