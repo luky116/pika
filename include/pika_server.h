@@ -128,6 +128,9 @@ enum TaskType {
   kBgSave,
 };
 
+void DoBgslotscleanup(void* arg);
+void DoBgslotsreload(void* arg);
+
 class PikaServer : public pstd::noncopyable {
  public:
   PikaServer();
@@ -345,6 +348,7 @@ class PikaServer : public pstd::noncopyable {
     int64_t cursor;
     std::string pattern;
     int64_t count;
+    std::shared_ptr<Slot> slot;
     storage::DataType type_;
     BGSlotsReload() : reloading(false), cursor(0), pattern("*"), count(100) {}
     void Clear() {
@@ -356,7 +360,6 @@ class PikaServer : public pstd::noncopyable {
   };
 
   BGSlotsReload bgslots_reload_;
-  static void DoBgslotsreload(void* arg);
 
   BGSlotsReload bgslots_reload() {
     std::lock_guard ml(bgsave_protector_);
@@ -390,6 +393,7 @@ class PikaServer : public pstd::noncopyable {
     int64_t cursor;
     std::string pattern;
     int64_t count;
+    std::shared_ptr<Slot> slot;
     storage::DataType type_;
     std::vector<int> cleanup_slots;
     BGSlotsCleanup() : cleaningup(false), cursor(0), pattern("*"), count(100){}
@@ -406,7 +410,6 @@ class PikaServer : public pstd::noncopyable {
    */
   BGSlotsCleanup bgslots_cleanup_;
   net::BGThread bgslots_cleanup_thread_;
-  static void DoBgslotscleanup(void* arg);
 
 
   BGSlotsCleanup bgslots_cleanup() {

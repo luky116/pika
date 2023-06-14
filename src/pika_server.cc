@@ -29,7 +29,6 @@ using pstd::Status;
 extern PikaServer* g_pika_server;
 extern std::unique_ptr<PikaReplicaManager> g_pika_rm;
 extern std::unique_ptr<PikaCmdTableManager> g_pika_cmd_table_manager;
-static std::shared_ptr<Slot> slot_;
 
 void DoPurgeDir(void* arg) {
   std::unique_ptr<std::string> path(static_cast<std::string*>(arg));
@@ -1574,6 +1573,7 @@ void PikaServer::Bgslotsreload(std::shared_ptr<Slot>slot) {
   bgslots_reload_.cursor = 0;
   bgslots_reload_.pattern = "*";
   bgslots_reload_.count = 100;
+  bgslots_reload_.slot = slot;
 
   LOG(INFO) << "Start slot reloading";
 
@@ -1582,28 +1582,28 @@ void PikaServer::Bgslotsreload(std::shared_ptr<Slot>slot) {
   bgsave_thread_.Schedule(&DoBgslotsreload, static_cast<void*>(this));
 }
 
-void PikaServer::DoBgslotsreload(void* arg) {
+void DoBgslotsreload(void* arg) {
   PikaServer* p = static_cast<PikaServer*>(arg);
-  BGSlotsReload reload = p->bgslots_reload();
+  PikaServer::BGSlotsReload reload = p->bgslots_reload();
 
   // Do slotsreload
   rocksdb::Status s;
   std::vector<std::string> keys;
   int64_t cursor_ret = -1;
   while(cursor_ret != 0 && p->GetSlotsreloading()){
-    cursor_ret = slot_->db()->Scan(storage::DataType::kAll, reload.cursor, reload.pattern, reload.count, &keys);
+    cursor_ret = reload.slot->db()->Scan(storage::DataType::kAll, reload.cursor, reload.pattern, reload.count, &keys);
 
     std::vector<std::string>::const_iterator iter;
     for (iter = keys.begin(); iter != keys.end(); iter++){
       std::string key_type;
 
-      int s = GetKeyType(*iter, key_type, slot_);
+      int s = GetKeyType(*iter, key_type, reload.slot);
       if (s > 0){
         if (key_type == "s" && (*iter).compare(0, SlotPrefix.length(), SlotPrefix) == 0){
           continue;
         }
 
-        AddSlotKey(key_type, *iter, slot_);
+        AddSlotKey(key_type, *iter, reload.slot);
       }
     }
 
@@ -1621,7 +1621,6 @@ void PikaServer::DoBgslotsreload(void* arg) {
 }
 
 void PikaServer::Bgslotscleanup(std::vector<int> cleanupSlots, std::shared_ptr<Slot> slot) {
-  slot_ = slot;
   // Only one thread can go through
   {
     std::lock_guard ml(bgsave_protector_);
@@ -1638,6 +1637,7 @@ void PikaServer::Bgslotscleanup(std::vector<int> cleanupSlots, std::shared_ptr<S
   bgslots_cleanup_.cursor = 0;
   bgslots_cleanup_.pattern = "*";
   bgslots_cleanup_.count = 100;
+  bgslots_cleanup_.slot = slot;
   bgslots_cleanup_.cleanup_slots.swap(cleanupSlots);
   LOG(INFO) << "Start slot cleanup!";
 
@@ -1646,16 +1646,16 @@ void PikaServer::Bgslotscleanup(std::vector<int> cleanupSlots, std::shared_ptr<S
   bgslots_cleanup_thread_.Schedule(&DoBgslotscleanup, static_cast<void*>(this));
 }
 
-void PikaServer::DoBgslotscleanup(void* arg) {
+void DoBgslotscleanup(void* arg) {
   PikaServer* p = static_cast<PikaServer*>(arg);
-  BGSlotsCleanup cleanup = p->bgslots_cleanup();
+  PikaServer::BGSlotsCleanup cleanup = p->bgslots_cleanup();
 
   // Do slotscleanup
   std::vector<std::string> keys;
   int64_t cursor_ret = -1;
   std::vector<int> cleanupSlots(cleanup.cleanup_slots);
   while (cursor_ret != 0 && p->GetSlotscleaningup()){
-    cursor_ret = slot_->db()->Scan(storage::DataType::kAll, cleanup.cursor, cleanup.pattern, cleanup.count, &keys);
+    cursor_ret = g_pika_server->bgslots_cleanup_.slot->db()->Scan(storage::DataType::kAll, cleanup.cursor, cleanup.pattern, cleanup.count, &keys);
 
     std::string key_type;
     std::vector<std::string>::const_iterator iter;
@@ -1664,8 +1664,8 @@ void PikaServer::DoBgslotscleanup(void* arg) {
         continue;
       }
       if (std::find(cleanupSlots.begin(), cleanupSlots.end(), GetSlotID(*iter)) != cleanupSlots.end()){
-        if (GetKeyType(*iter, key_type, slot_) > 0){
-          if (DeleteKey(*iter, key_type[0], slot_) <= 0){
+        if (GetKeyType(*iter, key_type, g_pika_server->bgslots_cleanup_.slot) > 0){
+          if (DeleteKey(*iter, key_type[0], g_pika_server->bgslots_cleanup_.slot) <= 0){
             LOG(WARNING) << "BG slots_cleanup slot " << GetSlotID(*iter) << " key "<< *iter << " error";
           }
         }
