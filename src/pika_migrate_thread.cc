@@ -247,7 +247,7 @@ static int MigrateList(net::NetCli *cli, const std::string key, std::shared_ptr<
   }
 
   // has send del key command
-  if (1 < send_num) {
+  if (send_num > 1) {
     int r;
     if (0 > (r = migrateKeyTTl(cli, key, storage::kLists, slot))) {
       return -1;
