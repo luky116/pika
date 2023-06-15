@@ -510,9 +510,7 @@ void WriteDelKeyToBinlog(const std::string &key, std::shared_ptr<Slot> slot) {
   std::shared_ptr<SyncMasterSlot> sync_slot =
       g_pika_rm->GetSyncMasterSlotByName(SlotInfo(slot->GetDBName(), slot->GetSlotID()));
   Status s = sync_slot->ConsensusProposeLog(cmd_ptr);
-  if (s.ok()) {
-    LOG(INFO) << "write delete key to binlog success, key: " << key;
-  } else {
+  if (!s.ok()) {
     LOG(INFO) << "write delete key to binlog failed, key: " << key;
   }
 }
