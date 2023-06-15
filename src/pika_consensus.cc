@@ -401,39 +401,7 @@ Status ConsensusCoordinator::ProposeLog(const std::shared_ptr<Cmd>& cmd_ptr, std
 }
 
 Status ConsensusCoordinator::ProposeLog(const std::shared_ptr<Cmd>& cmd_ptr) {
-  LogOffset log_offset;
-
-  stable_logger_->Logger()->Lock();
-  // build BinlogItem
-  uint32_t filenum = 0;
-  uint32_t term = 0;
-  uint64_t offset = 0;
-  uint64_t logic_id = 0;
-  Status s = stable_logger_->Logger()->GetProducerStatus(&filenum, &offset, &term, &logic_id);
-  if (!s.ok()) {
-    stable_logger_->Logger()->Unlock();
-    return s;
-  }
-  BinlogItem item;
-  item.set_exec_time(time(nullptr));
-  item.set_term_id(term);
-  item.set_logic_id(logic_id + 1);
-  item.set_filenum(filenum);
-  item.set_offset(offset);
-  // make sure stable log and mem log consistent
-  s = InternalAppendBinlog(item, cmd_ptr, &log_offset);
-  if (!s.ok()) {
-    return s;
-  }
-
-  if (!s.ok()) {
-    stable_logger_->Logger()->Unlock();
-    return s;
-  }
-  stable_logger_->Logger()->Unlock();
-
-  g_pika_server->SignalAuxiliary();
-  return Status::OK();
+    return ProposeLog(cmd_ptr, nullptr, nullptr);
 }
 
 Status ConsensusCoordinator::InternalAppendLog(const BinlogItem& item, const std::shared_ptr<Cmd>& cmd_ptr,

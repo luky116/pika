@@ -189,7 +189,6 @@ class ConsensusCoordinator {
   pstd::Status InternalAppendLog(const BinlogItem& item, const std::shared_ptr<Cmd>& cmd_ptr,
                            std::shared_ptr<PikaClientConn> conn_ptr, std::shared_ptr<std::string> resp_ptr);
   pstd::Status InternalAppendBinlog(const BinlogItem& item, const std::shared_ptr<Cmd>& cmd_ptr, LogOffset* log_offset);
-  pstd::Status InternalAppendBinlog(std::string binlog);
   void InternalApply(const MemLog::LogItem& log);
   void InternalApplyFollower(const MemLog::LogItem& log);
   bool InternalUpdateCommittedIndex(const LogOffset& slave_committed_index, LogOffset* updated_committed_index);
