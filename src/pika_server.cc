@@ -1672,7 +1672,7 @@ void DoBgslotscleanup(void* arg) {
       }
       if (std::find(cleanupSlots.begin(), cleanupSlots.end(), GetSlotID(*iter)) != cleanupSlots.end()){
         if (GetKeyType(*iter, key_type, g_pika_server->bgslots_cleanup_.slot) <= 0) {
-          LOG(WARNING) << "slots clean get key type for slot " << GetSlotID(*iter) << " key "<< *iter << " error";
+          LOG(WARNING) << "slots clean get key type for slot " << GetSlotID(*iter) << " key " << *iter << " error";
           continue ;
         }
 
