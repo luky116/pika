@@ -11,6 +11,7 @@ PikaClientProcessor::PikaClientProcessor(size_t worker_num, size_t max_queue_siz
   pool_ = std::make_unique<net::ThreadPool>(worker_num, max_queue_size, name_prefix + "Pool");
   for (size_t i = 0; i < worker_num; ++i) {
     bg_threads_.push_back(std::make_unique<net::BGThread>(max_queue_size));
+    LOG(INFO) << "init PikaClientProcessor, i= " << i << ", is_runnint " << bg_threads_.back()->is_running();
     bg_threads_.back()->set_thread_name(name_prefix + "BgThread");
   }
 }
