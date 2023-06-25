@@ -6,6 +6,7 @@
 #include "net/include/net_thread.h"
 #include "net/include/net_define.h"
 #include "net/src/net_thread_name.h"
+#include <glog/logging.h>
 #include "pstd/include/xdebug.h"
 
 namespace net {
@@ -27,6 +28,7 @@ int Thread::StartThread() {
   if (!should_stop() && is_running()) {
     return 0;
   }
+  LOG(INFO) << "StartThread running_ = " << running_;
   std::lock_guard l(running_mu_);
   should_stop_ = false;
   if (!running_) {

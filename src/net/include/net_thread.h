@@ -28,7 +28,7 @@ class Thread : public pstd::noncopyable {
 
   void set_should_stop() { should_stop_.store(true); }
 
-  bool is_running() { return running_; }
+  bool is_running() { return running_.load(); }
 
   pthread_t thread_id() const { return thread_id_; }
 
@@ -48,7 +48,7 @@ class Thread : public pstd::noncopyable {
   virtual void* ThreadMain() = 0;
 
   pstd::Mutex running_mu_;
-  bool running_{false};
+  std::atomic_bool running_;
   pthread_t thread_id_{};
   std::string thread_name_;
 };
