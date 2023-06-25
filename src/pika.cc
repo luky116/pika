@@ -127,6 +127,10 @@ static void usage() {
 }
 
 int main(int argc, char* argv[]) {
+  std::atomic<bool> running_;
+  LOG(INFO) << "Pika init..., running_ = " << running_;
+
+
   if (argc != 2 && argc != 3) {
     usage();
     exit(-1);
