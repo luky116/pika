@@ -10,7 +10,7 @@
 #include <queue>
 
 #include "net/include/net_thread.h"
-
+#include <glog/logging.h>
 #include "pstd/include/pstd_mutex.h"
 
 namespace net {
