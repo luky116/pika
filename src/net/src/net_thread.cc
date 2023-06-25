@@ -25,10 +25,10 @@ void* Thread::RunThread(void* arg) {
 }
 
 int Thread::StartThread() {
+  LOG(INFO) << "StartThread running_ = " << running_ << " should_stop_ = " << should_stop_;
   if (!should_stop() && is_running()) {
     return 0;
   }
-  LOG(INFO) << "StartThread running_ = " << running_;
   std::lock_guard l(running_mu_);
   should_stop_ = false;
   if (!running_) {
