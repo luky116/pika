@@ -195,6 +195,7 @@ void* ServerThread::ThreadMain() {
     nfds = net_multiplexer_->NetPoll(timeout);
     for (int i = 0; i < nfds; i++) {
       pfe = (net_multiplexer_->FiredEvents()) + i;
+      LOG(INFO) << "get request fd: " << pfe->fd << ", mask: " << pfe->mask;
       fd = pfe->fd;
 
       if (pfe->fd == net_multiplexer_->NotifyReceiveFd()) {
