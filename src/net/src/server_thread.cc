@@ -213,6 +213,7 @@ void* ServerThread::ThreadMain() {
             LOG(WARNING) << "accept error, errno numberis " << errno << ", error reason " << strerror(errno);
             continue;
           }
+          LOG(INFO) << "accept new connection, fd: " << connfd;
           fcntl(connfd, F_SETFD, fcntl(connfd, F_GETFD) | FD_CLOEXEC);
 
           // not use nagel to avoid tcp 40ms delay
