@@ -186,6 +186,7 @@ void* WorkerThread::ThreadMain() {
 
         if ((should_close == 0) && ((pfe->mask & kReadable) != 0)) {
           ReadStatus read_status = in_conn->GetRequest();
+          LOG(INFO) << "request in: " << read_status;
           in_conn->set_last_interaction(now);
           if (read_status == kReadAll) {
             net_multiplexer_->NetModEvent(pfe->fd, 0, 0);
