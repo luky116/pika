@@ -6,6 +6,7 @@
 #include <glog/logging.h>
 #include <sys/resource.h>
 #include <csignal>
+#include <fstream>
 
 #include "include/build_version.h"
 #include "include/pika_cmd_table_manager.h"
@@ -14,8 +15,8 @@
 #include "include/pika_define.h"
 #include "include/pika_rm.h"
 #include "include/pika_server.h"
-#include "include/pika_version.h"
 #include "include/pika_slot_command.h"
+#include "include/pika_version.h"
 #include "pstd/include/env.h"
 #include "pstd/include/pstd_defer.h"
 
@@ -126,9 +127,22 @@ static void usage() {
           version);
 }
 
+// 扑捉到程序崩溃或者中断时，把相应的信息打印到log文件和输出到屏幕。
+void SignalHandler(const char* data, size_t size) {
+  std::string glog_file = "./log/error.log";
+  std::ofstream fs(glog_file, std::ios::app);
+  std::string str = std::string(data, size);
+  fs << str;
+  fs.close();
+  LOG(INFO) << str;
+}
+
 int main(int argc, char* argv[]) {
+  google::InstallFailureSignalHandler();     // 配置安装程序崩溃失败信号处理器
+  google::InstallFailureWriter(&SignalHandler);  // 安装配置程序失败信号的信息打印过程，设置回调函数
+  google::InitGoogleLogging((const char *)argv[0]);  // 用当前可执行程序初始化glog
+
   std::atomic<bool> running_;
-  LOG(INFO) << "Pika init..., running_ = " << running_;
 
 
   if (argc != 2 && argc != 3) {
@@ -188,7 +202,7 @@ int main(int argc, char* argv[]) {
     create_pid_file();
   }
 
-  PikaGlogInit();
+//  PikaGlogInit();
   PikaSignalSetup();
   InitCRC32Table();
 
