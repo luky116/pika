@@ -25,7 +25,11 @@ void* Thread::RunThread(void* arg) {
 }
 
 int Thread::StartThread() {
-  LOG(INFO) << "StartThread running_ = " << running_ << " should_stop_ = " << should_stop_;
+  if (running_) {
+    LOG(ERROR) << "StartThread running_ = " << running_ << " should_stop_ = " << should_stop_;
+  } else {
+    LOG(INFO) << "StartThread running_ = " << running_ << " should_stop_ = " << should_stop_;
+  }
   if (!should_stop() && is_running()) {
     return 0;
   }
