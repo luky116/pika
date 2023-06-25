@@ -26,7 +26,9 @@ struct TimerItem {
 
 class BGThread final : public Thread {
  public:
-  explicit BGThread(int full = 100000) :  full_(full) {}
+  explicit BGThread(int full = 100000) :  full_(full) {
+    LOG(INFO) << "create BGThread full, is_running_:" << is_running();
+  }
 
   ~BGThread() override {
     // call virtual in destructor, BGThread must be final
