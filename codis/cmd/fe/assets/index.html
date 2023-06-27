@@ -128,6 +128,7 @@
                         <th style="width: 60px;"/>
                         <th style="min-width: 100px;">Data Center</th>
                         <th style="width: 35px;"/>
+                        <th style="min-width: 200px;">Slot Nums</th>
                         <th style="min-width: 140px;">Sessions</th>
                         <th style="min-width: 200px;">Commands</th>
                         <th style="width: 35px;"></th>
@@ -181,6 +182,7 @@
                                 <span class="glyphicon glyphicon-remove"></span>
                             </button>
                         </td>
+                        <td>[[proxy.max_slot_num]]</td>
                         <td>[[proxy.sessions]]</td>
                         <td ng-switch="proxy.status">
                             <span ng-switch-when="ERROR" class="status_label_error">[[proxy.status]]</span>
@@ -219,11 +221,11 @@
                         </button>
                         Slots-[
                         <input style="height: 28px; width: 140px; " type="text"
-                               class="form-control" placeholder="[0,1023]"
+                               class="form-control" placeholder=""
                                ng-model="migrate_slot_id_beg">
                         ~
                         <input style="height: 28px; width: 140px; " type="text"
-                               class="form-control" placeholder="[0,1023]"
+                               class="form-control" placeholder=""
                                ng-model="migrate_slot_id_end">
                         ] to Group
                         <input style="height: 28px; width: 140px;"

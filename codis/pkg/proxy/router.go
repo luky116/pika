@@ -13,7 +13,7 @@ import (
 	"pika/codis/v2/pkg/utils/redis"
 )
 
-const MaxSlotNum = models.MaxSlotNum
+var MaxSlotNum = models.GetMaxSlotNum()
 
 type Router struct {
 	mu sync.RWMutex
@@ -22,7 +22,7 @@ type Router struct {
 		primary *sharedBackendConnPool
 		replica *sharedBackendConnPool
 	}
-	slots [MaxSlotNum]Slot
+	slots []Slot
 
 	config *Config
 	online bool
@@ -33,6 +33,7 @@ func NewRouter(config *Config) *Router {
 	s := &Router{config: config}
 	s.pool.primary = newSharedBackendConnPool(config, config.BackendPrimaryParallel)
 	s.pool.replica = newSharedBackendConnPool(config, config.BackendReplicaParallel)
+	s.slots = make([]Slot, 0, MaxSlotNum)
 	for i := range s.slots {
 		s.slots[i].id = i
 		s.slots[i].method = &forwardSync{}
@@ -138,7 +139,7 @@ func (s *Router) isOnline() bool {
 
 func (s *Router) dispatch(r *Request) error {
 	hkey := getHashKey(r.Multi, r.OpStr)
-	var id = Hash(hkey) % MaxSlotNum
+	var id = Hash(hkey) % uint32(MaxSlotNum)
 	slot := &s.slots[id]
 	return slot.forward(r, hkey)
 }

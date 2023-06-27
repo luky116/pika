@@ -3,14 +3,30 @@
 
 package models
 
-import "strings"
+import (
+	"strings"
+	"sync"
+)
 
 const (
 	ForwardSync = iota
 	ForwardSemiAsync
 )
 
-const MaxSlotNum = 1024
+var (
+	maxSlotNum  int
+	initSlotNum sync.Once
+)
+
+func SetMaxSlotNum(maxSlotNum int) {
+	initSlotNum.Do(func() {
+		maxSlotNum = maxSlotNum
+	})
+}
+
+func GetMaxSlotNum() int {
+	return maxSlotNum
+}
 
 type Slot struct {
 	Id     int  `json:"id"`

@@ -15,7 +15,7 @@ import (
 	"pika/codis/v2/pkg/utils/math2"
 )
 
-const MaxSlotNum = models.MaxSlotNum
+var MaxSlotNum = models.GetMaxSlotNum()
 
 type context struct {
 	slots []*models.SlotMapping
