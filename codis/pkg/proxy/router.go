@@ -31,7 +31,7 @@ func NewRouter(config *Config) *Router {
 	s := &Router{config: config}
 	s.pool.primary = newSharedBackendConnPool(config, config.BackendPrimaryParallel)
 	s.pool.replica = newSharedBackendConnPool(config, config.BackendReplicaParallel)
-	s.slots = make([]Slot, 0, models.GetMaxSlotNum())
+	s.slots = make([]Slot, models.GetMaxSlotNum())
 	for i := range s.slots {
 		s.slots[i].id = i
 		s.slots[i].method = &forwardSync{}
