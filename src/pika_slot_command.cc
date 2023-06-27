@@ -1305,8 +1305,11 @@ void SlotsInfoCmd::DoInitial() {
 }
 
 void SlotsInfoCmd::Do(std::shared_ptr<Slot> slot) {
-  int slots_slot[g_pika_conf->default_slot_num()];
-  int slots_size[g_pika_conf->default_slot_num()];
+  int slotNum = g_pika_conf->default_slot_num();
+  int slots_slot[slotNum];
+  int slots_size[slotNum];
+  memset(slots_slot, 0, slotNum);
+  memset(slots_size, 0, slotNum);
   int n = 0;
   int i = 0;
   int32_t len = 0;
