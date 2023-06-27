@@ -21,6 +21,9 @@ product_auth = ""
 # Set bind address for admin(rpc), tcp only.
 admin_addr = "0.0.0.0:18080"
 
+# Set slot num
+max_slot_num = 1024
+
 # Set arguments for data migration (only accept 'sync' & 'semi-async').
 migration_method = "semi-async"
 migration_parallel_slots = 100

@@ -18,9 +18,9 @@ var (
 	initSlotNum sync.Once
 )
 
-func SetMaxSlotNum(maxSlotNum int) {
+func SetMaxSlotNum(ms int) {
 	initSlotNum.Do(func() {
-		maxSlotNum = maxSlotNum
+		maxSlotNum = ms
 	})
 }
 
