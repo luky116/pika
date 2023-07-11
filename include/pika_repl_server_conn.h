@@ -40,6 +40,7 @@ class PikaReplServerConn : public net::PbConn {
                                  InnerMessage::InnerResponse* response);
 
   static void HandleDBSyncRequest(void* arg);
+  static void HandleDumpMetaSyncRequest(void* arg);
   static void HandleBinlogSyncRequest(void* arg);
   static void HandleRemoveSlaveNodeRequest(void* arg);
 

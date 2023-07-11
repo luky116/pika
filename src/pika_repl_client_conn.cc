@@ -61,6 +61,12 @@ int PikaReplClientConn::DealMessage() {
       g_pika_rm->ScheduleReplClientBGTask(&PikaReplClientConn::HandleDBSyncResponse, static_cast<void*>(task_arg));
       break;
     }
+    case InnerMessage::kDumpMetaSync: {
+      auto task_arg =
+          new ReplClientTaskArg(response, std::dynamic_pointer_cast<PikaReplClientConn>(shared_from_this()));
+      g_pika_rm->ScheduleReplClientBGTask(&PikaReplClientConn::HandleMetaSyncResponse, static_cast<void*>(task_arg));
+      break;
+    }
     case InnerMessage::kTrySync: {
       auto task_arg =
           new ReplClientTaskArg(response, std::dynamic_pointer_cast<PikaReplClientConn>(shared_from_this()));
@@ -156,8 +162,44 @@ void PikaReplClientConn::HandleDBSyncResponse(void* arg) {
   slave_slot->SetMasterSessionId(session_id);
 
   std::string slot_name = slave_slot->SlotName();
-  slave_slot->SetReplState(ReplState::kWaitDBSync);
+  slave_slot->SetReplState(ReplState::kTryDumpMetaSync);
   LOG(INFO) << "Slot: " << slot_name << " Need Wait To Sync";
+}
+
+void PikaReplClientConn::HandleDumpMetaSyncResponse(void* arg) {
+  std::unique_ptr<ReplClientTaskArg> task_arg(static_cast<ReplClientTaskArg*>(arg));
+  std::shared_ptr<net::PbConn> conn = task_arg->conn;
+  std::shared_ptr<InnerMessage::InnerResponse> response = task_arg->res;
+
+  const InnerMessage::InnerResponse_DumpMetaSync dump_meta_sync_response = response->dump_meta_sync();
+  const InnerMessage::Slot& slot_response = dump_meta_sync_response.slot();
+  const std::string& db_name = slot_response.db_name();
+  uint32_t slot_id = slot_response.slot_id();
+
+  std::shared_ptr<SyncSlaveSlot> slave_slot =
+      g_pika_rm->GetSyncSlaveSlotByName(SlotInfo(db_name, slot_id));
+  std::string slot_name = slave_slot->SlotName();
+  if (!slave_slot) {
+    LOG(WARNING) << "handle dump meta response fialed, Slot: " << db_name << ":" << slot_id << " Not Found";
+    return;
+  }
+
+  if (response->code() != InnerMessage::kOk) {
+    slave_slot->SetReplState(ReplState::kError);
+    std::string reply = response->has_reply() ? response->reply() : "";
+    LOG(WARNING) << "DBSync Failed: " << reply;
+    return;
+  }
+
+  if (dump_meta_sync_response.reply_code() == InnerMessage::InnerResponse_DumpMetaSync_ReplyCode_kWait) {
+    LOG(INFO) << "dump meta sync wait, maybe retry next time";
+    return ;
+  }
+
+  // todo 保存 server 的 snapshot-id 和文件的 checksum 信息
+
+  slave_slot->SetReplState(ReplState::kWaitDBSync);
+  LOG(INFO) << "handle dump meta response success, Slot: " << db_name << ", slot_id: " << slot_id << ",  ";
 }
 
 void PikaReplClientConn::HandleTrySyncResponse(void* arg) {

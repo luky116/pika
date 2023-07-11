@@ -352,6 +352,45 @@ void PikaReplServerConn::HandleDBSyncRequest(void* arg) {
   conn->NotifyWrite();
 }
 
+void PikaReplServerConn::HandleDumpMetaSyncRequest(void* arg) {
+  std::unique_ptr<ReplServerTaskArg> task_arg(static_cast<ReplServerTaskArg*>(arg));
+  const std::shared_ptr<InnerMessage::InnerRequest> req = task_arg->req;
+  std::shared_ptr<net::PbConn> conn = task_arg->conn;
+
+  InnerMessage::InnerRequest::DumpMetaSync dump_meta_sync_request = req->dump_meta_sync();
+
+  InnerMessage::InnerResponse response;
+  response.set_code(InnerMessage::kOk);
+  response.set_type(InnerMessage::Type::kDumpMetaSync);
+
+  InnerMessage::InnerResponse::DumpMetaSync dump_meta_sync_response = response.dump_meta_sync();
+  InnerMessage::Slot* slot_response = dump_meta_sync_response.mutable_slot();
+
+  const InnerMessage::Slot& slot_request = dump_meta_sync_request.slot();
+  std::string db_name = slot_request.db_name();
+  uint32_t slot_id = slot_request.slot_id();
+  slot_response->set_db_name(db_name);
+  slot_response->set_slot_id(slot_id);;
+
+  // todo 如果执行完了 bgsave 操作，则将 snapshot_id 和 文件checksum 返回给 slave
+  if (true) {
+    dump_meta_sync_response.set_snapshot_id("aaaaaa");
+    dump_meta_sync_response.set_allocated_files(new InnerMessage::InnerResponse_FileCheckSum());
+    dump_meta_sync_response.set_reply_code(InnerMessage::InnerResponse_DumpMetaSync_ReplyCode::InnerResponse_DumpMetaSync_ReplyCode_kOk);
+  } else {
+    // todo 如果未执行完 bgsave 操作，返回 wait 状态给 salve
+    dump_meta_sync_response.set_reply_code(InnerMessage::InnerResponse_DumpMetaSync_ReplyCode::InnerResponse_DumpMetaSync_ReplyCode_kWait);
+  }
+
+  std::string reply_str;
+  if (!response.SerializeToString(&reply_str) || (conn->WriteResp(reply_str) != 0)) {
+    LOG(WARNING) << "Handle Dump meta Failed";
+    conn->NotifyClose();
+    return;
+  }
+  conn->NotifyWrite();
+}
+
 void PikaReplServerConn::HandleBinlogSyncRequest(void* arg) {
   std::unique_ptr<ReplServerTaskArg> task_arg(static_cast<ReplServerTaskArg*>(arg));
   const std::shared_ptr<InnerMessage::InnerRequest> req = task_arg->req;
@@ -512,6 +551,12 @@ int PikaReplServerConn::DealMessage() {
       auto task_arg =
           new ReplServerTaskArg(req, std::dynamic_pointer_cast<PikaReplServerConn>(shared_from_this()));
       g_pika_rm->ScheduleReplServerBGTask(&PikaReplServerConn::HandleDBSyncRequest, task_arg);
+      break;
+    }
+    case InnerMessage::kDumpMetaSync: {
+      auto task_arg =
+          new ReplServerTaskArg(req, std::dynamic_pointer_cast<PikaReplServerConn>(shared_from_this()));
+      g_pika_rm->ScheduleReplServerBGTask(&PikaReplServerConn::HandleDumpMetaSyncRequest, task_arg);
       break;
     }
     case InnerMessage::kBinlogSync: {

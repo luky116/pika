@@ -164,6 +164,26 @@ Status PikaReplClient::SendSlotDBSync(const std::string& ip, uint32_t port, cons
   return client_thread_->Write(ip, port + kPortShiftReplServer, to_send);
 }
 
+Status PikaReplClient::SendDumpMetaSync(const std::string& ip, uint32_t port, const std::string& db_name,
+                                      uint32_t slot_id,const std::string& local_ip) {
+  InnerMessage::InnerRequest request;
+  request.set_type(InnerMessage::kDumpMetaSync);
+  InnerMessage::InnerRequest::DumpMetaSync dump_meta_sync = request.dump_meta_sync();
+  InnerMessage::Node* node = dump_meta_sync.mutable_node();
+  node->set_ip(local_ip);
+  node->set_port(g_pika_server->port());
+  InnerMessage::Slot* slot = dump_meta_sync.mutable_slot();
+  slot->set_db_name(db_name);
+  slot->set_slot_id(slot_id);
+
+  std::string to_send;
+  if (!request.SerializeToString(&to_send)) {
+    LOG(WARNING) << "Serialize Slot DBSync Request Failed, to Master (" << ip << ":" << port << ")";
+    return Status::Corruption("Serialize Failed");
+  }
+  return client_thread_->Write(ip, port + kPortShiftReplServer, to_send);
+}
+
 Status PikaReplClient::SendSlotTrySync(const std::string& ip, uint32_t port, const std::string& db_name,
                                             uint32_t slot_id, const BinlogOffset& boffset,
                                             const std::string& local_ip) {

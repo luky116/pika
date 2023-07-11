@@ -8,6 +8,7 @@ enum Type {
   kBinlogSync      = 4;
   kHeatBeat        = 5;
   kRemoveSlaveNode = 6;
+  kDumpMetaSync    = 7;
 }
 
 enum StatusCode {
@@ -91,6 +92,11 @@ message InnerRequest {
     required Slot         slot            = 2;
   }
 
+  message DumpMetaSync {
+    required Node         node            = 1;
+    required Slot          slot           = 2;
+  }
+
   required Type            type              = 1;
   optional MetaSync        meta_sync         = 2;
   optional TrySync         try_sync          = 3;
@@ -98,6 +104,7 @@ message InnerRequest {
   optional BinlogSync      binlog_sync       = 5;
   repeated RemoveSlaveNode remove_slave_node = 6;
   optional ConsensusMeta   consensus_meta    = 7;
+  optional DumpMetaSync    dump_meta_sync    = 8;
 }
 
 message SlotInfo {
@@ -150,6 +157,22 @@ message InnerResponse {
     required Slot            slot       = 2;
   }
 
+  message DumpMetaSync {
+    enum ReplyCode {
+      kOk   = 1;
+      kWait = 2;
+    }
+    required ReplyCode  reply_code  = 1;
+    optional FileCheckSum files     = 2;
+    optional string snapshot_id     = 3;
+    required Slot          slot     = 4;
+  }
+
+  message FileCheckSum {
+    required string filename = 1;
+    required string checksum = 2;
+  }
+
   required Type            type              = 1;
   required StatusCode      code              = 2;
   optional string          reply             = 3;
@@ -160,4 +183,5 @@ message InnerResponse {
   repeated RemoveSlaveNode remove_slave_node = 8;
   // consensus use
   optional ConsensusMeta   consensus_meta    = 9;
+  optional DumpMetaSync   dump_meta_sync    = 10;
 }

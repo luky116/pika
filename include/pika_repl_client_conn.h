@@ -25,6 +25,7 @@ class PikaReplClientConn : public net::PbConn {
 
   static void HandleMetaSyncResponse(void* arg);
   static void HandleDBSyncResponse(void* arg);
+  void HandleDumpMetaSyncResponse(void* arg);
   static void HandleTrySyncResponse(void* arg);
   static void HandleRemoveSlaveNodeResponse(void* arg);
 

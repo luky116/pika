@@ -189,6 +189,7 @@ class PikaReplicaManager {
   pstd::Status SendMetaSyncRequest();
   pstd::Status SendRemoveSlaveNodeRequest(const std::string& table, uint32_t slot_id);
   pstd::Status SendSlotTrySyncRequest(const std::string& db_name, size_t slot_id);
+  Status SendGetDumpMetaRequest(const std::string& db_name, size_t slot_id);
   pstd::Status SendSlotDBSyncRequest(const std::string& db_name, size_t slot_id);
   pstd::Status SendSlotBinlogSyncAckRequest(const std::string& table, uint32_t slot_id, const LogOffset& ack_start,
                                            const LogOffset& ack_end, bool is_first_send = false);

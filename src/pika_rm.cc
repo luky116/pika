@@ -1052,6 +1052,38 @@ Status PikaReplicaManager::SendSlotTrySyncRequest(const std::string& db_name, si
   return status;
 }
 
+
+Status PikaReplicaManager::SendGetDumpMetaRequest(const std::string& db_name, size_t slot_id) {
+
+  std::shared_ptr<Slot> slot = g_pika_server->GetDBSlotById(db_name, slot_id);
+  if (!slot) {
+    LOG(WARNING) << "Slot: " << db_name << ":" << slot_id << ", NotFound";
+    return Status::Corruption("Slot not found");
+  }
+  slot->PrepareRsync();
+
+  std::shared_ptr<SyncSlaveSlot> slave_slot =
+      GetSyncSlaveSlotByName(SlotInfo(db_name, slot_id));
+  if (!slave_slot) {
+    LOG(WARNING) << "Slave Slot: " << db_name << ":" << slot_id << ", NotFound";
+    return Status::Corruption("Slave Slot not found");
+  }
+
+  Status status = pika_repl_client_->SendDumpMetaSync(slave_slot->MasterIp(), slave_slot->MasterPort(), db_name,
+                                                      slot_id, slave_slot->LocalIp());
+  Status s;
+  if (status.ok()) {
+    slave_slot->SetReplState(ReplState::kWaitReply);
+  } else {
+    slave_slot->SetReplState(ReplState::kError);
+    LOG(WARNING) << "SendSlotDBSync failed " << status.ToString();
+  }
+  if (!s.ok()) {
+    LOG(WARNING) << s.ToString();
+  }
+  return status;
+}
+
 Status PikaReplicaManager::SendSlotDBSyncRequest(const std::string& db_name, size_t slot_id) {
   BinlogOffset boffset;
   if (!g_pika_server->GetDBSlotBinlogOffset(db_name, slot_id, &boffset)) {
@@ -1138,6 +1170,8 @@ Status PikaReplicaManager::RunSyncSlaveSlotStateMachine() {
       SendSlotDBSyncRequest(p_info.db_name_, p_info.slot_id_);
     } else if (s_slot->State() == ReplState::kWaitReply) {
       continue;
+    } else if (s_slot->State() == ReplState::kTryDumpMetaSync) {
+      SendGetDumpMetaRequest(p_info.db_name_, p_info.slot_id_);
     } else if (s_slot->State() == ReplState::kWaitDBSync) {
       std::shared_ptr<Slot> slot =
           g_pika_server->GetDBSlotById(p_info.db_name_, p_info.slot_id_);
