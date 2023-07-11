@@ -191,7 +191,7 @@ void PikaReplClientConn::HandleDumpMetaSyncResponse(void* arg) {
     return;
   }
 
-  if (dump_meta_sync_response.reply_code() == InnerMessage::InnerResponse_DumpMetaSync_ReplyCode_kWait) {
+  if (dump_meta_sync_response -> reply_code() == InnerMessage::InnerResponse_DumpMetaSync_ReplyCode_kWait) {
     LOG(INFO) << "dump meta sync wait, maybe retry next time";
     return ;
   }

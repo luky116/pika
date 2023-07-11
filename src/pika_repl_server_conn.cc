@@ -374,12 +374,12 @@ void PikaReplServerConn::HandleDumpMetaSyncRequest(void* arg) {
 
   // todo 如果执行完了 bgsave 操作，则将 snapshot_id 和 文件checksum 返回给 slave
   if (true) {
-    dump_meta_sync_response.set_snapshot_id("aaaaaa");
-    dump_meta_sync_response.set_allocated_files(new InnerMessage::InnerResponse_FileCheckSum());
-    dump_meta_sync_response.set_reply_code(InnerMessage::InnerResponse_DumpMetaSync_ReplyCode::InnerResponse_DumpMetaSync_ReplyCode_kOk);
+    dump_meta_sync_response -> set_snapshot_id("aaaaaa");
+    dump_meta_sync_response -> set_allocated_files(new InnerMessage::InnerResponse_FileCheckSum());
+    dump_meta_sync_response -> set_reply_code(InnerMessage::InnerResponse_DumpMetaSync_ReplyCode::InnerResponse_DumpMetaSync_ReplyCode_kOk);
   } else {
     // todo 如果未执行完 bgsave 操作，返回 wait 状态给 salve
-    dump_meta_sync_response.set_reply_code(InnerMessage::InnerResponse_DumpMetaSync_ReplyCode::InnerResponse_DumpMetaSync_ReplyCode_kWait);
+    dump_meta_sync_response -> set_reply_code(InnerMessage::InnerResponse_DumpMetaSync_ReplyCode::InnerResponse_DumpMetaSync_ReplyCode_kWait);
   }
 
   std::string reply_str;
