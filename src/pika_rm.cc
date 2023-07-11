@@ -1060,7 +1060,7 @@ Status PikaReplicaManager::SendGetDumpMetaRequest(const std::string& db_name, si
     LOG(WARNING) << "Slot: " << db_name << ":" << slot_id << ", NotFound";
     return Status::Corruption("Slot not found");
   }
-  slot->PrepareRsync();
+//  slot->PrepareRsync();
 
   std::shared_ptr<SyncSlaveSlot> slave_slot =
       GetSyncSlaveSlotByName(SlotInfo(db_name, slot_id));

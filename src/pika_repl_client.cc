@@ -168,11 +168,11 @@ Status PikaReplClient::SendDumpMetaSync(const std::string& ip, uint32_t port, co
                                       uint32_t slot_id,const std::string& local_ip) {
   InnerMessage::InnerRequest request;
   request.set_type(InnerMessage::kDumpMetaSync);
-  InnerMessage::InnerRequest::DumpMetaSync dump_meta_sync = request.dump_meta_sync();
-  InnerMessage::Node* node = dump_meta_sync.mutable_node();
+  InnerMessage::InnerRequest::DumpMetaSync* dump_meta_sync = request.mutable_dump_meta_sync();
+  InnerMessage::Node* node = dump_meta_sync -> mutable_node();
   node->set_ip(local_ip);
   node->set_port(g_pika_server->port());
-  InnerMessage::Slot* slot = dump_meta_sync.mutable_slot();
+  InnerMessage::Slot* slot = dump_meta_sync -> mutable_slot();
   slot->set_db_name(db_name);
   slot->set_slot_id(slot_id);
 

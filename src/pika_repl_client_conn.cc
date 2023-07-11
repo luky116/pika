@@ -171,8 +171,8 @@ void PikaReplClientConn::HandleDumpMetaSyncResponse(void* arg) {
   std::shared_ptr<net::PbConn> conn = task_arg->conn;
   std::shared_ptr<InnerMessage::InnerResponse> response = task_arg->res;
 
-  const InnerMessage::InnerResponse_DumpMetaSync dump_meta_sync_response = response->dump_meta_sync();
-  const InnerMessage::Slot& slot_response = dump_meta_sync_response.slot();
+  const InnerMessage::InnerResponse_DumpMetaSync* dump_meta_sync_response = response->mutable_dump_meta_sync();
+  const InnerMessage::Slot& slot_response = dump_meta_sync_response -> slot();
   const std::string& db_name = slot_response.db_name();
   uint32_t slot_id = slot_response.slot_id();
 

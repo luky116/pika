@@ -357,16 +357,16 @@ void PikaReplServerConn::HandleDumpMetaSyncRequest(void* arg) {
   const std::shared_ptr<InnerMessage::InnerRequest> req = task_arg->req;
   std::shared_ptr<net::PbConn> conn = task_arg->conn;
 
-  InnerMessage::InnerRequest::DumpMetaSync dump_meta_sync_request = req->dump_meta_sync();
+  InnerMessage::InnerRequest::DumpMetaSync* dump_meta_sync_request = req->mutable_dump_meta_sync();
 
   InnerMessage::InnerResponse response;
   response.set_code(InnerMessage::kOk);
   response.set_type(InnerMessage::Type::kDumpMetaSync);
 
-  InnerMessage::InnerResponse::DumpMetaSync dump_meta_sync_response = response.dump_meta_sync();
-  InnerMessage::Slot* slot_response = dump_meta_sync_response.mutable_slot();
+  InnerMessage::InnerResponse::DumpMetaSync* dump_meta_sync_response = response.mutable_dump_meta_sync();
+  InnerMessage::Slot* slot_response = dump_meta_sync_response -> mutable_slot();
 
-  const InnerMessage::Slot& slot_request = dump_meta_sync_request.slot();
+  const InnerMessage::Slot& slot_request = dump_meta_sync_request -> slot();
   std::string db_name = slot_request.db_name();
   uint32_t slot_id = slot_request.slot_id();
   slot_response->set_db_name(db_name);
