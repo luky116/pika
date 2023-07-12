@@ -129,6 +129,8 @@ void PikaReplServerConn::HandleTrySyncRequest(void* arg) {
     pre_success = TrySyncUpdateSlaveNode(slot, try_sync_request, conn, try_sync_response);
   }
 
+  // todo 待删除，测试用的
+  try_sync_response->set_reply_code(InnerMessage::InnerResponse::TrySync::kSyncPointBePurged);
   std::string reply_str;
   if (!response.SerializeToString(&reply_str) || (conn->WriteResp(reply_str) != 0)) {
     LOG(WARNING) << "Handle Try Sync Failed";
@@ -375,7 +377,18 @@ void PikaReplServerConn::HandleDumpMetaSyncRequest(void* arg) {
   // todo 如果执行完了 bgsave 操作，则将 snapshot_id 和 文件checksum 返回给 slave
   if (true) {
     dump_meta_sync_response -> set_snapshot_id("aaaaaa");
-    dump_meta_sync_response -> set_allocated_files(new InnerMessage::InnerResponse_FileCheckSum());
+
+    std::vector<InnerMessage::InnerResponse_FileCheckSum> files;
+
+    InnerMessage::InnerResponse_FileCheckSum file = InnerMessage::InnerResponse_FileCheckSum();
+    file.set_checksum("test-check-sum");
+    file.set_filename("test-filename");
+    files.push_back(file);
+
+    InnerMessage::InnerResponse_FileCheckSum files_arrs[files.size()];
+    std::copy(files.begin(), files.end(), files_arrs);
+    dump_meta_sync_response ->set_allocated_files(files_arrs);
+
     dump_meta_sync_response -> set_reply_code(InnerMessage::InnerResponse_DumpMetaSync_ReplyCode::InnerResponse_DumpMetaSync_ReplyCode_kOk);
   } else {
     // todo 如果未执行完 bgsave 操作，返回 wait 状态给 salve
