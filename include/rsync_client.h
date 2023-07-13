@@ -12,7 +12,6 @@
 #include "pstd/include/env.h"
 #include "pstd/include/pstd_hash.h"
 #include "pstd/include/pstd_status.h"
-#include "rsync_server.h"
 #include "rsync_service.pb.h"
 #include "throttle.h"
 
@@ -47,11 +46,11 @@ public:
     Status Stop();
     void OnReceive(RsyncResponse* resp);
 private:
-    void Recover(RSyncReader& reader);
+    void Recover();
     Status SendRequest(const std::string& filename, size_t offset, Type type);
     Status HandleResponse(const std::string& filename, size_t& offset, MD5& md5, RsyncWriter& writer);
     Status LoadFile(const std::string& filename);
-    Status LoadMetaTable(RSyncReader& reader);
+    Status LoadMetaTable();
     Status FlushMetaTable();
     void HandleRsyncMetaResponse(RsyncResponse* response);
     void LoadLocalDumpMeta(std::string* snapshotID, std::vector<std::string>* filenames);

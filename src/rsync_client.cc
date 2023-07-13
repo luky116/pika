@@ -164,7 +164,7 @@ Status RsyncClient::Stop() {
 }
 
 //TODO: yuecai
-void RsyncClient::Recover(RSyncReader& reader) {
+void RsyncClient::Recover() {
 
   // 从远程读取 meta
 }
@@ -228,7 +228,7 @@ void RsyncClient::LoadLocalDumpMeta(std::string* snapshotID, std::vector<std::st
     return ;
 }
 
-Status RsyncClient::LoadMetaTable(RSyncReader& reader) {
+Status RsyncClient::LoadMetaTable() {
 
 }
 
