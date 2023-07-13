@@ -20,7 +20,7 @@ using namespace net;
 using namespace RsyncService;
 
 const std::string kDumpMetaFileName = "DUMP_META_DATA";
-const std::string kUuidPrefix = "uuid:";
+const std::string kUuidPrefix = "snapshot-uuid:";
 
 namespace rsync {
 
@@ -53,7 +53,6 @@ private:
     Status LoadMetaTable();
     Status FlushMetaTable();
     void HandleRsyncMetaResponse(RsyncResponse* response);
-    void LoadLocalDumpMeta(std::string* snapshotID, std::vector<std::string>* filenames);
 
 private:
     //已经下载完成的文件名与checksum值，用于宕机重启时恢复，
@@ -66,9 +65,6 @@ private:
     std::string dir_;
     std::string ip_;
     int port_;
-
-    std::string snapshot_id_;
-    std::vector<std::string> snapshot_file_names_;
 
     std::unique_ptr<RsyncClientThread> client_thread_;
     std::atomic<State> state_;

@@ -165,15 +165,13 @@ Status RsyncClient::Stop() {
 
 //TODO: yuecai
 void RsyncClient::Recover() {
-
+    file_set_.insert("filename");
   // 从远程读取 meta
 }
 
-void RsyncClient::LoadLocalDumpMeta(std::string* snapshotID, std::vector<std::string>* filenames) {
-    std::string meta_path = "";
-
-    if (!FileExists(meta_path)) {
-        return ;
+Status RsyncClient::LoadMetaTable() {
+    if (!FileExists(dir_)) {
+        return Status::OK();
     }
 
     FILE* fp;
@@ -185,51 +183,45 @@ void RsyncClient::LoadLocalDumpMeta(std::string* snapshotID, std::vector<std::st
     std::atomic_int8_t retry_times = 5;
 
     while (retry_times -- > 0) {
-        fp = fopen(meta_path.c_str(), "r");
+        fp = fopen(dir_.c_str(), "r");
         if (fp == nullptr) {
-            LOG(WARNING) << "open meta file failed, meta_path: " << meta_path;
+            LOG(WARNING) << "open meta file failed, meta_path: " << dir_;
         } else {
             break;
         }
     }
     // if the file cannot be read from disk, use the remote file directly
     if (fp == nullptr) {
-        LOG(WARNING) << "open meta file failed, meta_path: " << meta_path << ", retry times: " << retry_times;
-        return ;
+        LOG(WARNING) << "open meta file failed, meta_path: " << dir_ << ", retry times: " << retry_times;
+        return Status::IOError("open meta file failed, dir: ", dir_);
     }
 
     while ((read = getline(&line, &len, fp)) != -1) {
         std::string str(line);
         std::string::size_type pos;
-        while ((pos = str.find("\r", pos)) != std::string::npos) {
+        while ((pos = str.find("\r")) != std::string::npos) {
             str.erase(pos, 1);
         }
-        while ((pos = str.find("\n", pos)) != std::string::npos) {
+        while ((pos = str.find("\n")) != std::string::npos) {
             str.erase(pos, 1);
         }
+
         if (str.empty()) {
             continue;
         }
 
         if (line_num == 0) {
-            *snapshotID = str.erase(0, kUuidPrefix.size());
+            snapshot_uuid_ = str.erase(0, kUuidPrefix.size());
         } else {
-            if ((pos = str.find(":", pos)) != std::string::npos) {
-               // TODO 边界值判断
+            if ((pos = str.find(":")) != std::string::npos) {
                str.erase(pos, str.size() - pos);
             }
-            filenames -> push_back(str);
+            file_set_.insert(str);
         }
 
         line_num++;
-        printf("Retrieved line of length %zu :\n", read);
-        printf("%s", line);
     }
-    return ;
-}
-
-Status RsyncClient::LoadMetaTable() {
-
+    return Status::OK();
 }
 
 //TODO: shaoyi
