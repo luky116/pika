@@ -38,12 +38,6 @@ public:
     void Schedule(net::TaskFunc func, void* arg);
     int Start();
     int Stop();
-    void set_snapshot_id(const std::string& snapshot_id) {
-        snapshot_id_ = snapshot_id;
-    }
-    void set_snapshot_file_names(const std::vector<std::string>& snapshot_file_names) {
-        snapshot_file_names_ = snapshot_file_names;
-    }
 private:
     int port_;
     std::string ip_;

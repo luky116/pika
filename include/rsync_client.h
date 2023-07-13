@@ -46,12 +46,6 @@ public:
     Status Start();
     Status Stop();
     void OnReceive(RsyncResponse* resp);
-    void set_snapshot_id(const std::string& snapshot_id) {
-      snapshot_id_ = snapshot_id;
-    }
-    void set_snapshot_file_names(const std::vector<std::string>& snapshot_file_names) {
-      snapshot_file_names_ = snapshot_file_names;
-    }
 private:
     void Recover(RSyncReader& reader);
     Status SendRequest(const std::string& filename, size_t offset, Type type);

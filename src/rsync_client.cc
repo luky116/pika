@@ -169,32 +169,6 @@ void RsyncClient::Recover(RSyncReader& reader) {
   // 从远程读取 meta
 }
 
-
-void RsyncClient::HandleRsyncMetaResponse(RsyncResponse* response){
-    // todo RsyncResponse 是否加上 status 字段？
-    RsyncService::MetaResponse *meta_resp = response->mutable_meta_resp();
-
-    if (meta_resp == nullptr) {
-        LOG(WARNING) << "rsync meta_resp is null";
-        return;
-    }
-
-    std::string remoteUuid;
-    std::vector<std::string> remoteFilenames;
-
-    remoteUuid = meta_resp->uuid();
-    for (size_t i = 0; i < meta_resp->filenames_size(); i++) {
-        remoteFilenames.push_back(meta_resp->filenames(i));
-    }
-
-
-    std::string localUuid;
-    std::vector<std::string> localFilenames;
-
-    LoadLocalDumpMeta(&localUuid, &localFilenames);
-}
-
-
 void RsyncClient::LoadLocalDumpMeta(std::string* snapshotID, std::vector<std::string>* filenames) {
     std::string meta_path = "";
 
@@ -214,8 +188,14 @@ void RsyncClient::LoadLocalDumpMeta(std::string* snapshotID, std::vector<std::st
         fp = fopen(meta_path.c_str(), "r");
         if (fp == nullptr) {
             LOG(WARNING) << "open meta file failed, meta_path: " << meta_path;
+        } else {
+            break;
         }
-
+    }
+    // if the file cannot be read from disk, use the remote file directly
+    if (fp == nullptr) {
+        LOG(WARNING) << "open meta file failed, meta_path: " << meta_path << ", retry times: " << retry_times;
+        return ;
     }
 
     while ((read = getline(&line, &len, fp)) != -1) {
