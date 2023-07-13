@@ -1,7 +1,12 @@
 #include "include/rsync_client.h"
+#include "pstd/src/env.cc"
+#include <stdio.h>
+#include <stdlib.h>
+
 using namespace net;
 using namespace pstd;
 using namespace RsyncService;
+
 namespace rsync {
 RsyncClient::RsyncClient(const std::string& dir, const std::string& ip, const int port)
     : dir_ (dir), ip_ (ip), port_(port), state_ (IDLE) {
@@ -159,14 +164,92 @@ Status RsyncClient::Stop() {
 }
 
 //TODO: yuecai
-void RsyncClient::Recover() {
-    file_set_.insert("filename");
+void RsyncClient::Recover(RSyncReader& reader) {
+
+  // 从远程读取 meta
 }
 
-//TODO: shaoyi
-Status RsyncClient::LoadMetaTable() {
-    LOG(WARNING) << "LoadMetaTable called";
-    return Status::OK();
+
+void RsyncClient::HandleRsyncMetaResponse(RsyncResponse* response){
+    // todo RsyncResponse 是否加上 status 字段？
+    RsyncService::MetaResponse *meta_resp = response->mutable_meta_resp();
+
+    if (meta_resp == nullptr) {
+        LOG(WARNING) << "rsync meta_resp is null";
+        return;
+    }
+
+    std::string remoteUuid;
+    std::vector<std::string> remoteFilenames;
+
+    remoteUuid = meta_resp->uuid();
+    for (size_t i = 0; i < meta_resp->filenames_size(); i++) {
+        remoteFilenames.push_back(meta_resp->filenames(i));
+    }
+
+
+    std::string localUuid;
+    std::vector<std::string> localFilenames;
+
+    LoadLocalDumpMeta(&localUuid, &localFilenames);
+}
+
+
+void RsyncClient::LoadLocalDumpMeta(std::string* snapshotID, std::vector<std::string>* filenames) {
+    std::string meta_path = "";
+
+    if (!FileExists(meta_path)) {
+        return ;
+    }
+
+    FILE* fp;
+    char* line = nullptr;
+    size_t len = 0;
+    ssize_t read;
+    int32_t line_num = 0;
+
+    std::atomic_int8_t retry_times = 5;
+
+    while (retry_times -- > 0) {
+        fp = fopen(meta_path.c_str(), "r");
+        if (fp == nullptr) {
+            LOG(WARNING) << "open meta file failed, meta_path: " << meta_path;
+        }
+
+    }
+
+    while ((read = getline(&line, &len, fp)) != -1) {
+        std::string str(line);
+        std::string::size_type pos;
+        while ((pos = str.find("\r", pos)) != std::string::npos) {
+            str.erase(pos, 1);
+        }
+        while ((pos = str.find("\n", pos)) != std::string::npos) {
+            str.erase(pos, 1);
+        }
+        if (str.empty()) {
+            continue;
+        }
+
+        if (line_num == 0) {
+            *snapshotID = str.erase(0, kUuidPrefix.size());
+        } else {
+            if ((pos = str.find(":", pos)) != std::string::npos) {
+               // TODO 边界值判断
+               str.erase(pos, str.size() - pos);
+            }
+            filenames -> push_back(str);
+        }
+
+        line_num++;
+        printf("Retrieved line of length %zu :\n", read);
+        printf("%s", line);
+    }
+    return ;
+}
+
+Status RsyncClient::LoadMetaTable(RSyncReader& reader) {
+
 }
 
 //TODO: shaoyi

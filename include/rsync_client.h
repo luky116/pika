@@ -6,18 +6,22 @@
 #include <thread>
 #include <condition_variable>
 
-#include "throttle.h"
-#include "pstd/include/env.h"
-#include "net/include/net_cli.h"
-#include "pstd/include/pstd_hash.h"
-#include "net/include/bg_thread.h"
-#include "pstd/include/pstd_status.h"
 #include "include/rsync_client_thread.h"
+#include "net/include/bg_thread.h"
+#include "net/include/net_cli.h"
+#include "pstd/include/env.h"
+#include "pstd/include/pstd_hash.h"
+#include "pstd/include/pstd_status.h"
+#include "rsync_server.h"
 #include "rsync_service.pb.h"
+#include "throttle.h"
 
 using namespace pstd;
 using namespace net;
 using namespace RsyncService;
+
+const std::string kDumpMetaFileName = "DUMP_META_DATA";
+const std::string kUuidPrefix = "uuid:";
 
 namespace rsync {
 
@@ -42,13 +46,21 @@ public:
     Status Start();
     Status Stop();
     void OnReceive(RsyncResponse* resp);
+    void set_snapshot_id(const std::string& snapshot_id) {
+      snapshot_id_ = snapshot_id;
+    }
+    void set_snapshot_file_names(const std::vector<std::string>& snapshot_file_names) {
+      snapshot_file_names_ = snapshot_file_names;
+    }
 private:
-    void Recover();
+    void Recover(RSyncReader& reader);
     Status SendRequest(const std::string& filename, size_t offset, Type type);
     Status HandleResponse(const std::string& filename, size_t& offset, MD5& md5, RsyncWriter& writer);
     Status LoadFile(const std::string& filename);
-    Status LoadMetaTable();
+    Status LoadMetaTable(RSyncReader& reader);
     Status FlushMetaTable();
+    void HandleRsyncMetaResponse(RsyncResponse* response);
+    void LoadLocalDumpMeta(std::string* snapshotID, std::vector<std::string>* filenames);
 
 private:
     //已经下载完成的文件名与checksum值，用于宕机重启时恢复，
@@ -61,6 +73,9 @@ private:
     std::string dir_;
     std::string ip_;
     int port_;
+
+    std::string snapshot_id_;
+    std::vector<std::string> snapshot_file_names_;
 
     std::unique_ptr<RsyncClientThread> client_thread_;
     std::atomic<State> state_;
