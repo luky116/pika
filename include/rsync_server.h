@@ -42,8 +42,6 @@ private:
     int port_;
     std::string ip_;
     std::string dir_;
-    std::string snapshot_id_;
-    std::vector<std::string> snapshot_file_names_;
     std::map<std::string, std::shared_ptr<RsyncReader> > file_map_;
     std::unique_ptr<ThreadPool> work_thread_ = nullptr;
     std::unique_ptr<RsyncServerThread> rsync_server_thread_ = nullptr;
@@ -106,12 +104,10 @@ class RsyncServerConnFactory : public ConnFactory {
                                               NetMultiplexer* net_epoll) const override;
 };
 
-// todo 这里命名为 FileReader 就行，是个读取文件的通用类，不用和 rsync 绑定
 class RSyncReader {
 public:
     RSyncReader(const std::string& filepath);
     ~RSyncReader();
-    // todo 这个 n 的单位是啥？字节吗？
     Status Read(uint64_t offset, size_t n, Slice* result);
 
 private:
