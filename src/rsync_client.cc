@@ -177,11 +177,9 @@ Status RsyncClient::LoadMetaTable() {
     FILE* fp;
     char* line = nullptr;
     size_t len = 0;
-    ssize_t read;
     int32_t line_num = 0;
 
     std::atomic_int8_t retry_times = 5;
-
     while (retry_times -- > 0) {
         fp = fopen(dir_.c_str(), "r");
         if (fp == nullptr) {
