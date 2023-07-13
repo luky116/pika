@@ -25,6 +25,7 @@
 #include "include/pika_cmd_table_manager.h"
 #include "include/pika_dispatch_thread.h"
 #include "include/pika_rm.h"
+#include "pstd_hash.h"
 
 using pstd::Status;
 extern PikaServer* g_pika_server;
@@ -905,18 +906,21 @@ void PikaServer::DBSync(const std::string& ip, int port, const std::string& db_n
   bgsave_thread_.Schedule(&DoDBSync, reinterpret_cast<void*>(arg));
 }
 
-void PikaServer::GetDumpMeta(const std::string& db_name, const uint32_t slot_id, std::vector<std::string>* files, std::string* snapshot_uuid) {
-    std::shared_ptr<Slot> slot = GetDBSlotById(db_name, slot_id);
-    pstd::GetChildren(slot->bgsave_info().path, *files);
-    *snapshot_uuid = "demo_snapshot_uuid";
+pstd::Status PikaServer::GetDumpMeta(const std::string& db_name, const uint32_t slot_id, std::vector<std::string>* fileNames, std::string* snapshot_uuid) {
+  std::shared_ptr<Slot> slot = GetDBSlotById(db_name, slot_id);
+  if (!slot) {
+    LOG(WARNING) << "cannot find slot for db_name " << db_name << "slot_id: " << slot_id;
+    return pstd::Status::NotFound("slot no found");
+  }
+  slot->GetBgSaveMetaData(fileNames, snapshot_uuid);
 }
 
-size_t PikaServer::ReadDumpFile(const std::string& db_name, uint32_t slot_id, const std::string& filename,
+pstd::Status PikaServer::ReadDumpFile(const std::string& db_name, uint32_t slot_id, const std::string& filename,
                                 const size_t offset, const size_t count, char* data) {
     std::shared_ptr<Slot> slot = GetDBSlotById(db_name, slot_id);
     if (!slot) {
       LOG(WARNING) << "cannot find slot for db_name " << db_name << "slot_id: " << slot_id;
-      return 0;
+      return pstd::Status::NotFound("slot no found");
     }
     const std::string filepath = slot->bgsave_info().path + "/" + filename;
     int fd = open(filepath.c_str(), O_RDONLY, 0644);
