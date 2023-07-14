@@ -6,8 +6,12 @@ enum Type {
     kRsyncFile = 2;
 }
 
+message StringList {
+    repeated string data = 1;
+}
+
 message MetaResponse {
-    repeated string filenames = 1;
+    map<string, StringList> filename_table = 1;
 }
 
 message FileRequest {
