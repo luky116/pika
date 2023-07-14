@@ -945,12 +945,12 @@ pstd::Status PikaServer::ReadDumpFile(const std::string& db_name, uint32_t slot_
       if (left_read_count <= 0) {
         break ;
       }
-
-      data += bytesin;
-      read_offset += bytesin;
       if (read_count > left_read_count) {
         read_count = left_read_count;
       }
+
+      data += bytesin;
+      read_offset += bytesin;
     }
 
     if (bytesin == -1) {
