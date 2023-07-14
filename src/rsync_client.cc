@@ -238,15 +238,13 @@ Status RsyncClient::CopyRemoteMeta(std::string* snapshot_uuid, std::set<std::str
         }
         RsyncResponse* resp = wo.resp_;
         LOG(INFO) << "receive rsync meta infos, snapshot_uuid: " << resp->snapshot_uuid()
-                  << "files count: " << resp->meta_resp().filename_table_size();
-        for (int i = 0; i < resp->meta_resp().filename_table_size(); i++) {
-            // todo
-//            LOG(INFO) << "file: " << resp->meta_resp().filenames(i);
+                  << "files count: " << resp->meta_resp().filenames_size();
+        for (int i = 0; i < resp->meta_resp().filenames_size(); i++) {
+            LOG(INFO) << "file: " << resp->meta_resp().filenames(i);
         }
         *snapshot_uuid = resp->snapshot_uuid();
-        for (int i = 0; i < resp->meta_resp().filename_table_size(); i++) {
-            // todo
-//            file_set->insert(resp->meta_resp().filenames(i));
+        for (int i = 0; i < resp->meta_resp().filenames_size(); i++) {
+            file_set->insert(resp->meta_resp().filenames(i));
         }
         break;
     }

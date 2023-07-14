@@ -298,30 +298,19 @@ BgSaveInfo Slot::bgsave_info() {
   return bgsave_info_;
 }
 
-void Slot::GetBgSaveMetaData(std::map<std::string, std::vector<std::string>>& fileNameTable, std::string& snapshot_uuid) {
-  const std::string slotPath = bgsave_info().path;
+void Slot::GetBgSaveMetaData(std::vector<std::string>& fileNames, std::string& snapshot_uuid) {
+  const std::string dbFilePath = bgsave_info().path;
   // todo 待确认 info 文件的路径
-  const std::string infoPath = bgsave_info().path + "/info";
+  const std::string infoFilePath = bgsave_info().path + "/../info";
 
-  std::string types[] = {storage::STRINGS_DB, storage::HASHES_DB, storage::LISTS_DB, storage::ZSETS_DB, storage::SETS_DB};
-  for (const auto& type : types) {
-    std::string typePath = slotPath + ((slotPath.back() != '/') ? "/" : "") + type;
-    if (!pstd::FileExists(typePath)) {
-      continue ;
-    }
-
-    std::vector<std::string> fileNames;
-    int ret = pstd::GetChildren(typePath + "", fileNames);
-    if (ret) {
-      LOG(WARNING) << slotPath << " read dump meta files failed, path " << typePath;
-      return;
-    }
-
-    fileNameTable[type] = fileNames;
+  int ret = pstd::GetChildren(dbFilePath, fileNames);
+  if (ret) {
+    LOG(WARNING) << dbFilePath << " read dump meta files failed! error:" << ret;
+    return;
   }
 
   std::string info_data;
-  rocksdb::Status s = rocksdb::ReadFileToString(rocksdb::Env::Default(), infoPath, &info_data);
+  rocksdb::Status s = rocksdb::ReadFileToString(rocksdb::Env::Default(), infoFilePath, &info_data);
   if (!s.ok()) {
     LOG(WARNING) << "read dump meta info failed! error:" << s.ToString();
     return;

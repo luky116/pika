@@ -93,22 +93,19 @@ void RsyncServerConn::HandleMetaRsyncRequest(void* arg) {
 
   std::string db_name = req->db_name();
   uint32_t slot_id = req->slot_id();
-  std::map<std::string, std::vector<std::string>> fileNameTable;
+
+  std::vector<std::string> filenames;
   std::string snapshot_uuid;
-  g_pika_server->GetDumpMeta(db_name, slot_id, fileNameTable, snapshot_uuid);
+  g_pika_server->GetDumpMeta(db_name, slot_id, filenames, snapshot_uuid);
   LOG(WARNING) << "snapshot_uuid: " << snapshot_uuid;
-
-  response.set_snapshot_uuid(snapshot_uuid);
+  std::for_each(filenames.begin(), filenames.end(), [](auto& file) {
+    LOG(WARNING) << "file:" << file;
+  });
+  //TODO: temporarily mock response
   RsyncService::MetaResponse* meta_resp = response.mutable_meta_resp();
-  for (const auto& item : fileNameTable) {
-        std::string path = item.first;
-        std::vector<std::string> filenames = item.second;
-
-        std::string arr[filenames.size()];
-        std::copy(filenames.begin(), filenames.end(), arr);
-        RsyncService::StringList list = RsyncService::StringList();
-        list.add_data(*arr);
-        meta_resp->mutable_filename_table()->insert({path, list});
+  response.set_snapshot_uuid(snapshot_uuid);
+  for (const auto& filename : filenames) {
+        meta_resp->add_filenames(filename);
   }
 
   std::string reply_str;
@@ -148,7 +145,7 @@ void RsyncServerConn::HandleFileRsyncRequest(void* arg) {
   //TODO: temporarily mock response
   RsyncService::FileResponse* file_resp = response.mutable_file_resp();
   file_resp->set_eof(bytes_read != count);
-  file_resp->set_count(strlen(buffer));
+  file_resp->set_count(bytes_read);
   file_resp->set_offset(offset);
   file_resp->set_data(buffer, bytes_read);
   file_resp->set_checksum("checksum");
