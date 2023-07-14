@@ -298,12 +298,12 @@ BgSaveInfo Slot::bgsave_info() {
   return bgsave_info_;
 }
 
-void Slot::GetBgSaveMetaData(std::vector<std::string>& fileNames, std::string& snapshot_uuid) {
+void Slot::GetBgSaveMetaData(std::vector<std::string>* fileNames, std::string* snapshot_uuid) {
   const std::string dbFilePath = bgsave_info().path;
   // todo 待确认 info 文件的路径
   const std::string infoFilePath = bgsave_info().path + "/../info";
 
-  int ret = pstd::GetChildren(dbFilePath, fileNames);
+  int ret = pstd::GetChildren(dbFilePath, *fileNames);
   if (ret) {
     LOG(WARNING) << dbFilePath << " read dump meta files failed! error:" << ret;
     return;
@@ -317,7 +317,7 @@ void Slot::GetBgSaveMetaData(std::vector<std::string>& fileNames, std::string& s
   }
 
   pstd::MD5 md5 = pstd::MD5(info_data);
-  snapshot_uuid = md5.hexdigest();
+  *snapshot_uuid = md5.hexdigest();
 }
 
 void Slot::DoBgSave(void* arg) {

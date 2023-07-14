@@ -96,7 +96,7 @@ void RsyncServerConn::HandleMetaRsyncRequest(void* arg) {
 
   std::vector<std::string> filenames;
   std::string snapshot_uuid;
-  g_pika_server->GetDumpMeta(db_name, slot_id, filenames, snapshot_uuid);
+  g_pika_server->GetDumpMeta(db_name, slot_id, &filenames, &snapshot_uuid);
   LOG(WARNING) << "snapshot_uuid: " << snapshot_uuid;
   std::for_each(filenames.begin(), filenames.end(), [](auto& file) {
     LOG(WARNING) << "file:" << file;
