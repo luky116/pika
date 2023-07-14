@@ -926,7 +926,7 @@ pstd::Status PikaServer::ReadDumpFile(const std::string& db_name, uint32_t slot_
     int fd = open(filepath.c_str(), O_RDONLY, 0644);
     ssize_t n = pread(fd, data, count, offset);
     close(fd);
-    return n;
+    return pstd::Status::OK();
 }
 
 void PikaServer::TryDBSync(const std::string& ip, int port, const std::string& db_name, uint32_t slot_id,
