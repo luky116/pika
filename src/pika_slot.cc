@@ -311,7 +311,7 @@ void Slot::GetBgSaveMetaData(std::vector<std::string>* fileNames, std::string* s
     }
 
     std::vector<std::string> fileNames;
-    int ret = pstd::GetChildren(typePath + "", fileNames);
+    int ret = pstd::GetChildren(typePath, fileNames);
     if (ret) {
       LOG(WARNING) << slotPath << " read dump meta files failed, path " << typePath;
       return;
