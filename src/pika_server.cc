@@ -21,6 +21,7 @@
 #include "net/include/redis_cli.h"
 #include "pstd/include/env.h"
 #include "pstd/include/rsync.h"
+#  include "pstd/include/pstd_defer.h"
 
 #include "include/pika_cmd_table_manager.h"
 #include "include/pika_dispatch_thread.h"
@@ -923,9 +924,40 @@ pstd::Status PikaServer::ReadDumpFile(const std::string& db_name, uint32_t slot_
       return pstd::Status::NotFound("slot no found");
     }
     const std::string filepath = slot->bgsave_info().path + "/" + filename;
-    int fd = open(filepath.c_str(), O_RDONLY, 0644);
-    ssize_t n = pread(fd, data, count, offset);
-    close(fd);
+    int fd = open(filepath.c_str(), O_RDONLY);
+    if (fd < 0) {
+      return Status::IOError("fd open failed");
+    }
+    DEFER { close(fd); };
+
+    const int kMaxCopyBlockSize = 8 << 10;
+    size_t read_offset = offset;
+    size_t read_count = count;
+    if (read_count > kMaxCopyBlockSize) {
+      read_count = kMaxCopyBlockSize;
+    }
+    size_t bytesin = 0;
+    size_t left_read_count = count;
+
+    while ((bytesin = pread(fd, data, read_count, read_offset)) > 0) {
+      data += bytesin;
+
+      left_read_count -= bytesin;
+      if (left_read_count <= 0) {
+        break ;
+      }
+
+      read_offset += bytesin;
+      if (read_count > left_read_count) {
+        read_count = left_read_count;
+      }
+    }
+
+    if (bytesin == -1) {
+      LOG(ERROR) << "unable to read from " << filename;
+      return pstd::Status::IOError("unable to read from " + filename);
+    }
+
     return pstd::Status::OK();
 }
 
