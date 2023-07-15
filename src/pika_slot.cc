@@ -323,6 +323,7 @@ void Slot::GetBgSaveMetaData(std::vector<std::string>* fileNames, std::string* s
   }
 
   std::string info_data;
+  // todo 这里待替换
   rocksdb::Status s = rocksdb::ReadFileToString(rocksdb::Env::Default(), infoPath, &info_data);
   if (!s.ok()) {
     LOG(WARNING) << "read dump meta info failed! error:" << s.ToString();
