@@ -5,8 +5,6 @@
 #include <google/protobuf/map.h>
 
 extern PikaServer* g_pika_server;
-
-// extern PikaServer* g_pika_server;
 namespace rsync {
 
 RsyncServer::RsyncServer(const std::string& ip, const int port) : ip_(ip), port_(port) {
