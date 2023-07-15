@@ -1,5 +1,6 @@
 #include "include/rsync_client.h"
 #include <stdio.h>
+#include "include/pika_server.h"
 #include "pstd/include/pstd_defer.h"
 #include "pstd/src/env.cc"
 #include "rocksdb/env.h"
@@ -7,19 +8,17 @@
 using namespace net;
 using namespace pstd;
 using namespace RsyncService;
-
 using namespace pstd;
+
+extern PikaServer* g_pika_server;
+
 namespace rsync {
 RsyncClient::RsyncClient(const std::string& dir, const std::string& db_name, const uint32_t slot_id)
     : dir_(dir), flush_period_(100), db_name_(db_name), slot_id_(slot_id), state_(IDLE), max_retries_(10) {
   client_thread_ = std::make_unique<RsyncClientThread>(10 * 1000, 60 * 1000, this);
 }
 
-bool RsyncClient::Init(const std::string& ip_port) {
-  if (!pstd::ParseIpPortString(ip_port, ip_, port_)) {
-    LOG(WARNING) << "Parse ip_port error " << ip_port;
-    return false;
-  }
+bool RsyncClient::Init() {
   // todo client 的 StartThread 只能被调用一次，如果一个 slot 进行多次主从同步，这里会出问题吗？
   client_thread_->StartThread();
   bool ret = Recover();
@@ -146,7 +145,7 @@ Status RsyncClient::CopyRemoteFile(const std::string& filename) {
         std::string to_send;
         request.SerializeToString(&to_send);
 
-    s = client_thread_->Write(ip_, port_, to_send);
+    s = client_thread_->Write(g_pika_server->master_ip(), g_pika_server->master_port() + kPortShiftRsync2, to_send);
     if (!s.ok()) {
       LOG(WARNING) << "send rsync request failed";
       continue;
@@ -291,7 +290,7 @@ Status RsyncClient::CopyRemoteMeta(std::string* snapshot_uuid, std::set<std::str
   std::string to_send;
   request.SerializeToString(&to_send);
   while (retries < max_retries_) {
-    s = client_thread_->Write(ip_, port_, to_send);
+    s = client_thread_->Write(g_pika_server->master_ip(), g_pika_server->master_port() + kPortShiftRsync2, to_send);
     if (!s.ok()) {
       retries++;
     }

@@ -45,7 +45,7 @@ public:
     RsyncClient(const std::string& dir, const std::string& db_name, const uint32_t slot_id);
 
     void* ThreadMain() override;
-    bool Init(const std::string& local_ip);
+    bool Init();
     Status Start();
     Status Stop();
     bool IsRunning() { return state_.load() == RUNNING;}
@@ -71,9 +71,6 @@ private:
     std::string snapshot_uuid_;
 
     std::string dir_;
-    std::string ip_;
-    int port_;
-
     std::string db_name_;
     uint32_t slot_id_;
 
