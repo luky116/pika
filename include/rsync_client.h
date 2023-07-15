@@ -55,8 +55,9 @@ private:
     Status Wait(WaitObject* wo);
     Status CopyRemoteFile(const std::string& filename);
     Status CopyRemoteMeta(std::string* snapshot_uuid, std::set<std::string>* file_set);
-    Status LoadMetaTable();
+    Status LoadLocalMeta(std::string* snapshot_uuid, std::set<std::string>* file_set);
     Status FlushMetaTable();
+    Status CleanUpExpiredFiles(std::set<std::string> files);
     void HandleRsyncMetaResponse(RsyncResponse* response);
 
 private:

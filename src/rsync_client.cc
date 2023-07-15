@@ -1,8 +1,8 @@
 #include "include/rsync_client.h"
+#include <stdio.h>
 #include "pstd/include/pstd_defer.h"
 #include "pstd/src/env.cc"
-#include <stdio.h>
-#include <stdlib.h>
+#include "rocksdb/env.h"
 
 using namespace net;
 using namespace pstd;
@@ -129,6 +129,7 @@ Status RsyncClient::CopyRemoteFile(const std::string& filename) {
         request.set_type(kRsyncFile);
         request.set_db_name(db_name_);
         request.set_slot_id(slot_id_);
+
         FileRequest* file_req = request.mutable_file_req();
         file_req->set_filename(filename);
         file_req->set_offset(offset);
@@ -214,7 +215,48 @@ Status RsyncClient::Stop() {
     return Status::OK();
 }
 
-//TODO: shaoyi
+bool RsyncClient::Recover() {
+    std::string remote_snapshot_uuid;
+    std::set<std::string> remote_file_set;
+    std::string local_snapshot_uuid;
+    std::set<std::string> local_file_set;
+
+    Status s = CopyRemoteMeta(&remote_snapshot_uuid, &remote_file_set);
+    if (!s.ok()) {
+        LOG(WARNING) << "copy remote meta failed";
+        return false;
+    }
+
+    s = LoadLocalMeta(&local_snapshot_uuid, &local_file_set);
+    if (!s.ok()) {
+        LOG(WARNING) << "local local meta failed";
+        return false;
+    }
+
+    std::set<std::string> expired_files;
+    if (remote_snapshot_uuid != local_snapshot_uuid) {
+        snapshot_uuid_ = remote_snapshot_uuid;
+        file_set_ = remote_file_set;
+        expired_files = local_file_set;
+    } else {
+        std::set<std::string> newly_files;
+        set_difference( remote_file_set.begin(), remote_file_set.end(),local_file_set.begin(), local_file_set.end(),inserter( newly_files, newly_files.begin() ) );
+        set_difference( local_file_set.begin(), local_file_set.end(),remote_file_set.begin(), remote_file_set.end(),inserter( expired_files, expired_files.begin() ) );
+        file_set_.insert(newly_files.begin(), newly_files.end());
+    }
+
+    s = CleanUpExpiredFiles(expired_files);
+    if (!s.ok()) {
+        return false;
+    }
+
+    state_ = RUNNING;
+    LOG(INFO) << "copy meta data done, slot_id: " << slot_id_ << "snapshot_uuid: " << snapshot_uuid_ << "file count: " << file_set_.size() << "expired file count: "
+              << expired_files.size() << ", local file count: " << local_file_set.size() << "remote file count: " << remote_file_set.size() << "remote snapshot_uuid: "
+              << remote_snapshot_uuid << "local snapshot_uuid: " << local_snapshot_uuid;
+    return true;
+}
+
 Status RsyncClient::CopyRemoteMeta(std::string* snapshot_uuid, std::set<std::string>* file_set) {
     Status s;
     int retries = 0;
@@ -239,8 +281,9 @@ Status RsyncClient::CopyRemoteMeta(std::string* snapshot_uuid, std::set<std::str
         RsyncResponse* resp = wo.resp_;
         LOG(INFO) << "receive rsync meta infos, snapshot_uuid: " << resp->snapshot_uuid()
                   << "files count: " << resp->meta_resp().filenames_size();
-        for (int i = 0; i < resp->meta_resp().filenames_size(); i++) {
-            LOG(INFO) << "file: " << resp->meta_resp().filenames(i);
+
+        for (std::string item : resp->meta_resp().filenames()) {
+            file_set->insert(item);
         }
         *snapshot_uuid = resp->snapshot_uuid();
         for (int i = 0; i < resp->meta_resp().filenames_size(); i++) {
@@ -250,23 +293,8 @@ Status RsyncClient::CopyRemoteMeta(std::string* snapshot_uuid, std::set<std::str
     }
     return s;
 }
-bool RsyncClient::Recover() {
-    std::string snapshot_uuid;
-    std::set<std::string> file_set;
-    Status s = CopyRemoteMeta(&snapshot_uuid, &file_set);
-    if (!s.ok()) {
-        LOG(WARNING) << "copy remote meta failed";
-        return false;
-    }
-    //TODO: yuecai 加载本地元信息文件，与master回包内容diff
-    snapshot_uuid_ = snapshot_uuid;
-    file_set_.insert(file_set.begin(), file_set.end());
-    state_ = RUNNING;
-    LOG(WARNING) << "copy remote meta done";
-    return true;
-}
 
-Status RsyncClient::LoadMetaTable() {
+Status RsyncClient::LoadLocalMeta(std::string* snapshot_uuid, std::set<std::string>* file_set) {
     if (!FileExists(dir_)) {
         return Status::OK();
     }
@@ -308,15 +336,27 @@ Status RsyncClient::LoadMetaTable() {
         }
 
         if (line_num == 0) {
-            snapshot_uuid_ = str.erase(0, kUuidPrefix.size());
+            *snapshot_uuid = str.erase(0, kUuidPrefix.size());
         } else {
             if ((pos = str.find(":")) != std::string::npos) {
                str.erase(pos, str.size() - pos);
             }
-            file_set_.insert(str);
+            file_set->insert(str);
         }
 
         line_num++;
+    }
+    return Status::OK();
+}
+
+Status RsyncClient::CleanUpExpiredFiles(std::set<std::string> files) {
+    std::string db_path = dir_ + (dir_.back() == '/' ? "" : "/");
+    for (const auto& file : files) {
+        bool b = pstd::DeleteDirIfExist(db_path + file);
+        if (!b) {
+            LOG(WARNING) << "delete file failed, file: " << file;
+            return Status::IOError("delete file failed");
+        }
     }
     return Status::OK();
 }
