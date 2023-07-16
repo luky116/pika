@@ -918,6 +918,7 @@ pstd::Status PikaServer::GetDumpMeta(const std::string& db_name, const uint32_t 
     return pstd::Status::NotFound("slot no found");
   }
   slot->GetBgSaveMetaData(fileNames, snapshot_uuid);
+  return pstd::Status::OK();
 }
 
 // todo 参数太长了，待优化
