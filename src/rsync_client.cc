@@ -98,7 +98,7 @@ Status RsyncClient::Wait(WaitObject* wo) {
       continue;
     }
     if (resp->type() == kRsyncFile &&
-        (resp->file_resp().filename() != wo->filename_ || resp->file_resp().offset() != wo->offset_)) {
+        (resp->file_resp().filename() != wo->filename_ || resp->file_resp().offset() != wo->offset_))  {
       LOG(WARNING) << "mismatch rsync response, skip";
       continue;
     }
@@ -405,10 +405,7 @@ Status RsyncClient::UpdateLocalMeta(std::string& snapshot_uuid, std::set<std::st
   }
 
   std::string meta_file_path = GetLocalMetaFilePath();
-  if (!pstd::DeleteFile(meta_file_path)) {
-    LOG(WARNING) << "delete meta file failed, meta_file_path: " << meta_file_path;
-    return Status::IOError("delete meta file failed");
-  }
+  pstd::DeleteFile(meta_file_path);
 
   std::unique_ptr<WritableFile> file;
   pstd::Status s = pstd::NewWritableFile(meta_file_path, file);
@@ -418,11 +415,11 @@ Status RsyncClient::UpdateLocalMeta(std::string& snapshot_uuid, std::set<std::st
   }
 
   for (const auto& item : localFileMap) {
-    std::string line = item.first + ":" + item.second + "\n";
+    std::string line = item.first + item.second + "\n";
     file->Append(line);
   }
   s = file->Flush();
-  if (s.ok()) {
+  if (!s.ok()) {
     LOG(WARNING) << "flush meta file failed, meta_file_path: " << meta_file_path;
     return s;
   }
