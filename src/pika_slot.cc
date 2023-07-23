@@ -347,7 +347,7 @@ Status Slot::GetBgSaveUUID(std::string* snapshot_uuid) {
 
 void Slot::DoBgSave(void* arg) {
   std::unique_ptr<BgTaskArg> bg_task_arg(static_cast<BgTaskArg*>(arg));
-
+  LOG(INFO) << "DoBgSave start, slot: " << bg_task_arg->slot->slot_name_ << ", path: " << bg_task_arg->slot->db_path_;
   // Do BgSave
   bool success = bg_task_arg->slot->RunBgsaveEngine();
 
@@ -420,6 +420,7 @@ bool Slot::InitBgsaveEnv() {
     LOG(WARNING) << slot_name_ << " remove exist fail bgsave dir failed :";
     return false;
   }
+  LOG(INFO) << slot_name_ << " prepare bgsave dir success";
   return true;
 }
 

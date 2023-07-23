@@ -187,13 +187,16 @@ void RsyncServerConn::HandleFileRsyncRequest(void* arg) {
   std::unique_ptr<RsyncServerTaskArg> task_arg(static_cast<RsyncServerTaskArg*>(arg));
   const std::shared_ptr<RsyncService::RsyncRequest> req = task_arg->req;
   std::shared_ptr<net::PbConn> conn = task_arg->conn;
-  LOG(INFO) << "RsyncServer RsyncFile request ...";
 
   uint32_t slot_id = req->slot_id();
   std::string db_name = req->db_name();
   std::string filename = req->file_req().filename();
   size_t offset = req->file_req().offset();
   size_t count = req->file_req().count();
+
+  LOG(INFO) << "RsyncServer RsyncFile request, slot_id: " << slot_id
+            << ", db_name: " << db_name << ", filename: " << filename
+            << ", offset: " << offset << ", count: " << count;
 
   RsyncService::RsyncResponse response;
   response.set_code(RsyncService::kOk);
