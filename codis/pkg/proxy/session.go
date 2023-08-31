@@ -227,11 +227,17 @@ func (s *Session) loopWriter(tasks *RequestChan) (err error) {
 			return s.incrOpFails(r, err)
 		}
 		fflush := tasks.IsEmpty()
+		// 开始返回给用户的时间
+		r.BegOutUnixNano = time.Now().UnixMilli()
 		if err := p.Flush(fflush); err != nil {
 			return s.incrOpFails(r, err)
 		} else {
 			s.incrOpStats(r, resp.Type)
 		}
+		// 结束返回给用户的时间
+		r.EndOutUnixNano = time.Now().UnixMilli()
+
+		// 这里根据条件打印日志吧
 		if fflush {
 			s.flushOpStats(false)
 		}
