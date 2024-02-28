@@ -20,6 +20,11 @@
 #include "src/strings_value_format.h"
 #include "src/zsets_data_key_format.h"
 #include "src/debug.h"
+#ifdef USE_S3
+#include "rocksdb/cloud/db_cloud.h"
+#else
+#include "rocksdb/db.h"
+#endif
 
 namespace storage {
 
@@ -111,7 +116,11 @@ class BaseMetaFilterFactory : public rocksdb::CompactionFilterFactory {
 
 class BaseDataFilter : public rocksdb::CompactionFilter {
  public:
+#ifdef USE_S3
+  BaseDataFilter(rocksdb::DBCloud* db, std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr, enum DataType type)
+#else
   BaseDataFilter(rocksdb::DB* db, std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr, enum DataType type)
+#endif
       : db_(db),
         cf_handles_ptr_(cf_handles_ptr),
         type_(type)
@@ -217,7 +226,11 @@ class BaseDataFilter : public rocksdb::CompactionFilter {
   const char* Name() const override { return "BaseDataFilter"; }
 
  private:
+#ifdef USE_S3
+  rocksdb::DBCloud* db_ = nullptr;
+#else
   rocksdb::DB* db_ = nullptr;
+#endif
   std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr_ = nullptr;
   rocksdb::ReadOptions default_read_options_;
   mutable std::string cur_key_;
@@ -229,8 +242,12 @@ class BaseDataFilter : public rocksdb::CompactionFilter {
 
 class BaseDataFilterFactory : public rocksdb::CompactionFilterFactory {
  public:
+#ifdef USE_S3
+  BaseDataFilterFactory(rocksdb::DBCloud** db_ptr, std::vector<rocksdb::ColumnFamilyHandle*>* handles_ptr, enum DataType type)
+#else
   BaseDataFilterFactory(rocksdb::DB** db_ptr, std::vector<rocksdb::ColumnFamilyHandle*>* handles_ptr, enum DataType type)
-      : db_ptr_(db_ptr), cf_handles_ptr_(handles_ptr), type_(type) {}
+#endif
+      : db_ptr_(db_ptr), cf_handles_ptr_(handles_ptr), meta_cf_index_(meta_cf_index) {}
   std::unique_ptr<rocksdb::CompactionFilter> CreateCompactionFilter(
       const rocksdb::CompactionFilter::Context& context) override {
     return std::make_unique<BaseDataFilter>(BaseDataFilter(*db_ptr_, cf_handles_ptr_, type_));
@@ -238,7 +255,11 @@ class BaseDataFilterFactory : public rocksdb::CompactionFilterFactory {
   const char* Name() const override { return "BaseDataFilterFactory"; }
 
  private:
+#ifdef USE_S3
+  rocksdb::DBCloud** db_ptr_ = nullptr;
+#else
   rocksdb::DB** db_ptr_ = nullptr;
+#endif
   std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr_ = nullptr;
   enum DataType type_ = DataType::kNones;
 };
