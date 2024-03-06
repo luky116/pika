@@ -50,6 +50,10 @@ void PikaCmdTableManager::InitCmdTable(void) {
   }
 }
 
+std::size_t PikaCmdTableManager::AddCmd(const std::string& opt, std::unique_ptr<Cmd> cmd) {
+  cmds_.get()->insert(std::pair<std::string, std::unique_ptr<Cmd>>(kCmdNameSlaveof, std::move(cmd)));
+}
+
 std::unordered_map<std::string, CommandStatistics>* PikaCmdTableManager::GetCommandStatMap() {
   return &cmdstat_map_;
 }
@@ -59,7 +63,9 @@ std::shared_ptr<Cmd> PikaCmdTableManager::GetCmd(const std::string& opt) {
   return NewCommand(internal_opt);
 }
 
+
 std::shared_ptr<Cmd> PikaCmdTableManager::NewCommand(const std::string& opt) {
+  std::unique_ptr<CmdTable> cmds_;
   Cmd* cmd = GetCmdFromDB(opt, *cmds_);
   if (cmd) {
     return std::shared_ptr<Cmd>(cmd->Clone());
@@ -85,6 +91,8 @@ void PikaCmdTableManager::InsertCurrentThreadDistributionMap() {
 }
 
 bool PikaCmdTableManager::CmdExist(const std::string& cmd) const { return cmds_->find(cmd) != cmds_->end(); }
+
+std::size_t PikaCmdTableManager::RemoveCmd(const std::string& cmd) const  { return cmds_->erase(cmd); }
 
 std::vector<std::string> PikaCmdTableManager::GetAclCategoryCmdNames(uint32_t flag) {
   std::vector<std::string> result;

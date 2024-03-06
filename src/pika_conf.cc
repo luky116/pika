@@ -10,10 +10,13 @@
 
 #include "cache/include/config.h"
 #include "include/acl.h"
-#include "include/pika_define.h"
+#include "include/pika_cmd_table_manager.h"
 #include "include/pika_conf.h"
+#include "include/pika_define.h"
+#include "include/pika_command.h"
 
 using pstd::Status;
+extern std::unique_ptr<PikaCmdTableManager> g_pika_cmd_table_manager;
 
 PikaConf::PikaConf(const std::string& path)
     : pstd::BaseConf(path), conf_path_(path) {}
@@ -557,6 +560,48 @@ int PikaConf::Load() {
     blob_file_size_ = 256 * 1024 * 1024;
   }
   GetConfStr("blob-compression-type", &blob_compression_type_);
+
+  std::vector<std::string> rename_commands;
+  GetConfStrMulti("rename-command", &rename_commands);
+
+  for (size_t i = 0; i < rename_commands.size(); i++) {
+    std::string val_str = rename_commands[i];
+    std::vector<std::string> val_list;
+    std::string::size_type pos;
+
+    while (true) {
+      pos = val_str.find(' ');
+      if (pos == std::string::npos) {
+        val_list.push_back(pstd::StringTrim(val_str));
+        break;
+      }
+      val_list.push_back(pstd::StringTrim(val_str.substr(0, pos)));
+      val_str = val_str.substr(pos + 1);
+    }
+
+    if (val_list.size() == 0 || val_list.size() > 2) {
+      LOG(FATAL) << "rename-command " << val_str << " is invalid, its string length must be 2 or 3";
+    }
+
+    std::string original_cmd_str = val_list[0];
+    pstd::StringToLower(original_cmd_str);
+//    std::shared_ptr<Cmd> cmd = g_pika_cmd_table_manager->GetCmd(original_cmd_str);
+
+    CmdTable* cmdTable = g_pika_cmd_table_manager->GetCmdTable();
+    Cmd* cmd = GetCmdFromDB(original_cmd_str,*cmdTable);
+    if (!cmd) {
+      LOG(FATAL) << "no such command in rename-command " << original_cmd_str;
+    }
+
+    g_pika_cmd_table_manager->RemoveCmd(original_cmd_str);
+
+    if (val_list.size() == 2) {
+      std::string changed_cmd_str = val_list[1];
+      std::shared_ptr<Cmd> aa = std::shared_ptr<Cmd>(cmd);
+      g_pika_cmd_table_manager->AddCmd(original_cmd_str, std::unique_ptr<Cmd>(cmd));
+    }
+  }
+
   GetConfBool("enable-blob-garbage-collection", &enable_blob_garbage_collection_);
   GetConfDouble("blob-garbage-collection-age-cutoff", &blob_garbage_collection_age_cutoff_);
   if (blob_garbage_collection_age_cutoff_ <= 0) {

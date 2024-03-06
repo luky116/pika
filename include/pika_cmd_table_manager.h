@@ -32,6 +32,8 @@ class PikaCmdTableManager {
   void InitCmdTable(void);
   std::shared_ptr<Cmd> GetCmd(const std::string& opt);
   bool CmdExist(const std::string& cmd) const;
+  std::size_t AddCmd(const std::string& opt, std::unique_ptr<Cmd> cmd);
+  std::size_t RemoveCmd(const std::string& cmd) const;
   CmdTable* GetCmdTable();
   uint32_t GetCmdId();
 
