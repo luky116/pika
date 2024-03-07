@@ -439,6 +439,9 @@ class Redis {
       }
     }
   }
+#ifdef USE_S3
+  Status SwitchMaster(bool is_old_master, bool is_new_master);
+#endif
 
 private:
   Status GenerateStreamID(const StreamMetaValue& stream_meta, StreamAddTrimArgs& args);
@@ -510,6 +513,9 @@ private:
   // rocksdb-cloud
   Status OpenCloudEnv(rocksdb::CloudFileSystemOptions opts, const std::string& db_path);
   std::unique_ptr<rocksdb::Env> cloud_env_;
+  rocksdb::CloudFileSystem* cfs_;
+  Status ReOpenRocksDB(const std::unordered_map<std::string, std::string>& db_options,
+                       const std::unordered_map<std::string, std::string>& cfs_options);
 #endif
 };
 
