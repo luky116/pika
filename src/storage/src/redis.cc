@@ -19,6 +19,7 @@ Redis::Redis(Storage* const s, const DataType& type)
   scan_cursors_store_->SetCapacity(5000);
   default_compact_range_options_.exclusive_manual_compaction = false;
   default_compact_range_options_.change_level = true;
+  default_write_options_.sync = true;
   handles_.clear();
 }
 
