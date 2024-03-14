@@ -328,7 +328,6 @@ Status RedisStrings::BitOp(BitOpType op, const std::string& dest_key, const std:
   *ret = static_cast<int64_t>(dest_value.size());
 
   StringsValue strings_value(Slice(dest_value.c_str(), max_len));
-  ScopeRecordLock l(lock_mgr_, dest_key);
   return db_->Put(default_write_options_, dest_key, strings_value.Encode());
 }
 
