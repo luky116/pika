@@ -162,23 +162,6 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
       c_ptr->res().SetRes(CmdRes::kErrOther, "Server in read-only");
       return c_ptr;
     }
-  } else if (c_ptr->is_read() && c_ptr->flag_ == 0) {
-    const auto& server_guard = std::lock_guard(g_pika_server->GetDBLock());
-    int role = 0;
-    auto status = g_pika_rm->CheckDBRole(current_db_, &role);
-    if (!status.ok()) {
-      c_ptr->res().SetRes(CmdRes::kErrOther, "Internal ERROR");
-      return c_ptr;
-    } else if ((role & PIKA_ROLE_SLAVE) == PIKA_ROLE_SLAVE) {
-      const auto& slave_db = g_pika_rm->GetSyncSlaveDBByName(DBInfo(current_db_));
-      if (!slave_db) {
-        c_ptr->res().SetRes(CmdRes::kErrOther, "Internal ERROR");
-        return c_ptr;
-      } else if (slave_db->State() != ReplState::kConnected) {
-        c_ptr->res().SetRes(CmdRes::kErrOther, "Full sync not completed");
-        return c_ptr;
-      }
-    }
   }
 
   // Process Command
