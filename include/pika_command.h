@@ -252,6 +252,10 @@ const std::string kClusterPrefix = "pkcluster";
  * that uses the key will use this error
  */
 constexpr const char* ErrTypeMessage = "Invalid argument: WRONGTYPE";
+//cloud
+//Waiting for interface support
+const std::string kCmdNameRocksdbFlush = "rocksdbflush";
+const std::string kCmdNameRocksdbCompact = "rocksdbcompact";
 
 using PikaCmdArgsType = net::RedisCmdArgsType;
 static const int RAW_ARGS_LEN = 1024 * 1024;
