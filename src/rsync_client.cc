@@ -95,10 +95,6 @@ void* RsyncClient::ThreadMain() {
   }
   all_worker_exited_.store(false);
   for (int i = 0; i < GetParallelNum(); i++) {
-    if (g_pika_conf->pika_model() == PIKA_CLOUD) {
-      //Waiting for interface support
-      //work_threads_[i] = std::move(std::thread(&RsyncS3Client::Copy, this, file_vec[i], i));
-    }
     work_threads_[i] = std::move(std::thread(&RsyncClient::Copy, this, file_vec[i], i));
   }
 
