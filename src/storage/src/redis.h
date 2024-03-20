@@ -37,7 +37,7 @@ namespace storage {
 using Status = rocksdb::Status;
 using Slice = rocksdb::Slice;
 
-class Listener;
+class LogListener;
 class Redis {
  public:
   Redis(Storage* storage, int32_t index);
@@ -442,8 +442,8 @@ class Redis {
   }
 #ifdef USE_S3
   Status SwitchMaster(bool is_old_master, bool is_new_master);
-  void ResetListener(std::shared_ptr<rocksdb::ReplicationLogListener> handle) {
-    listener_ = handle;
+  void ResetLogListener(std::shared_ptr<rocksdb::ReplicationLogListener> handle) {
+    log_listener_ = handle;
   }
 #endif
 
@@ -487,7 +487,7 @@ private:
   std::shared_ptr<LockMgr> lock_mgr_;
 #ifdef USE_S3
   rocksdb::DBCloud* db_ = nullptr;
-  std::shared_ptr<rocksdb::ReplicationLogListener> listener_;
+  std::shared_ptr<rocksdb::ReplicationLogListener> log_listener_;
 #else
   rocksdb::DB* db_ = nullptr;
 #endif
@@ -526,9 +526,9 @@ private:
 };
 
 // TODO(wangshaoyi): implement details
-class Listener : public rocksdb::ReplicationLogListener {
+class LogListener : public rocksdb::ReplicationLogListener {
 public:
-  Listener(int rocksdb_id, void* inst) : rocksdb_id_(rocksdb_id), counter_(0), inst_(inst) {}
+  LogListener(int rocksdb_id, void* inst) : rocksdb_id_(rocksdb_id), counter_(0), inst_(inst) {}
   std::string OnReplicationLogRecord(rocksdb::ReplicationLogRecord record) override {
     auto id = counter_.fetch_add(1);
     return std::to_string(id);
@@ -536,7 +536,7 @@ public:
 private:
   int rocksdb_id_ = 0;
   std::atomic<int> counter_ = {0};
-  void* inst_;
+  void* inst_ = nullptr;
 };
 
 }  //  namespace storage
