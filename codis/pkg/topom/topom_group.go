@@ -823,9 +823,9 @@ func (s *Topom) UploadManifestToS3(gid int, tid int, bucket string, filename str
 			})
 
 			//waiting for pika trans manifest
+
 			//bucket := "pika"
 			//filename := "db/db0/bz.cc"
-
 			file, err := os.Open("/Users/charlieqiao/Desktop/bz.cc")
 			//ioutil.ReadAll(strings.NewReader(params["manifest"]))
 			if err != nil {
@@ -833,7 +833,7 @@ func (s *Topom) UploadManifestToS3(gid int, tid int, bucket string, filename str
 				println(err)
 			}
 			defer file.Close()
-			//over
+			//waiting for pika trans manifest over
 
 			uploader := s3manager.NewUploader(sess)
 			_, err = uploader.Upload(&s3manager.UploadInput{
