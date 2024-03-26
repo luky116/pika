@@ -192,6 +192,8 @@ class Storage {
 
   Status ApplyWAL(int rocksdb_id, const std::string& repli_seq, int type, const std::string& content);
 
+  bool ShouldSkip(int rocksdb_id, const std::string& content);
+
   // Strings Commands
 
   // Set key to hold the string value. if key
