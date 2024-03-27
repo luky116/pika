@@ -256,6 +256,7 @@ constexpr const char* ErrTypeMessage = "Invalid argument: WRONGTYPE";
 //Waiting for interface support
 const std::string kCmdNameRocksdbFlush = "rocksdbflush";
 const std::string kCmdNameRocksdbCompact = "rocksdbcompact";
+const std::string kCmdPkPing = "pkping";
 
 using PikaCmdArgsType = net::RedisCmdArgsType;
 static const int RAW_ARGS_LEN = 1024 * 1024;
