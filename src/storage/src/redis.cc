@@ -6,6 +6,7 @@
 #include <sstream>
 
 #include "rocksdb/env.h"
+#include "db/write_batch_internal.h"
 
 #include "src/redis.h"
 #include "rocksdb/options.h"
@@ -530,12 +531,11 @@ Status Redis::SwitchMaster(bool is_old_master, bool is_new_master) {
   return Status::OK();
 }
 
-
-bool Redis::ShouldSkip(const std::string content) {
+bool Redis::ShouldSkip(const std::string& content) {
   rocksdb::WriteBatch batch;
-  s = rocksdb::WriteBatchInternal::SetContents(&batch, std::move(record.contents));
+  auto s = rocksdb::WriteBatchInternal::SetContents(&batch, content);
   auto sq_number = db_->GetLatestSequenceNumber();
-  return WriteBatchInternal::Sequence(&batch) != sq_number + 1; 
+  return rocksdb::WriteBatchInternal::Sequence(&batch) != sq_number + 1;
 }
 
 Status Redis::ApplyWAL(const std::string& replication_sequence, int type, const std::string& content) {
