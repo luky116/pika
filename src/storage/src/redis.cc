@@ -470,6 +470,7 @@ Status Redis::OpenCloudEnv(rocksdb::CloudFileSystemOptions opts, const std::stri
 Status Redis::ReOpenRocksDB(const storage::StorageOptions& opt) {
   Close();
   Open(opt, db_path_);
+  return Status::OK();
 }
 
 Status Redis::SwitchMaster(bool is_old_master, bool is_new_master) {
@@ -562,7 +563,7 @@ std::string LogListener::OnReplicationLogRecord(rocksdb::ReplicationLogRecord re
     return "0";
   }
   auto s = wal_writer_->Put(record.contents, db_id,
-      redis_inst->GetIndex());
+      redis_inst->GetIndex(), uint32_t(record.type));
   if (!s.ok()) {
     LOG(ERROR) << "write binlog failed, db_id: " << db_id
                << " rocksdb_id: " << redis_inst->GetIndex();
