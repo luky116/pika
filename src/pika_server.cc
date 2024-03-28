@@ -1874,7 +1874,7 @@ bool PikaServer::UploadMetaToSentinel(const std::string& local_path,
   char* buffer = new char[f_size];
 
   DEFER {
- .  delete [] buffer;
+    delete [] buffer;
     fclose(fp);
   };
 
