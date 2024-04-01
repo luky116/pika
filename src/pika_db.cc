@@ -263,6 +263,7 @@ bool DB::RunBgsaveEngine() {
   LOG(INFO) << db_name_ << " bgsave_info: path=" << info.path << ",  filenum=" << info.offset.b_offset.filenum
             << ", offset=" << info.offset.b_offset.offset;
 
+#ifndef USE_S3
   // Backup to tmp dir
   rocksdb::Status s = bgsave_engine_->CreateNewBackup(info.path);
 
@@ -270,6 +271,7 @@ bool DB::RunBgsaveEngine() {
     LOG(WARNING) << db_name_ << " create new backup failed :" << s.ToString();
     return false;
   }
+#endif
   LOG(INFO) << db_name_ << " create new backup finished.";
 
   return true;
@@ -329,7 +331,7 @@ bool DB::InitBgsaveEngine() {
     std::lock_guard lock(dbs_rw_);
     LogOffset bgsave_offset;
     // term, index are 0
-    db->Logger()->GetProducerStatus(&(bgsave_offset.b_offset.filenum), &(bgsave_offset.b_offset.offset));
+    db->Logger()->GetOldestBinlogToKeep(&(bgsave_offset.b_offset.filenum), &(bgsave_offset.b_offset.offset));
     {
       std::lock_guard l(bgsave_protector_);
       bgsave_info_.offset = bgsave_offset;
@@ -473,11 +475,13 @@ bool DB::TryUpdateMasterOffset() {
             << ", offset: " << offset << ", term: " << term << ", index: " << index;
 
   pstd::DeleteFile(info_path);
+/*
   if (!ChangeDb(dbsync_path_)) {
     LOG(WARNING) << "DB: " << db_name_ << ", Failed to change db";
     slave_db->SetReplState(ReplState::kError);
     return false;
   }
+*/
 
   // Update master offset
   std::shared_ptr<SyncMasterDB> master_db =
