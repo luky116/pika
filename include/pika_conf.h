@@ -412,7 +412,7 @@ class PikaConf : public pstd::BaseConf {
   void SetCacheMaxmemoryPolicy(const int value) { cache_maxmemory_policy_ = value; }
   void SetCacheMaxmemorySamples(const int value) { cache_maxmemory_samples_ = value; }
   void SetCacheLFUDecayTime(const int value) { cache_lfu_decay_time_ = value; }
-  void SetPikaModel(const int value) { pika_model_ = value; }
+  void SetPikaModel(const int value) { pika_mode_ = value; }
   void UnsetCacheDisableFlag() { tmp_cache_disable_flag_ = false; }
   bool enable_blob_files() { return enable_blob_files_; }
   int64_t min_blob_size() { return min_blob_size_; }
@@ -983,7 +983,7 @@ class PikaConf : public pstd::BaseConf {
   std::atomic_int cache_lfu_decay_time_ = 1;
 
   //pika model
-  int32_t pika_model_;
+  int32_t pika_mode_;
 
   // rocksdb blob
   bool enable_blob_files_ = false;
