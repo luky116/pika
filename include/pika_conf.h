@@ -982,7 +982,7 @@ class PikaConf : public pstd::BaseConf {
   std::atomic_int cache_maxmemory_samples_ = 5;
   std::atomic_int cache_lfu_decay_time_ = 1;
 
-  //pika model
+  //pika mode
   int32_t pika_mode_;
 
   // rocksdb blob
