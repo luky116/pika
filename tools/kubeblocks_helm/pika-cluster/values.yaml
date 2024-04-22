@@ -28,7 +28,7 @@ terminationPolicy: Delete
 clusterVersionOverride: ""
 
 monitor:
-  enabled: false
+  enabled: true
 
 switchPolicy:
   type: Noop
