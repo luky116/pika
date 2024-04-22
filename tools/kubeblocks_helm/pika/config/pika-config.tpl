@@ -14,11 +14,11 @@ port : 9221
 # The number of threads for running Pika.
 # It's not recommended to set this value exceeds
 # the number of CPU cores on the deployment server.
-thread-num : 1
+thread-num : 6
 
 # Size of the thread pool, The threads within this pool
 # are dedicated to handling user requests.
-thread-pool-size : 12
+thread-pool-size : 6
 
 # The number of sync-thread for data replication from master, those are the threads work on slave nodes
 # and are used to execute commands sent from master node when replicating.
@@ -285,7 +285,7 @@ compression : snappy
 
 # The number of background flushing threads.
 # max-background-flushes default value is 1 and the value range is [1, 4].
-max-background-flushes : 1
+max-background-flushes : 2
 
 # The number of background compacting threads.
 # max-background-compactions default value is 2 and the value range is [1, 8].
@@ -293,7 +293,7 @@ max-background-compactions : 2
 
 # The number of background threads.
 # max-background-jobs default value is 3 and the value range is [2, 12].
-max-background-jobs : 3
+max-background-jobs : 4
 
 # maximum value of RocksDB cached open file descriptors
 max-cache-files : 5000
@@ -312,7 +312,7 @@ slotmigrate : yes
 
 # block LRU cache, default 8M, 0 to disable
 # Supported Units [K|M|G], default unit [bytes]
-# block-cache: 8388608
+# block-cache: 3221225472
 
 # num-shard-bits default -1, the number of bits from cache keys to be use as shard id.
 # The cache will be sharded into 2^num_shard_bits shards.
@@ -394,3 +394,59 @@ default-slot-num : 1024
 # blob-num-shard-bits default -1, the number of bits from cache keys to be use as shard id.
 # The cache will be sharded into 2^blob-num-shard-bits shards.
 # blob-num-shard-bits : -1
+
+# slotmigrate thread num
+slotmigrate-thread-num : 2
+
+# thread-migrate-keys-num  1/8 of the write_buffer_size_
+thread-migrate-keys-num : 32
+
+throttle-bytes-per-second : 87200000
+
+max-rsync-parallel-num : 2
+
+###################
+## Cache Settings
+###################
+# the number of caches for every db
+cache-num : 16
+
+# cache-model 0:cache_none 1:cache_read
+cache-model : 1
+# cache-type: string, set, zset, list, hash, bit
+cache-type: string, set, zset, list, hash, bit
+
+# Maximum number of keys in the zset redis cache
+# On the disk DB, a zset field may have many fields. In the memory cache, we limit the maximum
+# number of keys that can exist in a zset,  which is zset-zset-cache-field-num-per-key, with a
+# default value of 512.
+zset-cache-field-num-per-key : 512
+
+# If the number of elements in a zset in the DB exceeds zset-cache-field-num-per-key,
+# we determine whether to cache the first 512[zset-cache-field-num-per-key] elements
+# or the last 512[zset-cache-field-num-per-key] elements in the zset based on zset-cache-start-direction.
+#
+# If zset-cache-start-direction is 0, cache the first 512[zset-cache-field-num-per-key] elements from the header
+# If zset-cache-start-direction is -1, cache the last 512[zset-cache-field-num-per-key] elements
+zset-cache-start-direction : 0
+
+# the cache maxmemory of every db, configuration 10G
+cache-maxmemory : 2737418240
+
+# cache-maxmemory-policy
+# 0: volatile-lru -> Evict using approximated LRU among the keys with an expire set.
+# 1: allkeys-lru -> Evict any key using approximated LRU.
+# 2: volatile-lfu -> Evict using approximated LFU among the keys with an expire set.
+# 3: allkeys-lfu -> Evict any key using approximated LFU.
+# 4: volatile-random -> Remove a random key among the ones with an expire set.
+# 5: allkeys-random -> Remove a random key, any key.
+# 6: volatile-ttl -> Remove the key with the nearest expire time (minor TTL)
+# 7: noeviction -> Don't evict anything, just return an error on write operations.
+cache-maxmemory-policy : 1
+
+# cache-maxmemory-samples
+cache-maxmemory-samples: 5
+
+# cache-lfu-decay-time
+cache-lfu-decay-time: 1
+
