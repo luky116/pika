@@ -3,22 +3,22 @@ pika:
 image:
   pika:
     registry: harbor.qihoo.net/jcjgz-pika
-    repository: jcjgz-pika/library/pika
+    repository: library/pika
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
   pikaExporter:
     registry: harbor.qihoo.net/jcjgz-pika
-    repository: pikadb/pika-exporter
+    repository: library/pika-exporter
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
   codis:
     registry: harbor.qihoo.net/jcjgz-pika
-    repository: jcjgz-pika/library/pika-codis
+    repository: library/pika-codis
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
   etcd:
     registry: harbor.qihoo.net/jcjgz-pika
-    repository: jcjgz-pika/library/pika-etcd
+    repository: library/pika-etcd
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
 
