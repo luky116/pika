@@ -1,76 +1,117 @@
-#!/usr/bin/env bash
 
-CODIS_ADMIN="${BASH_SOURCE-$0}"
-CODIS_ADMIN="$(dirname "${CODIS_ADMIN}")"
-CODIS_ADMIN_DIR="$(cd "${CODIS_ADMIN}"; pwd)"
+##################################################
+#                                                #
+#                  Codis-Proxy                   #
+#                                                #
+##################################################
 
-CODIS_BIN_DIR=$CODIS_ADMIN_DIR/../bin
-CODIS_LOG_DIR=$CODIS_ADMIN_DIR/../log
-CODIS_CONF_DIR=$CODIS_ADMIN_DIR/../config
+# Set Codis Product Name/Auth.
+product_name = "codis-demo"
+product_auth = ""
 
-CODIS_PROXY_BIN=$CODIS_BIN_DIR/codis-proxy
-CODIS_PROXY_PID_FILE=$CODIS_BIN_DIR/codis-proxy.pid
+# Set auth for client session
+#   1. product_auth is used for auth validation among codis-dashboard,
+#      codis-proxy and codis-server.
+#   2. session_auth is different from product_auth, it requires clients
+#      to issue AUTH <PASSWORD> before processing any other commands.
+session_auth = ""
 
-CODIS_PROXY_LOG_FILE=$CODIS_LOG_DIR/codis-proxy.log
-CODIS_PROXY_DAEMON_FILE=$CODIS_LOG_DIR/codis-proxy.out
+# Set bind address for admin(rpc), tcp only.
+admin_addr = "0.0.0.0:11080"
 
-CODIS_PROXY_CONF_FILE=$CODIS_CONF_DIR/proxy.toml
+# Set bind address for proxy, proto_type can be "tcp", "tcp4", "tcp6", "unix" or "unixpacket".
+proto_type = "tcp4"
+proxy_addr = "0.0.0.0:19000"
 
-CODIS_DASHBOARD_ADDR="127.0.0.1:18080"
+# Set jodis address & session timeout
+#   1. jodis_name is short for jodis_coordinator_name, only accept "zookeeper" & "etcd".
+#   2. jodis_addr is short for jodis_coordinator_addr
+#   3. jodis_auth is short for jodis_coordinator_auth, for zookeeper/etcd, "user:password" is accepted.
+#   4. proxy will be registered as node:
+#        if jodis_compatible = true (not suggested):
+#          /zk/codis/db_{PRODUCT_NAME}/proxy-{HASHID} (compatible with Codis2.0)
+#        or else
+#          /jodis/{PRODUCT_NAME}/proxy-{HASHID}
+jodis_name = ""
+jodis_addr = ""
+jodis_auth = ""
+jodis_timeout = "20s"
+jodis_compatible = false
 
-echo $CODIS_PROXY_CONF_FILE
+# Set datacenter of proxy.
+proxy_datacenter = ""
 
-if [ ! -d $CODIS_LOG_DIR ]; then
-    mkdir -p $CODIS_LOG_DIR
-fi
+# Set max number of alive sessions.
+proxy_max_clients = 1000
 
+# Set max offheap memory size. (0 to disable)
+proxy_max_offheap_size = "1024mb"
 
-case $1 in
-start)
-    echo  "starting codis-proxy ... "
-    if [ -f "$CODIS_PROXY_PID_FILE" ]; then
-      if kill -0 `cat "$CODIS_PROXY_PID_FILE"` > /dev/null 2>&1; then
-         echo $command already running as process `cat "$CODIS_PROXY_PID_FILE"`.
-         exit 0
-      fi
-    fi
-    nohup "$CODIS_PROXY_BIN" "--config=${CODIS_PROXY_CONF_FILE}" "--dashboard=${CODIS_DASHBOARD_ADDR}" \
-    "--log=$CODIS_PROXY_LOG_FILE" "--log-level=INFO" "--ncpu=4" "--pidfile=$CODIS_PROXY_PID_FILE" > "$CODIS_PROXY_DAEMON_FILE" 2>&1 < /dev/null &
-    ;;
-start-foreground)
-    $CODIS_PROXY_BIN "--config=${CODIS_PROXY_CONF_FILE}" "--dashboard=${CODIS_DASHBOARD_ADDR}" \
-    "--log-level=DEBUG" "--pidfile=$CODIS_PROXY_PID_FILE"
-    ;;
-stop)
-    echo "stopping codis-proxy ... "
-    if [ ! -f "$CODIS_PROXY_PID_FILE" ]
-    then
-      echo "no codis-proxy to stop (could not find file $CODIS_PROXY_PID_FILE)"
-    else
-      kill -2 $(cat "$CODIS_PROXY_PID_FILE")
-      echo STOPPED
-    fi
-    exit 0
-    ;;
-stop-forced)
-    echo "stopping codis-proxy ... "
-    if [ ! -f "$CODIS_PROXY_PID_FILE" ]
-    then
-      echo "no codis-proxy to stop (could not find file $CODIS_PROXY_PID_FILE)"
-    else
-      kill -9 $(cat "$CODIS_PROXY_PID_FILE")
-      rm "$CODIS_PROXY_PID_FILE"
-      echo STOPPED
-    fi
-    exit 0
-    ;;
-restart)
-    shift
-    "$0" stop
-    sleep 1
-    "$0" start
-    ;;
-*)
-    echo "Usage: $0 {start|start-foreground|stop|stop-forced|restart}" >&2
+# Set heap placeholder to reduce GC frequency.
+proxy_heap_placeholder = "256mb"
 
-esac
+# Proxy will ping backend redis (and clear 'MASTERDOWN' state) in a predefined interval. (0 to disable)
+backend_ping_period = "5s"
+
+# Set backend recv buffer size & timeout.
+backend_recv_bufsize = "128kb"
+backend_recv_timeout = "30s"
+
+# Set backend send buffer & timeout.
+backend_send_bufsize = "128kb"
+backend_send_timeout = "30s"
+
+# Set backend pipeline buffer size.
+backend_max_pipeline = 20480
+
+# Set backend never read replica groups, default is false
+backend_primary_only = false
+
+# Set backend parallel connections per server
+backend_primary_parallel = 1
+backend_replica_parallel = 1
+
+# Set slot num
+max_slot_num = 1024
+
+# Set backend tcp keepalive period. (0 to disable)
+backend_keepalive_period = "75s"
+
+# Set number of databases of backend.
+backend_number_databases = 1
+
+# If there is no request from client for a long time, the connection will be closed. (0 to disable)
+# Set session recv buffer size & timeout.
+session_recv_bufsize = "128kb"
+session_recv_timeout = "30m"
+
+# Set session send buffer size & timeout.
+session_send_bufsize = "64kb"
+session_send_timeout = "30s"
+
+# Make sure this is higher than the max number of requests for each pipeline request, or your client may be blocked.
+# Set session pipeline buffer size.
+session_max_pipeline = 10000
+
+# Set session tcp keepalive period. (0 to disable)
+session_keepalive_period = "75s"
+
+# Set session to be sensitive to failures. Default is false, instead of closing socket, proxy will send an error response to client.
+session_break_on_failure = false
+
+# Set metrics server (such as http://localhost:28000), proxy will report json formatted metrics to specified server in a predefined period.
+metrics_report_server = ""
+metrics_report_period = "1s"
+
+# Set influxdb server (such as http://localhost:8086), proxy will report metrics to influxdb.
+metrics_report_influxdb_server = ""
+metrics_report_influxdb_period = "1s"
+metrics_report_influxdb_username = ""
+metrics_report_influxdb_password = ""
+metrics_report_influxdb_database = ""
+
+# Set statsd server (such as localhost:8125), proxy will report metrics to statsd.
+metrics_report_statsd_server = ""
+metrics_report_statsd_period = "1s"
+metrics_report_statsd_prefix = ""
+
