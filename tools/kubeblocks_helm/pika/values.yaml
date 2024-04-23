@@ -2,23 +2,23 @@ pika:
   version: v3.5.4-rc1
 image:
   pika:
-    registry: harbor.qihoo.net/jcjgz-pika
-    repository: library/pika
+    registry: r.so.qihoo.net/infra
+    repository: pika/pika
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
   pikaExporter:
-    registry: harbor.qihoo.net/jcjgz-pika
-    repository: library/pika-exporter
+    registry: r.so.qihoo.net/jcjgz-pika
+    repository: pika/pika-exporter
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
   codis:
-    registry: harbor.qihoo.net/jcjgz-pika
-    repository: library/pika-codis
+    registry: r.so.qihoo.net/jcjgz-pika
+    repository: pika/pika-codis
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
   etcd:
-    registry: harbor.qihoo.net/jcjgz-pika
-    repository: library/pika-etcd
+    registry: r.so.qihoo.net/jcjgz-pika
+    repository: pika/pika-etcd
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
 
