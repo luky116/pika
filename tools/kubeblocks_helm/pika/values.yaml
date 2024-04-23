@@ -49,3 +49,6 @@ nameOverride: ""
 fullnameOverride: ""
 
 clusterDomain: ".cluster.local"
+
+imagePullSecrets:
+  - name: qihoo-secret

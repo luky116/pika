@@ -46,6 +46,12 @@ spec:
         scriptSpecSelectors:
           - name: pika-script
       podSpec:
+        {{- if .Values.imagePullSecrets }}
+        imagePullSecrets:
+        {{- range .Values.imagePullSecrets }}
+        - name: {{ .name }}
+        {{- end }}
+        {{- end }}
         initContainers:
           - name: init-config
             image: busybox:1.28
