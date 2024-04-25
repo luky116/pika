@@ -19,8 +19,6 @@ spec:
             port: 8080
   updateStrategy: Parallel
   runtime:
-    nodeSelector:
-      group: pika
     initContainers:
       - name: wait-etcd
         env:

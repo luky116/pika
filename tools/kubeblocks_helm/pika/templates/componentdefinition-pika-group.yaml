@@ -50,8 +50,6 @@ spec:
           optional: true
           host: Optional
   runtime:
-    nodeSelector:
-      group: pika
     containers:
       - name: pika
         image: {{ include "pika.image" . }}
