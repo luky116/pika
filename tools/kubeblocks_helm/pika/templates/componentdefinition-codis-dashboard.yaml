@@ -24,6 +24,8 @@ spec:
       namespace: {{ .Release.Namespace }}
       volumeName: config
   runtime:
+    nodeSelector:
+      group: pika
     initContainers:
       - name: wait-etcd
         env:

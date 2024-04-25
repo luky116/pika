@@ -22,6 +22,8 @@ spec:
             targetPort: peer
   updateStrategy: Serial
   runtime:
+    nodeSelector:
+      group: pika
     initContainers:
       - name: volume-permissions
         image: busybox:1.28

@@ -32,6 +32,8 @@ spec:
           optional: true
           host: Optional
   runtime:
+    nodeSelector:
+      group: pika
     initContainers:
       - name: wait-codis-dashboard
         image: busybox:1.28
