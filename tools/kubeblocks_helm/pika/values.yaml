@@ -7,19 +7,19 @@ image:
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
   pikaExporter:
-    registry: r.so.qihoo.net/jcjgz-pika
+    registry: r.so.qihoo.net/infra
     repository: pika/pika-exporter
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
   codis:
-    registry: r.so.qihoo.net/jcjgz-pika
+    registry: r.so.qihoo.net/infra
     repository: pika/pika-codis
     tag: v3.5.4-rc1
     pullPolicy: IfNotPresent
   etcd:
-    registry: r.so.qihoo.net/jcjgz-pika
-    repository: pika/pika-etcd
-    tag: v3.5.4-rc1
+    registry: r.so.qihoo.net/qsssre
+    repository: etcd
+    tag: v3.5.12
     pullPolicy: IfNotPresent
 
 roleProbe:
@@ -48,7 +48,7 @@ clusterVersionOverride: 3.5.4-rc1
 nameOverride: ""
 fullnameOverride: ""
 
-clusterDomain: ".cluster.local"
+clusterDomain: ".so-zzdt.local"
 
 imagePullSecrets:
   - name: qihoo-secret
