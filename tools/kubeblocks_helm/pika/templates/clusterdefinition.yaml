@@ -46,6 +46,8 @@ spec:
         scriptSpecSelectors:
           - name: pika-script
       podSpec:
+        nodeSelector:
+          group: pika
         {{- if .Values.imagePullSecrets }}
         imagePullSecrets:
         {{- range .Values.imagePullSecrets }}
@@ -113,6 +115,8 @@ spec:
           type: data
       configSpecs:
       podSpec:
+        nodeSelector:
+          group: pika
         initContainers:
           - name: volume-permissions
             image: busybox:1.28
@@ -222,6 +226,8 @@ spec:
           namespace: {{ .Release.Namespace }}
           volumeName: config
       podSpec:
+        nodeSelector:
+          group: pika
         initContainers:
           - name: wait-codis-dashboard
             env:
@@ -268,6 +274,8 @@ spec:
           namespace: {{ .Release.Namespace }}
           volumeName: config
       podSpec:
+        nodeSelector:
+          group: pika
         initContainers:
           - name: wait-etcd
             env:
@@ -339,6 +347,8 @@ spec:
             targetPort: fe
             port: 8080
       podSpec:
+        nodeSelector:
+          group: pika
         initContainers:
           - name: wait-etcd
             env:
@@ -391,6 +401,8 @@ spec:
           namespace: {{ .Release.Namespace }}
           volumeName: config
       podSpec:
+        nodeSelector:
+          group: pika
         initContainers:
           - name: wait-etcd
             env:
