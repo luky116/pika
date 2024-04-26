@@ -502,6 +502,9 @@ Status PikaServer::DoSameThingSpecificDB(const std::set<std::string>& dbs, const
         break;
       case TaskType::kCompactRangeAll:
         db_item.second->CompactRange(storage::DataType::kAll, arg.argv[0], arg.argv[1]);
+      case TaskType::kCloudBgSave:
+        db_item.second->CloudBgSaveDB();
+        break;
         break;
       default:
         break;
@@ -599,7 +602,7 @@ void PikaServer::BecomeMaster() {
   std::lock_guard l(state_protector_);
   int tmp_role = role_;
   role_ |= PIKA_ROLE_MASTER;
-  LOG(WARNING) << "role change from " << tmp_role << " to " << role_; 
+  LOG(WARNING) << "role change from " << tmp_role << " to " << role_;
 }
 
 void PikaServer::DeleteSlave(int fd) {

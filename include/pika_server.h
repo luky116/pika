@@ -63,6 +63,7 @@ enum TaskType {
   kStopKeyScan,
   kBgSave,
   kCompactRangeAll,
+  kCloudBgSave,
 };
 
 struct TaskArg {
