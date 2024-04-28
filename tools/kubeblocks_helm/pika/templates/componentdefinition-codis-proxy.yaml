@@ -4,6 +4,7 @@ metadata:
   name: pika-codis-proxy
   labels:
     {{- include "pika.labels" . | nindent 4 }}
+    component: pika-codis-proxy
 spec:
   provider: pika
   description: A pika codis proxy component definition
