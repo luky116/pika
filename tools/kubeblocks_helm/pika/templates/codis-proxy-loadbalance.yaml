@@ -1,4 +1,3 @@
-{{- if .Values.components.configuration_store }}
 apiVersion: network.hulk.qihoo.net/v1alpha1
 kind: LoadBalancer
 metadata:
@@ -20,4 +19,3 @@ spec:
       scheduling: wrr
       probe:
         tcpSocket: {}
-{{- end }}
