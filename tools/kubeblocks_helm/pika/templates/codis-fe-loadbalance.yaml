@@ -14,8 +14,8 @@ spec:
     component: pika-codis-fe
   ports:
     - protocol: TCP
-      port: 19000
-      targetPort: 19000
+      port: 8080
+      targetPort: 8080
       scheduling: wrr
       probe:
         tcpSocket: {}
