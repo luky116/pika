@@ -1,0 +1,23 @@
+{{- if .Values.components.configuration_store }}
+apiVersion: network.hulk.qihoo.net/v1alpha1
+kind: LoadBalancer
+metadata:
+  name: pika-codis-fe-loadbalance
+  labels:
+    {{- include "pika.labels" . | nindent 4 }}
+    component: pika-codis-fe-loadbalance
+spec:
+  provider:
+    type: '0'
+    version: '4'
+  selector:
+    {{- include "pika.labels" . | nindent 4 }}
+    component: pika-codis-fe
+  ports:
+    - protocol: TCP
+      port: 19000
+      targetPort: 19000
+      scheduling: wrr
+      probe:
+        tcpSocket: {}
+{{- end }}

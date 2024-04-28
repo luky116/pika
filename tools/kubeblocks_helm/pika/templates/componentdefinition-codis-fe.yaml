@@ -4,6 +4,7 @@ metadata:
   name: pika-codis-fe
   labels:
     {{- include "pika.labels" . | nindent 4 }}
+    component: pika-codis-fe
 spec:
   provider: pika
   description: A pika codis frontend component definition
