@@ -11,7 +11,7 @@ spec:
     version: '4'
   selector:
     {{- include "pika.labels" . | nindent 4 }}
-    component: pika-codis-fe
+    app.kubernetes.io/component: codis-fe
   ports:
     - protocol: TCP
       port: 8080
