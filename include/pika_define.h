@@ -337,6 +337,7 @@ constexpr int PIKA_CLOUD = 1;
 
 /*
  * cloud tmp conf
+ * todo: TBD based on deployment status
  */
 const std::string kRegion = "us-west-2";
 
