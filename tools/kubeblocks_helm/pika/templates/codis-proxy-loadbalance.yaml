@@ -10,8 +10,8 @@ spec:
     type: '0'
     version: '4'
   selector:
-    {{- include "pika.labels" . | nindent 4 }}
     app.kubernetes.io/component: codis-proxy
+    apps.kubeblocks.io/component-name: codis-proxy
   ports:
     - protocol: TCP
       port: 19000
