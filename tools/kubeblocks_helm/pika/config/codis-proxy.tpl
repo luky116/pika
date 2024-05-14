@@ -68,11 +68,11 @@ backend_max_pipeline = 20480
 backend_primary_only = false
 
 # Set backend parallel connections per server
-backend_primary_parallel = 2
-backend_replica_parallel = 2
+backend_primary_parallel = 10
+backend_replica_parallel = 10
 # Set quick backend parallel connections per server
-backend_primary_quick = 1
-backend_replica_quick = 1
+backend_primary_quick = 8
+backend_replica_quick = 8
 
 # Set slot num
 max_slot_num = 1024
@@ -94,7 +94,7 @@ session_send_timeout = "30s"
 
 # Make sure this is higher than the max number of requests for each pipeline request, or your client may be blocked.
 # Set session pipeline buffer size.
-session_max_pipeline = 10000
+session_max_pipeline = 20000
 
 # Set session tcp keepalive period. (0 to disable)
 session_keepalive_period = "75s"
