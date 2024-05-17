@@ -82,7 +82,7 @@ resources:
       memory: 4Gi
 
 persistence:
-  enabled: false
+  enabled: true
   pikaData:
     storageClassName: local-storage
     size: 50Gi
