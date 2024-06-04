@@ -1431,6 +1431,9 @@ void PikaServer::InitStorageOptions() {
   storage_options_.options.delayed_write_rate = g_pika_conf->delayed_write_rate();
   storage_options_.options.max_open_files = g_pika_conf->max_cache_files();
   storage_options_.options.max_bytes_for_level_multiplier = g_pika_conf->max_bytes_for_level_multiplier();
+  storage_options_.options.level0_file_num_compaction_trigger = 2;
+  storage_options_.options.level0_slowdown_writes_trigger = 8;
+  storage_options_.options.level0_stop_writes_trigger = 16;
   storage_options_.options.optimize_filters_for_hits = g_pika_conf->optimize_filters_for_hits();
   storage_options_.options.level_compaction_dynamic_level_bytes = g_pika_conf->level_compaction_dynamic_level_bytes();
 
