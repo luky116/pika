@@ -48,6 +48,11 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
   }
   c_ptr->SetConn(shared_from_this());
   c_ptr->SetResp(resp_ptr);
+  // TODO mock doCmd
+  if (opt != "info") {
+    c_ptr->res().SetRes(CmdRes::kOk);
+    return c_ptr;
+  }
 
   // Check authed
   if (AuthRequired()) {  // the user is not authed, need to do auth
