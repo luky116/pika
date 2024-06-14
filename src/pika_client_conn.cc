@@ -53,7 +53,7 @@ std::shared_ptr<Cmd> PikaClientConn::DoCmd(const PikaCmdArgsType& argv, const st
   c_ptr->SetResp(resp_ptr);
   // TODO mock doCmd
   if (opt != "info") {
-    std::cout << "return" << std::endl;
+    LOG(INFO) << "return docmd";
     c_ptr->res().SetRes(CmdRes::kOk);
     return c_ptr;
   }
