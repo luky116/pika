@@ -1,0 +1,2 @@
+nohup ./benchmark_client --command=get --thread_num=5 --compare_value=1 --count=500000 --value_size=2000 --compare_value=1 --key_size=51 --port=7000 --host=127.0.0.1 > get-7000.log 2>&1 &
+nohup ./benchmark_client --command=get --thread_num=5 --compare_value=1 --count=500000 --value_size=2000 --compare_value=1 --key_size=51 --port=7001 --host=127.0.0.1 > get-7001.log 2>&1 &
