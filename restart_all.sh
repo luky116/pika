@@ -24,7 +24,7 @@ echo 'pika 7001'
 cd codis
 
 make
-git checout .
+git checkout .
 
 echo 'startup codis dashboard and codis proxy'
 ./admin/codis-dashboard-admin.sh start
