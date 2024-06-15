@@ -15,6 +15,8 @@ mkdir -p /data1/liuyuecai/pika/data/log-7001
 mkdir -p /data1/liuyuecai/pika/data/log-codis
 mkdir -p /data1/liuyuecai/pika/data/codis
 
+rm -rf /data1/liuyuecai/pika/data/codis/*.pid
+
 echo 'pika 7000'
 ./output/pika -c conf/pika-7000.conf
 
