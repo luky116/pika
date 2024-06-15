@@ -1,8 +1,8 @@
-kill  $(sudo lsof -t -i :7000)
-kill  $(sudo lsof -t -i :7001)
-kill  $(sudo lsof -t -i :9192)
-kill  $(sudo lsof -t -i :17070)
-kill  $(sudo lsof -t -i :11081)
+kill -9  $(sudo lsof -t -i :7000)
+kill -9 $(sudo lsof -t -i :7001)
+kill -9 $(sudo lsof -t -i :9192)
+kill -9 $(sudo lsof -t -i :17070)
+kill -9 $(sudo lsof -t -i :11081)
 
 sleep 5
 
