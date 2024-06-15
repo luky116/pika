@@ -194,6 +194,7 @@ func (s *Topom) SlotActionPrepareFilter(accept, update func(m *models.SlotMappin
 	defer s.mu.Unlock()
 	ctx, err := s.newContext()
 	if err != nil {
+		log.Info("SlotActionPrepareFilter not ok, err = %v", err)
 		return 0, false, err
 	}
 
@@ -230,10 +231,12 @@ func (s *Topom) SlotActionPrepareFilter(accept, update func(m *models.SlotMappin
 	}()
 
 	if m == nil {
+		log.Info("SlotActionPrepareFilter not ok, m == nil")
 		return 0, false, nil
 	}
 
 	if update != nil && !update(m) {
+		log.Info("SlotActionPrepareFilter not ok, upodate not ok")
 		return 0, false, nil
 	}
 
@@ -247,6 +250,7 @@ func (s *Topom) SlotActionPrepareFilter(accept, update func(m *models.SlotMappin
 
 		m.Action.State = models.ActionPreparing
 		if err := s.storeUpdateSlotMapping(m); err != nil {
+			log.Info("SlotActionPrepareFilter not ok, storeUpdateSlotMapping failed, err %v", err)
 			return 0, false, err
 		}
 
@@ -267,6 +271,7 @@ func (s *Topom) SlotActionPrepareFilter(accept, update func(m *models.SlotMappin
 			return 0, false, err
 		}
 		if err := s.storeUpdateSlotMapping(m); err != nil {
+			log.Info("SlotActionPrepareFilter not ok, storeUpdateSlotMapping failed, err %v", err)
 			return 0, false, err
 		}
 
