@@ -74,6 +74,7 @@ class PikaMigrateThread : public net::Thread {
   std::string dest_ip_;
   int64_t dest_port_ = 0;
   int64_t timeout_ms_ = 60;
+  // TODO 这个 key 不一定准确，实时读取会更好？
   int64_t keys_num_ = 0;
   time_t start_time_ = 0;
   time_t end_time_ = 0;

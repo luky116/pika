@@ -594,10 +594,11 @@ PikaMigrateThread::~PikaMigrateThread() {
 bool PikaMigrateThread::ReqMigrateBatch(const std::string &ip, int64_t port, int64_t time_out, int64_t slot_id,
                                         int64_t keys_num, const std::shared_ptr<DB>& db) {
   if (migrator_mutex_.try_lock()) {
+    // 如果已经在迁移，并且当前迁移的任务和传参不一致，直接返回
     if (is_migrating_) {
       if (dest_ip_ != ip || dest_port_ != port || slot_id != slot_id_) {
         LOG(INFO) << "PikaMigrateThread::ReqMigrate current: " << dest_ip_ << ":" << dest_port_ << " slot[" << slot_id_
-                  << "] request: " << ip << ":" << port << "db[" << db << "]";;
+                  << "], request: " << ip << ":" << port << "db[" << db << "]" << " slot[" << slot_id;
         migrator_mutex_.unlock();
         return false;
       }
@@ -624,7 +625,7 @@ bool PikaMigrateThread::ReqMigrateBatch(const std::string &ip, int64_t port, int
         is_migrating_ = false;
         StopThread();
       } else {
-        LOG(INFO) << "PikaMigrateThread::ReqMigrateBatch DB" << db;
+        LOG(INFO) << "PikaMigrateThread::ReqMigrateBatch start megrate thread success, " << ip << ":" << port << "db[" << db << "]" << " slot[" << slot_id;;
         is_migrating_ = true;
         NotifyRequestMigrate();
       }
@@ -820,6 +821,7 @@ void PikaMigrateThread::ReadSlotKeys(const std::string &slotKey, int64_t need_re
           ++real_read_num;
         }
       } else {
+        // TODO 这里DEBUG 比较好??
         LOG(INFO) << "PikaMigrateThread::ReadSlotKeys key " << member << " not found in" << slotKey;
       }
     }
@@ -870,7 +872,7 @@ void PikaMigrateThread::DestroyParseSendThreads(void) {
 }
 
 void *PikaMigrateThread::ThreadMain() {
-  LOG(INFO) << "PikaMigrateThread::ThreadMain Start";
+  LOG(INFO) << "PikaMigrateThread::ThreadMain Start, dest server: " << dest_ip_ << ":" << dest_port_ << ", db: " << db_ << ", slot: " << slot_id_;
 
   // Create parse_send_threads
   auto dispatch_num = static_cast<int32_t>(g_pika_conf->thread_migrate_keys_num());
@@ -929,7 +931,7 @@ void *PikaMigrateThread::ThreadMain() {
 
     } while (0 < round_remained_keys && !is_finish);
 
-    LOG(INFO) << "PikaMigrateThread:: wait ParseSenderThread finish";
+    LOG(INFO) << "PikaMigrateThread:: wait ParseSenderThread finish, dest server: " << dest_ip_ << ":" << dest_port_ << ", db: " << db_ << ", slot: " << slot_id_;
     // wait all ParseSenderThread finish
     {
       std::unique_lock lw(workers_mutex_);

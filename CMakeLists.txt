@@ -134,7 +134,7 @@ include(ExternalProject)
 
 ExternalProject_Add(gtest
   URL
-  https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz
+  https://mirror.ghproxy.com/https://github.com/google/googletest/archive/refs/tags/release-1.12.1.tar.gz
   URL_HASH
   MD5=e82199374acdfda3f425331028eb4e2a
   DOWNLOAD_NO_PROGRESS
@@ -172,7 +172,7 @@ set(GMOCK_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 
 ExternalProject_Add(gflags
   URL
-  https://github.com/gflags/gflags/archive/refs/tags/v2.2.2.tar.gz
+  https://mirror.ghproxy.com/https://github.com/gflags/gflags/archive/refs/tags/v2.2.2.tar.gz
   URL_HASH
   MD5=1a865b93bacfa963201af3f75b7bd64c
   DOWNLOAD_NO_PROGRESS
@@ -210,7 +210,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   ExternalProject_Add(unwind
     DEPENDS
     URL
-    https://github.com/libunwind/libunwind/releases/download/v1.6.2/libunwind-1.6.2.tar.gz
+    https://mirror.ghproxy.com/https://github.com/libunwind/libunwind/releases/download/v1.6.2/libunwind-1.6.2.tar.gz
     URL_HASH
     MD5=f625b6a98ac1976116c71708a73dc44a
     DOWNLOAD_NO_PROGRESS
@@ -246,7 +246,7 @@ ExternalProject_Add(glog
   gtest
   ${LIBUNWIND_NAME}
   URL
-  https://github.com/google/glog/archive/refs/tags/v0.6.0.tar.gz
+  https://mirror.ghproxy.com/https://github.com/google/glog/archive/refs/tags/v0.6.0.tar.gz
   URL_HASH
   MD5=c98a6068bc9b8ad9cebaca625ca73aa2
   DOWNLOAD_NO_PROGRESS
@@ -289,7 +289,7 @@ set(GLOG_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 ExternalProject_Add(snappy
   DEPENDS
   URL
-  https://github.com/google/snappy/archive/refs/tags/1.1.7.tar.gz
+  https://mirror.ghproxy.com/https://github.com/google/snappy/archive/refs/tags/1.1.7.tar.gz
   URL_HASH
   MD5=ee9086291c9ae8deb4dac5e0b85bf54a
   DOWNLOAD_NO_PROGRESS
@@ -325,7 +325,7 @@ set(SNAPPY_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 ExternalProject_Add(zstd
   DEPENDS
   URL
-  https://github.com/facebook/zstd/releases/download/v1.5.4/zstd-1.5.4.tar.gz
+  https://mirror.ghproxy.com/https://github.com/facebook/zstd/releases/download/v1.5.4/zstd-1.5.4.tar.gz
   URL_HASH
   MD5=2352b1f9ccc7446641046bb3d440c3ed
   DOWNLOAD_NO_PROGRESS
@@ -363,7 +363,7 @@ set(ZSTD_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 ExternalProject_Add(fmt
   DEPENDS
   URL
-  https://github.com/fmtlib/fmt/archive/refs/tags/7.1.0.tar.gz
+  https://mirror.ghproxy.com/https://github.com/fmtlib/fmt/archive/refs/tags/7.1.0.tar.gz
   URL_HASH
   MD5=32af902636d373641f4ef9032fc65b3a
   DOWNLOAD_NO_PROGRESS
@@ -402,7 +402,7 @@ set(FMT_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 ExternalProject_Add(lz4
   DEPENDS
   URL
-  https://github.com/lz4/lz4/archive/refs/tags/v1.9.4.tar.gz
+  https://mirror.ghproxy.com/https://github.com/lz4/lz4/archive/refs/tags/v1.9.4.tar.gz
   URL_HASH
   MD5=e9286adb64040071c5e23498bf753261
   DOWNLOAD_NO_PROGRESS
@@ -440,7 +440,7 @@ set(LZ4_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 ExternalProject_Add(zlib
   DEPENDS
   URL
-  https://github.com/madler/zlib/releases/download/v1.2.13/zlib-1.2.13.tar.gz
+  https://mirror.ghproxy.com/https://github.com/madler/zlib/releases/download/v1.2.13/zlib-1.2.13.tar.gz
   URL_HASH
   MD5=9b8aa094c4e5765dabf4da391f00d15c
   DOWNLOAD_NO_PROGRESS
@@ -471,7 +471,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     DEPENDS
     unwind
     URL
-    https://github.com/gperftools/gperftools/releases/download/gperftools-2.10/gperftools-2.10.tar.gz
+    https://mirror.ghproxy.com/https://github.com/gperftools/gperftools/releases/download/gperftools-2.10/gperftools-2.10.tar.gz
     URL_HASH
     MD5=62bf6c76ba855ed580de5e139bd2a483
     DOWNLOAD_NO_PROGRESS
@@ -501,7 +501,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   ExternalProject_Add(jemalloc
     DEPENDS
     URL
-    https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz
+    https://mirror.ghproxy.com/https://github.com/jemalloc/jemalloc/archive/refs/tags/5.3.0.tar.gz
     URL_HASH
     MD5=594dd8e0a1e8c1ef8a1b210a1a5aff5b
     DOWNLOAD_NO_PROGRESS
@@ -538,7 +538,7 @@ ExternalProject_Add(protobuf
   DEPENDS
   zlib
   URL
-  https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-cpp-3.17.3.tar.gz
+  https://mirror.ghproxy.com/https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-cpp-3.17.3.tar.gz
   URL_HASH
   MD5=3fe4c2647e0991c014a386a896d0a116
   DOWNLOAD_NO_PROGRESS
@@ -587,7 +587,7 @@ ExternalProject_Add(rocksdb
   ${LIBGPERF_NAME}
   ${LIBJEMALLOC_NAME}
   URL
-  https://github.com/facebook/rocksdb/archive/refs/tags/v8.7.3.tar.gz
+  https://mirror.ghproxy.com/https://github.com/facebook/rocksdb/archive/refs/tags/v8.7.3.tar.gz
   URL_HASH
   MD5=d57bc74c955c6271cfd9459e44c177b1
   DOWNLOAD_NO_PROGRESS
@@ -630,7 +630,7 @@ ExternalProject_Add(rocksdb
 
 ExternalProject_Add(rediscache
   URL
-  https://github.com/pikiwidb/rediscache/archive/refs/tags/v1.0.7.tar.gz
+  https://mirror.ghproxy.com/https://github.com/pikiwidb/rediscache/archive/refs/tags/v1.0.7.tar.gz
   URL_HASH
   MD5=02c8aadc018dd8d4d3803cc420d1d75b
   DOWNLOAD_NO_PROGRESS
@@ -661,7 +661,7 @@ option(USE_PIKA_TOOLS "compile pika-tools" OFF)
 if (USE_PIKA_TOOLS)
   ExternalProject_Add(hiredis
     URL
-    https://github.com/redis/hiredis/archive/refs/tags/v1.2.0.tar.gz
+    https://mirror.ghproxy.com/https://github.com/redis/hiredis/archive/refs/tags/v1.2.0.tar.gz
     URL_HASH
     MD5=119767d178cfa79718a80c83e0d0e849
     DOWNLOAD_NO_PROGRESS
