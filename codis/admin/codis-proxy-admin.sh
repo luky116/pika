@@ -5,11 +5,11 @@ CODIS_ADMIN="$(dirname "${CODIS_ADMIN}")"
 CODIS_ADMIN_DIR="$(cd "${CODIS_ADMIN}"; pwd)"
 
 CODIS_BIN_DIR=$CODIS_ADMIN_DIR/../bin
-CODIS_LOG_DIR=$CODIS_ADMIN_DIR/../log
+CODIS_LOG_DIR=/data1/liuyuecai/pika/data/log-codis
 CODIS_CONF_DIR=$CODIS_ADMIN_DIR/../config
 
 CODIS_PROXY_BIN=$CODIS_BIN_DIR/codis-proxy
-CODIS_PROXY_PID_FILE=$CODIS_BIN_DIR/codis-proxy.pid
+CODIS_PROXY_PID_FILE=/data1/liuyuecai/pika/data/codis/codis-proxy.pid
 
 CODIS_PROXY_LOG_FILE=$CODIS_LOG_DIR/codis-proxy.log
 CODIS_PROXY_DAEMON_FILE=$CODIS_LOG_DIR/codis-proxy.out
