@@ -9,7 +9,7 @@
 # for zookeeper/etcd, coorinator_auth accept "user:password" 
 # Quick Start
 coordinator_name = "filesystem"
-coordinator_addr = "/tmp/codis"
+coordinator_addr = "/data1/liuyuecai/pika/data/codis"
 #coordinator_name = "zookeeper"
 #coordinator_addr = "127.0.0.1:2181"
 #coordinator_auth = ""
@@ -19,7 +19,7 @@ product_name = "codis-demo"
 product_auth = ""
 
 # Set bind address for admin(rpc), tcp only.
-admin_addr = "0.0.0.0:18080"
+admin_addr = "0.0.0.0:17070"
 
 # Set slot num
 max_slot_num = 1024
