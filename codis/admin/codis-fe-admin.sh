@@ -16,7 +16,7 @@ CODIS_FE_LOG_FILE=$CODIS_LOG_DIR/codis-fe.log
 CODIS_FE_DAEMON_FILE=$CODIS_LOG_DIR/codis-fe.out
 
 COORDINATOR_NAME="filesystem"
-COORDINATOR_ADDR="/tmp/codis"
+COORDINATOR_ADDR="/data1/liuyuecai/pika/data/codis"
 CODIS_FE_ADDR="0.0.0.0:9192"
 
 echo $CODIS_FE_CONF_FILE

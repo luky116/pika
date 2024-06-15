@@ -1,3 +1,9 @@
+kill -9 $(sudo lsof -t -i :7000)
+kill -9 $(sudo lsof -t -i :7001)
+
+sleep 3
+
+
 rm -rf /data1/liuyuecai/pika/data/pika-7000
 rm -rf /data1/liuyuecai/pika/data/pika-7001
 rm -rf /data1/liuyuecai/pika/data/codis
@@ -15,9 +21,9 @@ echo 'pika 7001'
 cd codis
 
 echo 'startup codis dashboard and codis proxy'
-./admin/codis-dashboard-admin.sh start
-./admin/codis-proxy-admin.sh start
-./admin/codis-fe-admin.sh start
+./admin/codis-dashboard-admin.sh restart
+./admin/codis-proxy-admin.sh restart
+./admin/codis-fe-admin.sh restart
 
 sleep 3
 
