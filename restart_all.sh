@@ -6,7 +6,7 @@ kill  $(sudo lsof -t -i :11081)
 
 sleep 5
 
-#rm -rf /data1/liuyuecai/pika/data
+rm -rf /data1/liuyuecai/pika/data
 
 mkdir -p /data1/liuyuecai/pika/data/pika-7000
 mkdir -p /data1/liuyuecai/pika/data/pika-7001
