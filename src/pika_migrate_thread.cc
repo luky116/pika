@@ -662,7 +662,7 @@ int PikaMigrateThread::ReqMigrateOne(const std::string& key, const std::shared_p
     LOG(WARNING) << "PikaMigrateThread::ReqMigrateOne key: " << key << " type: " << static_cast<int>(type) << " is  illegal";
     return -1;
   }
-  // TODO 这里需要修改
+  // TODO 不管如何，一定要优先迁移进来的key
   if (slot_id != slot_id_) {
     LOG(WARNING) << "PikaMigrateThread::ReqMigrateOne Slot : " << slot_id << " is not the migrating slot:" << slot_id_;
     return -2;
@@ -671,6 +671,7 @@ int PikaMigrateThread::ReqMigrateOne(const std::string& key, const std::shared_p
   // if the migrate thread exit, start it
   if (!is_migrating_) {
     ResetThread();
+    // TODO 启动线程之前，应该要设置好 slot？？？直接启动会使用上一次的 slot
     int ret = StartThread();
     if (0 != ret) {
       LOG(ERROR) << "PikaMigrateThread::ReqMigrateOne StartThread failed. "
@@ -680,6 +681,7 @@ int PikaMigrateThread::ReqMigrateOne(const std::string& key, const std::shared_p
     } else {
       LOG(INFO) << "PikaMigrateThread::ReqMigrateOne StartThread";
       is_migrating_ = true;
+      NotifyRequestMigrate();
       usleep(100);
     }
   } else {
@@ -915,8 +917,11 @@ void *PikaMigrateThread::ThreadMain() {
   while (!should_exit_) {
     // Waiting migrate task
     {
+      LOG(INFO) << "[LOCK_TRACE][request_migrate_mutex_][7] try lock";
       std::unique_lock<std::mutex> lm(request_migrate_mutex_);
+      LOG(INFO) << "[LOCK_TRACE][request_migrate_mutex_][7] get lock";
       while (!request_migrate_) {
+        LOG(INFO) << "PikaMigrateThread::ThreadMain wait for request_migrate_";
         request_migrate_cond_.wait(lm);
       }
       request_migrate_ = false;
@@ -926,6 +931,7 @@ void *PikaMigrateThread::ThreadMain() {
         DestroyThread(false);
         return nullptr;
       }
+      LOG(INFO) << "[LOCK_TRACE][request_migrate_mutex_][7] release lock";
     }
 
     // read keys form slot and push to mgrtkeys_queue_
@@ -969,12 +975,17 @@ void *PikaMigrateThread::ThreadMain() {
     LOG(INFO) << "PikaMigrateThread:: wait ParseSenderThread finish, dest server: " << dest_ip_ << ":" << dest_port_ << ", db: " << db_ << ", slot: " << slot_id_;
     // wait all ParseSenderThread finish
     {
+      LOG(INFO) << "[LOCK_TRACE][workers_mutex_][7] try lock";
       std::unique_lock lw(workers_mutex_);
+      LOG(INFO) << "[LOCK_TRACE][workers_mutex_][7] get lock";
       while (!should_exit_ && is_task_success_ && send_num_ != response_num_) {
+        LOG(INFO) << "PikaMigrateThread:: wait to end, "<< "db: " << db_ << ", slot: " << slot_id_ << ", should_exit_ " << should_exit_ << ", is_task_success_ " << is_task_success_ << ", send_num_ " << send_num_ << ", response_num_ " << response_num_;
+        // TODO 这里是否等待，不要一直等
         workers_cond_.wait(lw);
       }
+      LOG(INFO) << "[LOCK_TRACE][workers_mutex_][7] release lock";
     }
-    LOG(INFO) << "PikaMigrateThread::ThreadMain send_num:" << send_num_ << " response_num:" << response_num_;
+    LOG(INFO) << "PikaMigrateThread::ThreadMain send_num:" << send_num_ << " response_num:" << response_num_ << ", db: " << db_ << ", slot: " << slot_id_;
 
     if (should_exit_) {
       LOG(INFO) << "PikaMigrateThread::ThreadMain :" << pthread_self() << " exit2 !!!";
@@ -1001,9 +1012,9 @@ void *PikaMigrateThread::ThreadMain() {
     int32_t slot_remained_keys = 0;
     db_->storage()->SCard(slotKey, &slot_remained_keys);
     if (0 == slot_remained_keys) {
-      LOG(INFO) << "PikaMigrateThread::ThreadMain slot_size:" << slot_size << " moved_num:" << moved_num_;
+      LOG(INFO) << "PikaMigrateThread::ThreadMain slot_size:" << slot_size << " moved_num:" << moved_num_ << ", db: " << db_ << ", slot: " << slot_id_;
       if (slot_size != moved_num_) {
-        LOG(ERROR) << "PikaMigrateThread::ThreadMain moved_num != slot_size !!!";
+        LOG(ERROR) << "PikaMigrateThread::ThreadMain moved_num != slot_size !!!" << ", db: " << db_ << ", slot: " << slot_id_;;
       }
       DestroyThread(true);
       return nullptr;
