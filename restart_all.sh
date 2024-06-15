@@ -15,8 +15,6 @@ mkdir -p /data1/liuyuecai/pika/data/log-7001
 mkdir -p /data1/liuyuecai/pika/data/log-codis
 mkdir -p /data1/liuyuecai/pika/data/codis
 
-rm -rf /data1/liuyuecai/pika/data/codis/*.pid
-
 echo 'pika 7000'
 ./output/pika -c conf/pika-7000.conf
 
@@ -25,7 +23,7 @@ echo 'pika 7001'
 
 cd codis
 
-make
+#make
 
 echo 'startup codis dashboard and codis proxy'
 ./admin/codis-dashboard-admin.sh start
