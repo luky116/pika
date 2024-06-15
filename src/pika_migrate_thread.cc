@@ -510,7 +510,9 @@ void *PikaParseSendThread::ThreadMain() {
   while (!should_exit_) {
     std::deque<std::pair<const char, std::string>> send_keys;
     {
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][1] try lock";
       std::unique_lock<std::mutex> lq(migrate_thread_->mgrtkeys_queue_mutex_);
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][1] get lock";
       while (!should_exit_ && 0 >= migrate_thread_->mgrtkeys_queue_.size()) {
         migrate_thread_->mgrtkeys_cond_.wait(lq);
       }
@@ -528,6 +530,7 @@ void *PikaParseSendThread::ThreadMain() {
         send_keys.emplace_back(migrate_thread_->mgrtkeys_queue_.front());
         migrate_thread_->mgrtkeys_queue_.pop_front();
       }
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][1] release lock";
     }
 
     int64_t send_num = 0;
@@ -637,7 +640,9 @@ bool PikaMigrateThread::ReqMigrateBatch(const std::string &ip, int64_t port, int
 }
 
 int PikaMigrateThread::ReqMigrateOne(const std::string& key, const std::shared_ptr<DB>& db) {
+  LOG(INFO) << "[LOCK_TRACE][migrator_mutex_][2] try lock";
   std::unique_lock lm(migrator_mutex_);
+  LOG(INFO) << "[LOCK_TRACE][migrator_mutex_][2] get lock";
 
   int slot_id = GetSlotID(g_pika_conf->default_slot_num(), key);
   storage::DataType type;
@@ -690,6 +695,7 @@ int PikaMigrateThread::ReqMigrateOne(const std::string& key, const std::shared_p
     }
   }
 
+  LOG(INFO) << "[LOCK_TRACE][migrator_mutex_][2] release lock";
   return 1;
 }
 
@@ -707,7 +713,9 @@ void PikaMigrateThread::GetMigrateStatus(std::string *ip, int64_t* port, int64_t
   *migrating = is_migrating_;
   *moved = moved_num_;
   *slot = slot_id_;
+  LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][3] try lock";
   std::unique_lock lq(mgrtkeys_queue_mutex_);
+  LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][3] get lock";
   int64_t migrating_keys_num = static_cast<int32_t>(mgrtkeys_queue_.size());
   std::string slotKey = GetSlotKey(static_cast<int32_t>(slot_id_));
   int32_t slot_size = 0;
@@ -717,6 +725,7 @@ void PikaMigrateThread::GetMigrateStatus(std::string *ip, int64_t* port, int64_t
   } else {
     *remained = migrating_keys_num;
   }
+  LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][3] release lock";
 }
 
 void PikaMigrateThread::CancelMigrate(void) {
@@ -763,10 +772,16 @@ void PikaMigrateThread::DestroyThread(bool is_self_exit) {
   }
 
   {
+    LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][4] try lock";
     std::unique_lock lq(mgrtkeys_queue_mutex_);
+    LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][4] get lock";
+    LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][4] try lock";
     std::unique_lock lm(mgrtkeys_map_mutex_);
+    LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][4] get lock";
     std::deque<std::pair<const char, std::string>>().swap(mgrtkeys_queue_);
     std::map<std::pair<const char, std::string>, std::string>().swap(mgrtkeys_map_);
+    LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][4] release lock";
+    LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][4] release lock";
   }
 
   cursor_ = 0;
@@ -782,8 +797,13 @@ void PikaMigrateThread::NotifyRequestMigrate(void) {
 }
 
 bool PikaMigrateThread::IsMigrating(std::pair<const char, std::string> &kpair) {
+  LOG(INFO) << "[LOCK_TRACE][mgrtone_queue_mutex_][5] try lock";
   std::unique_lock lo(mgrtone_queue_mutex_);
+  LOG(INFO) << "[LOCK_TRACE][mgrtone_queue_mutex_][5] get lock";
+
+  LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][5] try lock";
   std::unique_lock lm(mgrtkeys_map_mutex_);
+  LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][5] get lock";
 
   for (const auto& iter : mgrtone_queue_) {
     if (iter.first == kpair.first && iter.second == kpair.second) {
@@ -796,6 +816,8 @@ bool PikaMigrateThread::IsMigrating(std::pair<const char, std::string> &kpair) {
     return true;
   }
 
+  LOG(INFO) << "[LOCK_TRACE][mgrtone_queue_mutex_][5] release lock";
+  LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][5] release lock";
   return false;
 }
 
@@ -861,8 +883,11 @@ void PikaMigrateThread::DestroyParseSendThreads(void) {
     }
 
     {
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][6] try lock";
       std::unique_lock lm(mgrtkeys_queue_mutex_);
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][6] get lock";
       mgrtkeys_cond_.notify_all();
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][6] release lock";
     }
 
     for (auto worker : workers_) {
@@ -910,9 +935,15 @@ void *PikaMigrateThread::ThreadMain() {
     send_num_ = 0;
     response_num_ = 0;
     do {
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][7] try lock";
       std::unique_lock lq(mgrtkeys_queue_mutex_);
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][7] get lock";
+      LOG(INFO) << "[LOCK_TRACE][mgrtone_queue_mutex_][7] try lock";
       std::unique_lock lo(mgrtone_queue_mutex_);
+      LOG(INFO) << "[LOCK_TRACE][mgrtone_queue_mutex_][7] get lock";
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][7] try lock";
       std::unique_lock lm(mgrtkeys_map_mutex_);
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][7] get lock";
 
       // first check whether need migrate one key
       if (!mgrtone_queue_.empty()) {
@@ -930,6 +961,9 @@ void *PikaMigrateThread::ThreadMain() {
       }
       mgrtkeys_cond_.notify_all();
 
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_queue_mutex_][7] release lock";
+      LOG(INFO) << "[LOCK_TRACE][mgrtone_queue_mutex_][7] release lock";
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][7] release lock";
     } while (0 < round_remained_keys && !is_finish);
 
     LOG(INFO) << "PikaMigrateThread:: wait ParseSenderThread finish, dest server: " << dest_ip_ << ":" << dest_port_ << ", db: " << db_ << ", slot: " << slot_id_;
@@ -956,8 +990,11 @@ void *PikaMigrateThread::ThreadMain() {
     } else {
       moved_num_ += response_num_;
 
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][7] try lock";
       std::unique_lock lm(mgrtkeys_map_mutex_);
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][7] get lock";
       std::map<std::pair<const char, std::string>, std::string>().swap(mgrtkeys_map_);
+      LOG(INFO) << "[LOCK_TRACE][mgrtkeys_map_mutex_][7] release lock";
     }
 
     // check slot migrate finish
