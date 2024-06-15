@@ -265,6 +265,7 @@ func (s *Topom) Start(routines bool) error {
 	gxruntime.GoUnterminated(func() {
 		for !s.IsClosed() {
 			if s.IsOnline() {
+				// 这里会修改 slot 的状态
 				if err := s.ProcessSlotAction(); err != nil {
 					log.WarnErrorf(err, "process slot action failed")
 					time.Sleep(time.Second * 5)

@@ -44,6 +44,7 @@ func (s *Topom) ProcessSlotAction() error {
 			if err != nil {
 				return err
 			} else if !ok {
+				log.Info("SlotActionPrepareFilter not ok")
 				break
 			}
 		}
@@ -54,7 +55,7 @@ func (s *Topom) ProcessSlotAction() error {
 		for sid, _ := range plans {
 			fut.Add()
 			go func(sid int) { // TODO 这里如果异步，可能出问题
-				log.Warnf("slot-[%d] process action", sid)
+				log.Warnf("slot-[%d] process action, plans len %d", sid, len(plans))
 				var err = s.processSlotAction(sid)
 				if err != nil {
 					status := fmt.Sprintf("[ERROR] Slot[%04d]: %s", sid, err)
