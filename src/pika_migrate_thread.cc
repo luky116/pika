@@ -597,7 +597,7 @@ bool PikaMigrateThread::ReqMigrateBatch(const std::string &ip, int64_t port, int
     // 如果已经在迁移，并且当前迁移的任务和传参不一致，直接返回
     if (is_migrating_) {
       if (dest_ip_ != ip || dest_port_ != port || slot_id != slot_id_) {
-        LOG(INFO) << "PikaMigrateThread::ReqMigrate current: " << dest_ip_ << ":" << dest_port_ << " slot[" << slot_id_
+        LOG(INFO) << "PikaMigrateThread::ReqMigrateBatch current: " << dest_ip_ << ":" << dest_port_ << " slot[" << slot_id_
                   << "], request: " << ip << ":" << port << "db[" << db << "]" << " slot[" << slot_id;
         migrator_mutex_.unlock();
         return false;
@@ -657,6 +657,7 @@ int PikaMigrateThread::ReqMigrateOne(const std::string& key, const std::shared_p
     LOG(WARNING) << "PikaMigrateThread::ReqMigrateOne key: " << key << " type: " << static_cast<int>(type) << " is  illegal";
     return -1;
   }
+  // TODO 这里需要修改
   if (slot_id != slot_id_) {
     LOG(WARNING) << "PikaMigrateThread::ReqMigrateOne Slot : " << slot_id << " is not the migrating slot:" << slot_id_;
     return -2;

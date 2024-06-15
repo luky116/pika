@@ -38,6 +38,7 @@ func (s *Topom) ProcessSlotAction() error {
 			return true
 		}
 		var parallel = math2.MaxInt(1, s.config.MigrationParallelSlots)
+		log.Info("get codis parallel: %d", parallel)
 		for parallel > len(plans) {
 			_, ok, err := s.SlotActionPrepareFilter(accept, update)
 			if err != nil {
@@ -52,7 +53,7 @@ func (s *Topom) ProcessSlotAction() error {
 		var fut sync2.Future
 		for sid, _ := range plans {
 			fut.Add()
-			go func(sid int) {
+			go func(sid int) { // TODO 这里如果异步，可能出问题
 				log.Warnf("slot-[%d] process action", sid)
 				var err = s.processSlotAction(sid)
 				if err != nil {
@@ -82,6 +83,8 @@ func (s *Topom) processSlotAction(sid int) error {
 		} else if exec == nil {
 			time.Sleep(time.Second)
 		} else {
+			// n：剩余要迁移的key数量
+			// nextdb：下一个要迁移的db
 			n, nextdb, err := exec(db)
 			if err != nil {
 				return err
@@ -94,6 +97,7 @@ func (s *Topom) processSlotAction(sid int) error {
 			status := fmt.Sprintf("[OK] Slot[%04d]@DB[%d]=%d", sid, db, n)
 			s.action.progress.status.Store(status)
 
+			// 间隔多久检查是否完成迁移
 			if us := s.GetSlotActionInterval(); us != 0 {
 				time.Sleep(time.Microsecond * time.Duration(us))
 			}

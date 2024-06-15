@@ -1,12 +1,12 @@
-kill -9 $(sudo lsof -t -i :7000)
-kill -9 $(sudo lsof -t -i :7001)
-kill -9 $(sudo lsof -t -i :9192)
-kill -9 $(sudo lsof -t -i :17070)
-kill -9 $(sudo lsof -t -i :11081)
+kill  $(sudo lsof -t -i :7000)
+kill  $(sudo lsof -t -i :7001)
+kill  $(sudo lsof -t -i :9192)
+kill  $(sudo lsof -t -i :17070)
+kill  $(sudo lsof -t -i :11081)
 
-sleep 3
+sleep 5
 
-rm -rf /data1/liuyuecai/pika/data
+#rm -rf /data1/liuyuecai/pika/data
 
 mkdir -p /data1/liuyuecai/pika/data/pika-7000
 mkdir -p /data1/liuyuecai/pika/data/pika-7001
@@ -22,6 +22,8 @@ echo 'pika 7001'
 ./output/pika -c conf/pika-7001.conf
 
 cd codis
+
+make
 
 echo 'startup codis dashboard and codis proxy'
 ./admin/codis-dashboard-admin.sh start

@@ -1249,7 +1249,7 @@ void SlotsMgrtTagSlotAsyncCmd::Do() {
   bool ret = g_pika_server->SlotsMigrateBatch(dest_ip_, dest_port_, timeout_ms_, slot_id_, keys_num_, db_);
   // TODO 这里是否要返回 ERROR
   if (!ret) {
-    LOG(WARNING) << "Slot batch migrate keys error";
+    LOG(WARNING) << "Slot batch migrate keys error, may be currently migrating";
     res_.SetRes(CmdRes::kErrOther, "Slot batch migrating keys error, may be currently migrating");
     return;
   }
