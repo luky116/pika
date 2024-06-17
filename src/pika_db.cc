@@ -488,6 +488,12 @@ bool DB::TryUpdateMasterOffset() {
   }
   master_db->Logger()->SetProducerStatus(filenum, offset);
   slave_db->SetReplState(ReplState::kTryConnect);
+
+  //now full sync is finished, remove the has-repl-full-sync-corruption's value
+  std::string empty_str;
+  g_pika_conf->SetHasReplFullSyncCorruption(empty_str);
+  g_pika_conf->ConfigRewrite();
+
   return true;
 }
 

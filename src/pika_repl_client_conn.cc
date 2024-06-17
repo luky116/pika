@@ -172,6 +172,11 @@ void PikaReplClientConn::HandleDBSyncResponse(void* arg) {
     return;
   }
 
+  std::string time_formatted;
+  pstd::GetCurrTimeFormatted(time_formatted);
+  g_pika_conf->SetHasReplFullSyncCorruption(time_formatted);
+  g_pika_conf->ConfigRewrite();
+
   if (response->code() != InnerMessage::kOk) {
     slave_db->SetReplState(ReplState::kError);
     std::string reply = response->has_reply() ? response->reply() : "";

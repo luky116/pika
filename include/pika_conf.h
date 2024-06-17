@@ -421,6 +421,10 @@ class PikaConf : public pstd::BaseConf {
   int64_t rsync_timeout_ms() {
       return rsync_timeout_ms_.load(std::memory_order::memory_order_relaxed);
   }
+  std::string has_repl_full_sync_corruption() {
+    std::shared_lock l(rwlock_);
+    return has_repl_full_sync_corruption_;
+  }
   // Slow Commands configuration
   const std::string GetSlowCmd() {
     std::shared_lock l(rwlock_);
@@ -748,6 +752,12 @@ class PikaConf : public pstd::BaseConf {
     rsync_timeout_ms_.store(value);
   }
 
+  void SetHasReplFullSyncCorruption(std::string& full_sync_corrupt) {
+    std::lock_guard l(rwlock_);
+    TryPushDiffCommands("has-repl-full-sync-corruption", full_sync_corrupt);
+    has_repl_full_sync_corruption_ = full_sync_corrupt;
+  }
+
   void SetAclPubsubDefault(const std::string& value) {
     std::lock_guard l(rwlock_);
     TryPushDiffCommands("acl-pubsub-default", value);
@@ -945,6 +955,12 @@ class PikaConf : public pstd::BaseConf {
   int throttle_bytes_per_second_ = 207200000;
   int max_rsync_parallel_num_ = kMaxRsyncParallelNum;
   std::atomic_int64_t rsync_timeout_ms_ = 1000;
+
+  //Metrics Persisted by pika.conf
+
+  // How metric 'has_repl_full_sync_corruption_' was set: every time when a repl full sync start(curr instance as slave), has_repl_full_sync_corruption is
+  // set to the start time of this full sync, and when the full sync finished, it will be reset back to empty. You can check pika.conf to know more about it.
+  std::string has_repl_full_sync_corruption_;
 };
 
 #endif

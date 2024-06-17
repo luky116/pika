@@ -1150,6 +1150,7 @@ void InfoCmd::InfoReplication(std::string& info) {
       tmp_stream << "connected_slaves:" << g_pika_server->GetSlaveListString(slaves_list_str) << "\r\n"
                  << slaves_list_str;
   }
+  tmp_stream << "has-repl-full-sync-corruption:" << g_pika_conf->has_repl_full_sync_corruption() << "\r\n";
 
   Status s;
   uint32_t filenum = 0;
@@ -2047,6 +2048,12 @@ void ConfigCmd::ConfigGet(std::string& ret) {
     EncodeNumber(&config_body, g_pika_conf->max_rsync_parallel_num());
   }
 
+  if (pstd::stringmatch(pattern.data(), "has-repl-full-sync-corruption", 1) != 0) {
+    elements += 2;
+    EncodeString(&config_body, "has-repl-full-sync-corruption");
+    EncodeString(&config_body, g_pika_conf->has_repl_full_sync_corruption());
+  }
+
   if (pstd::stringmatch(pattern.data(), "replication-id", 1) != 0) {
     elements += 2;
     EncodeString(&config_body, "replication-id");
@@ -2636,6 +2643,14 @@ void ConfigCmd::ConfigSet(std::shared_ptr<DB> db) {
     g_pika_conf->SetRsyncTimeoutMs(ival);
     LOG(INFO) << "The conf item [rsync-timeout-ms] is changed by Config Set command. "
                    "The rsync-timeout-ms now is " << ival << " ms";
+    res_.AppendStringRaw("+OK\r\n");
+  } else if(set_item == "has-repl-full-sync-corruption"){
+    if (!value.empty()) {
+      res_.AppendStringRaw("-ERR Invalid argument \'" + value + "\' for you can only manually set it to empty str(config set has-repl-full-sync-corruption \"\") \r\n");
+      return;
+    }
+    std::string empty_str;
+    g_pika_conf->SetHasReplFullSyncCorruption(empty_str);
     res_.AppendStringRaw("+OK\r\n");
   } else if (set_item == "max-rsync-parallel-num") {
     if ((pstd::string2int(value.data(), value.size(), &ival) == 0) || ival > kMaxRsyncParallelNum || ival <= 0) {

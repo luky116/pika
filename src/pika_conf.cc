@@ -660,6 +660,9 @@ int PikaConf::Load() {
   } else {
     rsync_timeout_ms_.store(tmp_rsync_timeout_ms);
   }
+
+  GetConfStr("has-repl-full-sync-corruption", &has_repl_full_sync_corruption_);
+
   return ret;
 }
 
@@ -733,6 +736,7 @@ int PikaConf::ConfigRewrite() {
   SetConfDouble("min-check-resume-ratio", min_check_resume_ratio_);
   SetConfInt("slave-priority", slave_priority_);
   SetConfInt("throttle-bytes-per-second", throttle_bytes_per_second_);
+  SetConfStr("has-repl-full-sync-corruption", has_repl_full_sync_corruption_);
   SetConfInt("max-rsync-parallel-num", max_rsync_parallel_num_);
   SetConfInt("sync-window-size", sync_window_size_.load());
   SetConfInt("consensus-level", consensus_level_.load());
