@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"pika/codis/v2/pkg/models"
@@ -70,8 +71,9 @@ type InfoReplication struct {
 	MasterHost       string      `json:"master_host"`
 	MasterPort       string      `json:"master_port"`
 	MasterLinkStatus string      `json:"master_link_status"` // down; up
-	DbBinlogFileNum  uint64      `json:"binlog_file_num"`    // db0
-	DbBinlogOffset   uint64      `json:"binlog_offset"`      // db0
+	HasSyncFullData  bool        `json:"has_sync_full_data"`
+	DbBinlogFileNum  uint64      `json:"binlog_file_num"` // db0
+	DbBinlogOffset   uint64      `json:"binlog_offset"`   // db0
 	Slaves           []InfoSlave `json:"-"`
 }
 
@@ -108,6 +110,9 @@ func (i *InfoReplication) UnmarshalJSON(b []byte) error {
 	i.MasterPort = kvmap["master_host"]
 	i.MasterHost = kvmap["master_port"]
 	i.MasterLinkStatus = kvmap["master_link_status"]
+	if hasReplFullSyncCorruption, ok := kvmap["has_repl_full_sync_corruption"]; !ok || strings.Trim(hasReplFullSyncCorruption, " ") == "" {
+		i.HasSyncFullData = true
+	}
 
 	if val, ok := kvmap["binlog_file_num"]; ok {
 		if intval, err := strconv.ParseUint(val, 10, 64); err == nil {

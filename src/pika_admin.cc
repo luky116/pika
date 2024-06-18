@@ -1150,7 +1150,7 @@ void InfoCmd::InfoReplication(std::string& info) {
       tmp_stream << "connected_slaves:" << g_pika_server->GetSlaveListString(slaves_list_str) << "\r\n"
                  << slaves_list_str;
   }
-  tmp_stream << "has-repl-full-sync-corruption:" << g_pika_conf->has_repl_full_sync_corruption() << "\r\n";
+  tmp_stream << "has_repl_full_sync_corruption:" << g_pika_conf->has_repl_full_sync_corruption() << "\r\n";
 
   Status s;
   uint32_t filenum = 0;
