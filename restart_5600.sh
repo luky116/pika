@@ -9,8 +9,8 @@ pkill -9 pika
 sleep 2
 
 rm -rf /data1/liuyuecai/pika-cloud/data-5600
-$pwd/bin/pika -c $pwd/conf/pika-5600.conf
+$pwd/output/pika -c $pwd/conf/pika-5600.conf
 
 sleep 5
 
-ps -ef | grep pika
+ps -ef | grep pika | grep data-5600
