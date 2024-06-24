@@ -1,0 +1,12 @@
+name: pikadb
+
+services:
+  pikadb:
+    image: pikadb/pika:latest
+    container_name: pikadb
+    ports:
+      - "9221:9221"
+    volumes:
+      - ./conf:/pika/conf
+      - ./data:/data
+    restart: always
