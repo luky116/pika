@@ -529,7 +529,10 @@ Status RunHGetAllCommand(redisContext*& c, ThreadArg* arg) {
     res = reinterpret_cast<redisReply*>(
         redisCommandArgv(c, 2, reinterpret_cast<const char**>(argv),
                          reinterpret_cast<const size_t*>(argvlen)));
-    hist->Add(pstd::NowMicros() - begin);
+    uint64_t now = pstd::NowMicros();
+    Observer((now - begin) / 1000.0);
+    hist->Add(now - begin);
+    Increment(1);
 
     if (!res) {
       LOG(INFO) << FLAGS_command << " timeout, key: " << pkey;
@@ -586,7 +589,10 @@ Status RunHSetCommand(redisContext*& c, ThreadArg* arg) {
       res = reinterpret_cast<redisReply*>(
           redisCommandArgv(c, 4, reinterpret_cast<const char**>(set_argv),
                            reinterpret_cast<const size_t*>(set_argvlen)));
-      hist->Add(pstd::NowMicros() - begin);
+      uint64_t now = pstd::NowMicros();
+      Observer((now - begin) / 1000.0);
+      hist->Add(now - begin);
+      Increment(1);
 
       if (!res) {
         LOG(INFO) << FLAGS_command << " timeout, key: " << pkey;
@@ -875,7 +881,7 @@ Status RunLRangeCommand(redisContext*& c, ThreadArg* arg) {
 
 void* ThreadMain(void* arg) {
   ThreadArg* ta = reinterpret_cast<ThreadArg*>(arg);
-  last_seed = ta->idx;
+  last_seed = ta->tid;
 
   if (FLAGS_command == "generate") {
     RunGenerateCommand(ta->idx);
