@@ -4,7 +4,7 @@ set +e
 
 pwd=$(cd "$(dirname "$0")" && pwd)
 
-pkill -9 pika
+ps aux | grep 'data-5601' | grep -v 'grep' | awk '{print $2}' | xargs kill
 
 sleep 2
 
