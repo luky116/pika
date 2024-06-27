@@ -162,12 +162,14 @@ void SlaveofCmd::Do() {
   g_pika_server->RemoveMaster();
 
   if (is_none_) {
-    if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+    {
       std::shared_lock rwl(g_pika_server->dbs_rw_);
       for (const auto& db_item : g_pika_server->dbs_) {
         db_item.second->SwitchMaster(is_old_master, true);
       }
     }
+#endif
     res_.SetRes(CmdRes::kOk);
     g_pika_conf->SetSlaveof(std::string());
     return;
@@ -177,12 +179,14 @@ void SlaveofCmd::Do() {
    * the data synchronization was successful, but only changes the status of the
    * slaveof executor to slave */
 
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+  {
     std::shared_lock rwl(g_pika_server->dbs_rw_);
     for (const auto& db_item : g_pika_server->dbs_) {
       db_item.second->SwitchMaster(is_old_master, false);
     }
   }
+#endif
 
   bool sm_ret = g_pika_server->SetMaster(master_ip_, static_cast<int32_t>(master_port_));
   if (sm_ret) {
@@ -352,11 +356,11 @@ void BgsaveCmd::DoInitial() {
 }
 
 void BgsaveCmd::Do() {
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
-    g_pika_server->DoSameThingSpecificDB(bgsave_dbs_, {TaskType::kCloudBgSave});
-  } else {
-    g_pika_server->DoSameThingSpecificDB(bgsave_dbs_, {TaskType::kBgSave});
-  }
+#ifdef USE_S3
+  g_pika_server->DoSameThingSpecificDB(bgsave_dbs_, {TaskType::kCloudBgSave});
+#else
+  g_pika_server->DoSameThingSpecificDB(bgsave_dbs_, {TaskType::kBgSave});
+#endif
   LogCommand();
   res_.AppendContent("+Background saving started");
 }
@@ -3013,7 +3017,8 @@ void DelbackupCmd::DoInitial() {
 }
 
 void DelbackupCmd::Do() {
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+  {
     Aws::SDKOptions options;
     Aws::InitAPI(options);
 
@@ -3078,6 +3083,7 @@ void DelbackupCmd::Do() {
     Aws::ShutdownAPI(options);
     return;
   }
+#endif
 
   std::string db_sync_prefix = g_pika_conf->bgsave_prefix();
   std::string db_sync_path = g_pika_conf->bgsave_path();
@@ -3217,12 +3223,13 @@ void PaddingCmd::DoInitial() {
 void PaddingCmd::Do() { res_.SetRes(CmdRes::kOk); }
 
 std::string PaddingCmd::ToRedisProtocol() {
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
-    return PikaBinlogTransverter::ConstructPaddingBinlog(BinlogType::TypeFirst, argv_[1].size());
-  }
+#ifdef USE_S3
+  return PikaBinlogTransverter::ConstructPaddingBinlog(BinlogType::TypeFirst, argv_[1].size());
+#else
   return PikaBinlogTransverter::ConstructPaddingBinlog(
       BinlogType::TypeFirst,
       argv_[1].size() + BINLOG_ITEM_HEADER_SIZE + PADDING_BINLOG_PROTOCOL_SIZE + SPACE_STROE_PARAMETER_LENGTH);
+#endif
 }
 
 void PKPatternMatchDelCmd::DoInitial() {
@@ -3552,8 +3559,8 @@ void PKPingCmd::DoInitial() {
     }
   }
 
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD
-      && g_pika_server->role() == PIKA_ROLE_MASTER) {
+ #ifdef USE_S3
+  if(g_pika_server->role() == PIKA_ROLE_MASTER) {
     for (auto const& slave : g_pika_server->slaves_) {
       if (std::find(masters_addr_.begin(), masters_addr_.end(), slave.ip_port) != masters_addr_.end()) {
         g_pika_server->set_group_id(group_id_);
@@ -3561,6 +3568,7 @@ void PKPingCmd::DoInitial() {
       }
     }
   }
+#endif
 }
 
 void PKPingCmd::Do() {
