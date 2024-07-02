@@ -15,6 +15,7 @@
 #include "pstd/include/pstd_wal.h"
 #else
 #include "rocksdb/db.h"
+#include "rocksdb/listener.h"
 #endif
 #include "rocksdb/slice.h"
 #include "rocksdb/status.h"
@@ -34,6 +35,17 @@
 #define SPOP_COMPACT_THRESHOLD_COUNT 500
 #define SPOP_COMPACT_THRESHOLD_DURATION (1000 * 1000)  // 1000ms
 
+static inline std::string StallEnumToString(rocksdb::WriteStallCondition cond) {
+  switch (cond) {
+    case rocksdb::WriteStallCondition::kDelayed:
+      return "delayed";
+    case rocksdb::WriteStallCondition::kStopped:
+      return "stopped";
+    case rocksdb::WriteStallCondition::kNormal:
+      return "normal";
+  }
+}
+
 namespace storage {
 using Status = rocksdb::Status;
 using Slice = rocksdb::Slice;
@@ -41,6 +53,7 @@ using Slice = rocksdb::Slice;
 class LogListener;
 class Redis {
  public:
+  friend class LogListener;
   Redis(Storage* storage, int32_t index, std::shared_ptr<pstd::WalWriter> wal_writer = nullptr);
   virtual ~Redis();
 
@@ -506,6 +519,39 @@ private:
   std::atomic<int> counter_ = {0};
   void* inst_ = nullptr;
   std::shared_ptr<pstd::WalWriter> wal_writer_ = nullptr;
+};
+
+class RocksDBEventListener : public rocksdb::EventListener {
+public:
+  RocksDBEventListener(int index) : index_(index) {}
+  ~RocksDBEventListener() {}
+  virtual void OnStallConditionsChanged(const rocksdb::WriteStallInfo& info) override {
+    LOG(INFO) << "stall condition changed, rocksdb id: " << index_
+              << "column_family name: " << info.cf_name
+              << " change from stall condition: " << StallEnumToString(info.condition.prev)
+              << " to stall condition: " << StallEnumToString(info.condition.cur);
+  }
+  void OnCompactionCompleted(rocksdb::DB* /*db*/, const rocksdb::CompactionJobInfo& info) override {
+    LOG(INFO) << "compaction completed, rocksdb id: " << index_
+              << " column_family name: " << info.cf_name
+              << " thread_id: " << info.thread_id
+              << " job_id: " << info.job_id
+              << " input level: " << info.base_input_level
+              << " output level: " << info.output_level
+              << " elapsed time: " << info.stats.elapsed_micros / 1000 << " ms"
+              << " total_input_bytes: " << (info.stats.total_input_bytes >> 20) << " MB";
+  }
+  void OnFlushCompleted(rocksdb::DB* /*db*/,
+                        const rocksdb::FlushJobInfo& info) override {
+    LOG(INFO) << "flush completed, rocksdb id: " << index_
+              << " column_family name: " << info.cf_name
+              << " thread_id: " << info.thread_id
+              << " job_id: " << info.job_id
+              << " triggered_writes_slowdown: " << (info.triggered_writes_slowdown ? "true" : "false")
+              << " triggered_writes_stop: " << (info.triggered_writes_stop ? "true" : "false");
+  }
+private:
+  int index_ = 0;
 };
 
 }  //  namespace storage
