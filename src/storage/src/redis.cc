@@ -575,6 +575,7 @@ Status Redis::OpenCloudEnv(rocksdb::CloudFileSystemOptions opts, const std::stri
     &cfs_
   );
   if (s.ok()) {
+    LOG(INFO) << "cfs pointer: " << cfs_;
     std::shared_ptr<rocksdb::CloudFileSystem> cloud_fs(cfs_);
     cloud_env_ = NewCompositeEnv(cloud_fs);
   }

@@ -581,7 +581,7 @@ ExternalProject_Add(prometheus_cpp
   URL
   https://github.com/jupp0r/prometheus-cpp/releases/download/v1.2.4/prometheus-cpp-with-submodules.tar.gz
   CMAKE_ARGS
-  -DBUILD_SHARED_LIBS=ON
+  -DBUILD_SHARED_LIBS=OFF
   -DENABLE_PUSH=OFF
   -DENABLE_COMPRESSION=OFF
   -DCMAKE_INSTALL_LIBDIR=${INSTALL_LIBDIR}
@@ -592,8 +592,8 @@ ExternalProject_Add(prometheus_cpp
   make -j${CPU_CORE}
 )
 
-set(PROMETHEUS_CPP_CORE_LIB ${INSTALL_LIBDIR}/libprometheus-cpp-core.so)
-set(PROMETHEUS_CPP_PULL_LIB ${INSTALL_LIBDIR}/libprometheus-cpp-pull.so)
+set(PROMETHEUS_CPP_CORE_LIB ${INSTALL_LIBDIR}/libprometheus-cpp-core.a)
+set(PROMETHEUS_CPP_PULL_LIB ${INSTALL_LIBDIR}/libprometheus-cpp-pull.a)
 
 if (USE_S3)
 ExternalProject_Add(rocksdb
@@ -608,9 +608,9 @@ ExternalProject_Add(rocksdb
   ${LIBJEMALLOC_NAME}
   URL
   #temporary for debug, skip download from github
-  http://10.224.129.40:8000/async_upload/rocksdb_cloud.tar.gz
+  http://10.224.129.40:8000/async_download/rocksdb_cloud.tar.gz
   URL_HASH
-  MD5=31c2188019b0d9ebc11d4df42ce885f2
+  MD5=9ee4f6d0821cd7221be6eb34044ce3ca
   DOWNLOAD_NO_PROGRESS
   1
   UPDATE_COMMAND

@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <future>
 
 #include "net/include/client_thread.h"
 #include "net/include/net_conn.h"
@@ -19,6 +20,7 @@
 #include "include/pika_binlog_reader.h"
 #include "include/pika_repl_bgworker.h"
 #include "include/pika_repl_client_thread.h"
+#include "pika_cloud_binlog.pb.h"
 
 #include "net/include/thread_pool.h"
 #include "pika_inner_message.pb.h"
@@ -42,6 +44,20 @@ struct ReplClientWriteBinlogTaskArg {
       : res(_res), conn(_conn), res_private_data(_res_private_data), worker(_worker) {}
 };
 
+#ifdef USE_S3
+struct ReplClientWriteDBTaskArg {
+  ReplClientWriteDBTaskArg(const cloud::BinlogCloudItem& binlog,
+      std::string db_name, std::shared_ptr<std::promise<bool>> prom_ptr)
+      : binlog_item_(binlog),
+        db_name_(std::move(db_name)),
+        prom_ptr_(prom_ptr) {}
+  ~ReplClientWriteDBTaskArg() = default;
+
+  cloud::BinlogCloudItem binlog_item_;
+  std::string db_name_;
+  std::shared_ptr<std::promise<bool>> prom_ptr_;
+};
+#else
 struct ReplClientWriteDBTaskArg {
   const std::shared_ptr<Cmd> cmd_ptr;
   LogOffset offset;
@@ -52,6 +68,7 @@ struct ReplClientWriteDBTaskArg {
         db_name(std::move(_db_name)) {}
   ~ReplClientWriteDBTaskArg() = default;
 };
+#endif
 
 class PikaReplClient {
  public:
@@ -67,7 +84,11 @@ class PikaReplClient {
   void Schedule(net::TaskFunc func, void* arg);
   void ScheduleWriteBinlogTask(const std::string& db_name, const std::shared_ptr<InnerMessage::InnerResponse>& res,
                                const std::shared_ptr<net::PbConn>& conn, void* res_private_data);
+  #ifdef USE_S3
+  void ScheduleWriteDBTask(ReplClientWriteDBTaskArg* arg);
+  #else
   void ScheduleWriteDBTask(const std::shared_ptr<Cmd>& cmd_ptr, const LogOffset& offset, const std::string& db_name);
+  #endif
 
   pstd::Status SendMetaSync();
   pstd::Status SendDBSync(const std::string& ip, uint32_t port, const std::string& db_name,
