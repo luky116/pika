@@ -13,6 +13,7 @@
   -thread_num (concurrent thread num) type: int32 default: 10
   -timeout (request timeout) type: int32 default: 1000
   -value_size (value size in bytes) type: int32 default: 100
+  -exporter_addr (metrics exporter listen addr) type: string default : 0.0.0.0:9999
 ```
 
 compare_value: 是否进行数据校验。如需进行数据校验，set和set操作都需要设置为true。如果compare_value为true，执行set命令时的value值即为key值拼接得到，如果哦compare_value为false，value为随机值。
@@ -22,6 +23,8 @@ count: 每个线程请求的key个数。
 element_count: list/zset/set/hash 每个pkey下的member个数。
 
 目前支持的command包括：get,set,hset,hgetall,sadd,smembers,lpush,lrange,zadd,zrange
+
+exporter_addr: prometheus metrics exporter addr. benchmark_client 会统计set/get 命令的执行 QPS 以及请求耗时，并监听exporter_addr，供 Prometheus 拉取 metrics 数据。 
 
 ## 使用方式
 需要先执行generate方式生成待请求的key，如：
