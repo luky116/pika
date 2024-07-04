@@ -56,7 +56,7 @@ class ListsFilterTest : public ::testing::Test {
     s = rocksdb::DBCloud::Open(options, db_path, "", 0, &meta_db);
 #else
     s = rocksdb::DB::Open(options, db_path, &meta_db);
-#endif // end USE_S3
+#endif
 
 
     if (s.ok()) {
@@ -79,7 +79,7 @@ class ListsFilterTest : public ::testing::Test {
     s = rocksdb::DBCloud::Open(options, db_path, column_families, "", 0, &handles, &meta_db);
 #else
     s = rocksdb::DB::Open(options, db_path, column_families, &handles, &meta_db);
-#endif // end USE_S3
+#endif
 		assert(s.ok());
   }
   ~ListsFilterTest() override = default;
@@ -98,7 +98,7 @@ class ListsFilterTest : public ::testing::Test {
   std::unique_ptr<rocksdb::Env> cloud_env;
 #else
   rocksdb::DB* meta_db;
-#endif // end USE_S3
+#endif
   storage::Status s;
 
   std::vector<rocksdb::ColumnFamilyDescriptor> column_families;
