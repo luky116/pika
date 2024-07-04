@@ -66,7 +66,7 @@ void PikaReplServerConn::HandleMetaSyncRequest(void* arg) {
         db_info->set_slot_num(1);
         db_info->set_db_instance_num(db_struct.db_instance_num);
 #ifdef USE_S3
-        PIKA_CLOUD {
+        {
           db_info->set_cloud_endpoint_override(db_struct.cloud_endpoint_override);
           db_info->set_cloud_bucket_prefix(db_struct.cloud_bucket_prefix);
           db_info->set_cloud_bucket_suffix(db_struct.cloud_bucket_suffix);
