@@ -118,6 +118,7 @@ void PikaReplClientConn::HandleMetaSyncResponse(void* arg) {
       master_db_structs.push_back({db_info.db_name(), db_info.db_instance_num(),
                                    db_info.cloud_endpoint_override(), db_info.cloud_bucket_prefix(),
                                    db_info.cloud_bucket_suffix(), db_info.cloud_bucket_region()});
+    }
 #else
     {
       master_db_structs.push_back({db_info.db_name(), db_info.db_instance_num()});
