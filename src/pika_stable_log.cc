@@ -31,7 +31,7 @@ StableLog::StableLog(std::string db_name, std::string log_path)
   {
     stable_logger_ = std::make_shared<CloudBinlog>(log_path_, g_pika_conf->binlog_file_size());
   }
-#endif
+#endif // end USE_S3
   std::map<uint32_t, std::string> binlogs;
   if (!GetBinlogFiles(&binlogs)) {
     LOG(FATAL) << log_path_ << " Could not get binlog files!";
@@ -214,7 +214,7 @@ void StableLog::UpdateFirstOffset(uint32_t filenum) {
         break;
       }
     }
-#endif
+#endif // end USE_S3
   }
 
   std::lock_guard l(offset_rwlock_);
@@ -228,7 +228,7 @@ void StableLog::UpdateFirstOffset(uint32_t filenum) {
     first_offset_.l_offset.term = item.term_id();
     first_offset_.l_offset.index = item.logic_id();
   }
-#endif
+#endif // end USE_S3
 }
 
 Status StableLog::PurgeFileAfter(uint32_t filenum) {

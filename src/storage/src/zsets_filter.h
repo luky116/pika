@@ -119,7 +119,7 @@ class ZSetsScoreFilterFactory : public rocksdb::CompactionFilterFactory {
   ZSetsScoreFilterFactory(rocksdb::DBCloud** db_ptr, std::vector<rocksdb::ColumnFamilyHandle*>* handles_ptr, int meta_cf_index)
 #else
   ZSetsScoreFilterFactory(rocksdb::DB** db_ptr, std::vector<rocksdb::ColumnFamilyHandle*>* handles_ptr, int meta_cf_index)
-#endif
+#endif // end USE_S3
       : db_ptr_(db_ptr), cf_handles_ptr_(handles_ptr), meta_cf_index_(meta_cf_index) {}
 
   std::unique_ptr<rocksdb::CompactionFilter> CreateCompactionFilter(
@@ -134,7 +134,7 @@ class ZSetsScoreFilterFactory : public rocksdb::CompactionFilterFactory {
   rocksdb::DBCloud** db_ptr_ = nullptr;
 #else
   rocksdb::DB** db_ptr_ = nullptr;
-#endif
+#endif // end USE_S3
   std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr_ = nullptr;
   int meta_cf_index_ = 0;
 };

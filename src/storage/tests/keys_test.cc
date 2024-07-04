@@ -37,7 +37,7 @@ class KeysTest : public ::testing::Test {
     cloud_fs_opts.src_bucket.SetBucketName("database.unit.test", "pika.");
     cloud_fs_opts.dest_bucket.SetBucketName("database.unit.test", "pika.");
     storage_options.options.max_log_file_size = 0;
-#endif
+#endif // end USE_S3
     s = db.Open(storage_options, path);
     ASSERT_TRUE(s.ok());
   }

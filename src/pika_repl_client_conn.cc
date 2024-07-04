@@ -119,7 +119,7 @@ void PikaReplClientConn::HandleMetaSyncResponse(void* arg) {
     {
       master_db_structs.push_back({db_info.db_name(), db_info.db_instance_num()});
     }
-#endif
+#endif // end USE_S3
   }
 
   std::vector<DBStruct> self_db_structs = g_pika_conf->db_structs();

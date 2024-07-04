@@ -47,7 +47,7 @@ Redis::Redis(Storage* const s, int32_t index, std::shared_ptr<pstd::WalWriter> w
   //env_ = rocksdb::Env::Instance();
 #ifdef USE_S3
   log_listener_ = std::make_shared<LogListener>(index_, this, wal_writer);
-#endif
+#endif // end USE_S3
   handles_.clear();
 }
 
@@ -70,7 +70,7 @@ void Redis::Close() {
   }
 #ifdef USE_S3
   opened_ = false;
-#endif
+#endif // end USE_S3
 }
 
 Status Redis::FlushDBAtSlave() {
@@ -94,12 +94,12 @@ Status Redis::FlushDB() {
     return s;
   }
   s = cfs_->DeleteCloudObject(s3_bucket, MakeCloudManifestFile(db_path_, ""));
-  LOG(INFO) << "deletecloudmanifestfromdest tatus: " << s.ToString(); 
+  LOG(INFO) << "deletecloudmanifestfromdest tatus: " << s.ToString();
   if (!s.ok()) {
     return s;
   }
   s = cfs_->DeleteCloudObject(s3_bucket, rocksdb::IdentityFileName(db_path_));
-  LOG(INFO) << "deleteidentityfile status: " << s.ToString(); 
+  LOG(INFO) << "deleteidentityfile status: " << s.ToString();
   if (!s.ok()) {
     return s;
   }
@@ -133,7 +133,7 @@ Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string&
   }
   storage_options.options.atomic_flush = true;
   storage_options.options.avoid_flush_during_shutdown = true;
-#endif
+#endif // end USE_S3
 
   statistics_store_->SetCapacity(storage_options.statistics_max_size);
   small_compaction_threshold_ = storage_options.small_compaction_threshold;
@@ -273,7 +273,7 @@ Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string&
   auto s = rocksdb::DB::Open(db_ops, db_path, column_families, &handles_, &db_);
   opened_ = true;
   return s;
-#endif
+#endif // end USE_S3
 }
 
 Status Redis::GetScanStartPoint(const DataType& type, const Slice& key, const Slice& pattern, int64_t cursor, std::string* start_point) {
@@ -589,7 +589,7 @@ Status Redis::ReOpenRocksDB(const storage::StorageOptions& opt) {
 }
 
 Status Redis::SwitchMaster(bool is_old_master, bool is_new_master) {
-  LOG(WARNING) << "switchMaster from " << (is_old_master ? "master" : "slave") 
+  LOG(WARNING) << "switchMaster from " << (is_old_master ? "master" : "slave")
                << " to " << (is_new_master ? "master" : "slave");
   if (is_old_master && is_new_master) {
     // Do nothing
@@ -747,7 +747,7 @@ Status Redis::ApplyWAL(int type, const std::string& content,
   if (type != 0) {
     return s;
   }
-  
+
   rocksdb::WriteBatch batch;
   s = rocksdb::WriteBatchInternal::SetContents(&batch, content);
   WriteBatchHandler handler(redis_keys);
@@ -779,5 +779,5 @@ std::string LogListener::OnReplicationLogRecord(rocksdb::ReplicationLogRecord re
   }
   return "";
 }
-#endif
+#endif // end USE_S3
 }  // namespace storage

@@ -16,7 +16,7 @@
 #else
 #include "rocksdb/db.h"
 #include "rocksdb/listener.h"
-#endif
+#endif // end USE_S3
 #include "rocksdb/slice.h"
 #include "rocksdb/status.h"
 
@@ -59,10 +59,10 @@ class Redis {
 
 #ifdef USE_S3
   rocksdb::DBCloud* GetDB() { return db_; }
-  bool IsMaster() const { return is_master_.load(); } 
+  bool IsMaster() const { return is_master_.load(); }
 #else
   rocksdb::DB* GetDB() { return db_; }
-#endif
+#endif // end USE_S3
 
   struct KeyStatistics {
     size_t window_size;
@@ -418,7 +418,7 @@ class Redis {
   void ResetLogListener(std::shared_ptr<rocksdb::ReplicationLogListener> handle) {
     log_listener_ = handle;
   }
-#endif
+#endif // end USE_S3
 
 private:
   Status GenerateStreamID(const StreamMetaValue& stream_meta, StreamAddTrimArgs& args);
@@ -468,7 +468,7 @@ private:
   std::atomic<bool> is_master_ = {true};
 #else
   rocksdb::DB* db_ = nullptr;
-#endif
+#endif // end USE_S3
   //TODO(wangshaoyi): seperate env for each rocksdb instance
   // rocksdb::Env* env_ = nullptr;
 
@@ -499,7 +499,7 @@ private:
   std::unique_ptr<rocksdb::Env> cloud_env_;
   rocksdb::CloudFileSystem* cfs_;
   Status ReOpenRocksDB(const storage::StorageOptions& opt);
-#endif
+#endif // end USE_S3
 };
 
 // TODO(wangshaoyi): implement details

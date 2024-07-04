@@ -888,7 +888,7 @@ void Cmd::InternalProcessCommand(const HintKeys& hint_keys) {
   {
     DoBinlog();
   }
-#endif
+#endif // end USE_S3
 
   if (is_write()) {
     record_lock.Unlock(current_key());

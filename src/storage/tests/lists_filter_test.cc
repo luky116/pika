@@ -42,9 +42,9 @@ class ListsFilterTest : public ::testing::Test {
     cloud_fs_opts.dest_bucket.SetObjectPath(s3_path);
     rocksdb::CloudFileSystem* cfs = nullptr;
     Status s = rocksdb::CloudFileSystem::NewAwsFileSystem(
-      rocksdb::FileSystem::Default(), 
-      cloud_fs_opts, 
-      nullptr, 
+      rocksdb::FileSystem::Default(),
+      cloud_fs_opts,
+      nullptr,
       &cfs
     );
     assert(s.ok());
@@ -55,7 +55,7 @@ class ListsFilterTest : public ::testing::Test {
     s = rocksdb::DBCloud::Open(options, db_path, "", 0, &meta_db);
 #else
     s = rocksdb::DB::Open(options, db_path, &meta_db);
-#endif
+#endif // end USE_S3
 
 
     if (s.ok()) {
@@ -78,7 +78,7 @@ class ListsFilterTest : public ::testing::Test {
     s = rocksdb::DBCloud::Open(options, db_path, column_families, "", 0, &handles, &meta_db);
 #else
     s = rocksdb::DB::Open(options, db_path, column_families, &handles, &meta_db);
-#endif
+#endif // end USE_S3
 		assert(s.ok());
   }
   ~ListsFilterTest() override = default;
@@ -97,7 +97,7 @@ class ListsFilterTest : public ::testing::Test {
   std::unique_ptr<rocksdb::Env> cloud_env;
 #else
   rocksdb::DB* meta_db;
-#endif
+#endif // end USE_S3
   storage::Status s;
 
   std::vector<rocksdb::ColumnFamilyDescriptor> column_families;

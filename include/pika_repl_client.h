@@ -68,7 +68,7 @@ struct ReplClientWriteDBTaskArg {
         db_name(std::move(_db_name)) {}
   ~ReplClientWriteDBTaskArg() = default;
 };
-#endif
+#endif // end USE_S3
 
 class PikaReplClient {
  public:
@@ -88,7 +88,7 @@ class PikaReplClient {
   void ScheduleWriteDBTask(ReplClientWriteDBTaskArg* arg);
   #else
   void ScheduleWriteDBTask(const std::shared_ptr<Cmd>& cmd_ptr, const LogOffset& offset, const std::string& db_name);
-  #endif
+  #endif // end USE_S3
 
   pstd::Status SendMetaSync();
   pstd::Status SendDBSync(const std::string& ip, uint32_t port, const std::string& db_name,

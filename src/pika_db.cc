@@ -46,7 +46,7 @@ DB::DB(std::string db_name, const std::string& db_path,
   s = storage_->Open(g_pika_server->storage_options(), db_path_, wal_writer);
 #else
   s = storage_->Open(g_pika_server->storage_options(), db_path_);
-#endif
+#endif // end USE_S3
   pstd::CreatePath(db_path_);
   pstd::CreatePath(log_path_);
   lock_mgr_ = std::make_shared<pstd::lock::LockMgr>(1000, 0, std::make_shared<pstd::lock::MutexFactoryImpl>());
@@ -230,7 +230,7 @@ bool DB::FlushDBWithoutLock() {
   auto st = storage_->FlushDB();
   LOG(INFO) << db_name_ << " flushing db done, status: " << st.ToString();
   return st.ok();
-#endif
+#endif // end USE_S3
   if (bgsave_info_.bgsaving) {
     return false;
   }
@@ -337,7 +337,7 @@ bool DB::RunBgsaveEngine() {
     LOG(WARNING) << db_name_ << " create new backup failed :" << s.ToString();
     return false;
   }
-#endif
+#endif // end USE_S3
   LOG(INFO) << db_name_ << " create new backup finished.";
 
   return true;
@@ -417,7 +417,7 @@ bool DB::InitBgsaveEngine() {
     LOG(WARNING) << "bgsave info binlog filenum: " << bgsave_offset.b_offset.filenum << " offset: " << bgsave_offset.b_offset.offset;
 #else
     db->Logger()->GetProducerStatus(&(bgsave_offset.b_offset.filenum), &(bgsave_offset.b_offset.offset));
-#endif
+#endif // end USE_S3
     {
       std::lock_guard l(bgsave_protector_);
       bgsave_info_.offset = bgsave_offset;
@@ -428,7 +428,7 @@ bool DB::InitBgsaveEngine() {
       LOG(WARNING) << db_name_ << " set backup content failed " << s.ToString();
       return false;
     }
-#endif
+#endif // end USE_S3
   }
   return true;
 }
@@ -566,7 +566,7 @@ bool DB::TryUpdateMasterOffset() {
     slave_db->SetReplState(ReplState::kError);
     return false;
   }
-#endif
+#endif // end USE_S3
 
   // Update master offset
   std::shared_ptr<SyncMasterDB> master_db =
