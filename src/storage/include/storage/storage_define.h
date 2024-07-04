@@ -141,7 +141,7 @@ inline const char* SeekUserkeyDelim(const char* ptr, int length) {
     kManifestWrite,
     kFlushDB = 10, // newly add enum, specity pika's flushdb operation
   };
-#endif
+#endif // end USE_S3
 
 } // end namespace storage
 #endif

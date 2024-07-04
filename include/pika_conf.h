@@ -417,7 +417,7 @@ class PikaConf : public pstd::BaseConf {
   int64_t min_blob_size() { return min_blob_size_; }
 #ifdef USE_S3
   int64_t SSTCacheSize() const { return sst_cache_size_; }
-#endif
+#endif // end USE_S3
   int64_t blob_file_size() { return blob_file_size_; }
   std::string blob_compression_type() { return blob_compression_type_; }
   bool enable_blob_garbage_collection() { return enable_blob_garbage_collection_; }
@@ -995,7 +995,7 @@ class PikaConf : public pstd::BaseConf {
 
 #ifdef USE_S3
   int64_t sst_cache_size_ = 10LL << 30;
-#endif
+#endif // end USE_S3
 
   // rocksdb-cloud options
   std::string cloud_endpoint_override_;

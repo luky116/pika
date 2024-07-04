@@ -72,7 +72,7 @@ void PikaReplServerConn::HandleMetaSyncRequest(void* arg) {
           db_info->set_cloud_bucket_suffix(db_struct.cloud_bucket_suffix);
           db_info->set_cloud_bucket_region(db_struct.cloud_bucket_region);
         }
-#endif
+#endif // end USE_S3
     }
   }
 
@@ -140,7 +140,7 @@ void PikaReplServerConn::HandleTrySyncRequest(void* arg) {
       TrySyncUpdateSlaveNode(db, try_sync_request, conn, try_sync_response);
     }
   }
-#endif
+#endif // end USE_S3
 
   std::string reply_str;
   if (!response.SerializeToString(&reply_str) || (conn->WriteResp(reply_str) != 0)) {

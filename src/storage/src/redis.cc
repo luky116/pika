@@ -50,7 +50,7 @@ Redis::Redis(Storage* const s, int32_t index, std::shared_ptr<pstd::WalWriter> w
   //env_ = rocksdb::Env::Instance();
 #ifdef USE_S3
   log_listener_ = std::make_shared<LogListener>(index_, this, wal_writer);
-#endif
+#endif // end USE_S3
   handles_.clear();
 }
 
@@ -73,7 +73,7 @@ void Redis::Close() {
   }
 #ifdef USE_S3
   opened_ = false;
-#endif
+#endif // end USE_S3
 }
 
 Status Redis::FlushDBAtSlave() {
@@ -136,7 +136,7 @@ Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string&
   }
   storage_options.options.atomic_flush = true;
   storage_options.options.avoid_flush_during_shutdown = true;
-#endif
+#endif // end USE_S3
 
   statistics_store_->SetCapacity(storage_options.statistics_max_size);
   small_compaction_threshold_ = storage_options.small_compaction_threshold;
@@ -251,7 +251,7 @@ Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string&
   auto s = rocksdb::DB::Open(db_ops, db_path, column_families, &handles_, &db_);
   opened_ = true;
   return s;
-#endif
+#endif // end USE_S3
 }
 
 Status Redis::GetScanStartPoint(const DataType& type, const Slice& key, const Slice& pattern, int64_t cursor, std::string* start_point) {
@@ -719,5 +719,5 @@ std::string LogListener::OnReplicationLogRecord(rocksdb::ReplicationLogRecord re
   }
   return "";
 }
-#endif
+#endif // end USE_S3
 }  // namespace storage

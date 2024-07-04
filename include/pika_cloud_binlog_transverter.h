@@ -28,6 +28,5 @@ class PikaCloudBinlogTransverter {
                                              cloud::BinlogCloudItem* binlog_item);
 };
 
-#endif
-
+#endif // end USE_S3
 #endif

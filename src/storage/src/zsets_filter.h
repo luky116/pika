@@ -146,7 +146,7 @@ class ZSetsScoreFilterFactory : public rocksdb::CompactionFilterFactory {
   rocksdb::DBCloud** db_ptr_ = nullptr;
 #else
   rocksdb::DB** db_ptr_ = nullptr;
-#endif
+#endif // end USE_S3
   std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr_ = nullptr;
   enum DataType type_ = DataType::kNones;
 };

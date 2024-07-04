@@ -37,7 +37,7 @@ Status Context::StableSave() {
     p += 4;
     memcpy(p, &(applied_index_.l_offset.index), sizeof(uint64_t));
   }
-#endif
+#endif // end USE_S3
   return Status::OK();
 }
 
@@ -64,7 +64,7 @@ Status Context::Init() {
     {
       memcpy(reinterpret_cast<char*>(&(applied_index_.l_offset.index)), save_->GetData() + 16, sizeof(uint64_t));
     }
-#endif
+#endif // end USE_S3
     return Status::OK();
   } else {
     return Status::Corruption("Context init error");
@@ -418,7 +418,7 @@ uint32_t ConsensusCoordinator::term() {
 void ConsensusCoordinator::InternalApplyFollower(const MemLog::LogItem& log) {
 #ifndef USE_S3
   g_pika_rm->ScheduleWriteDBTask(log.cmd_ptr, log.offset, db_name_);
-#endif
+#endif // end USE_S3
 }
 
 int ConsensusCoordinator::InitCmd(net::RedisParser* parser, const net::RedisCmdArgsType& argv) {

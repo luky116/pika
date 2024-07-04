@@ -98,7 +98,7 @@ Status Storage::Open(const StorageOptions& storage_options, const std::string& d
     insts_.emplace_back(std::make_unique<Redis>(this, index, wal_writer));
 #else
     insts_.emplace_back(std::make_unique<Redis>(this, index));
-#endif
+#endif // end USE_S3
     Status s = insts_.back()->Open(storage_options, AppendSubDirectory(db_path, index));
     if (!s.ok()) {
       LOG(FATAL) << "open db failed" << s.ToString();
@@ -1876,7 +1876,7 @@ Status Storage::StopScanKeyNum() {
 rocksdb::DBCloud* Storage::GetDBByIndex(int index) {
 #else
 rocksdb::DB* Storage::GetDBByIndex(int index) {
-#endif
+#endif // end USE_S3
   if (index < 0 || index >= db_instance_num_) {
     LOG(WARNING) << "Invalid DB Index: " << index << "total: "
                  << db_instance_num_;
@@ -1997,6 +1997,6 @@ Status Storage::FlushDBAtSlave(int rocksdb_id) {
   auto& inst = insts_[rocksdb_id];
   return inst->FlushDBAtSlave();
 }
-#endif
+#endif // end USE_S3
 
 }  //  namespace storage

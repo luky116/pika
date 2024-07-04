@@ -112,7 +112,7 @@ void PikaReplClient::ScheduleWriteDBTask(const std::shared_ptr<Cmd>& cmd_ptr, co
   auto task_arg = new ReplClientWriteDBTaskArg(cmd_ptr, offset, db_name);
   write_db_workers_[index]->Schedule(&PikaReplBgWorker::HandleBGWorkerWriteDB, static_cast<void*>(task_arg));
 }
-#endif
+#endif // end USE_S3
 
 size_t PikaReplClient::GetBinlogWorkerIndexByDBName(const std::string &db_name) {
     char db_num_c = db_name.back();

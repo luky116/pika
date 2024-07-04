@@ -160,7 +160,7 @@ PikaServer::PikaServer()
 #ifdef USE_S3
   storage_options_.sst_cache_size_ = g_pika_conf->SSTCacheSize();
   storage_options_.cloud_fs_options.is_master = true;
-#endif
+#endif // end USE_S3
   if (!slaveof.empty()) {
     auto sep = static_cast<int32_t>(slaveof.find(':'));
     std::string master_ip = slaveof.substr(0, sep);
@@ -171,7 +171,7 @@ PikaServer::PikaServer()
       SetMaster(master_ip, master_port);
 #ifdef USE_S3
       storage_options_.cloud_fs_options.is_master = false;
-#endif
+#endif // end USE_S3
     }
   }
 
@@ -425,7 +425,7 @@ void PikaServer::InitDBStruct() {
       db.cloud_bucket_suffix = g_pika_conf->cloud_src_bucket_prefix();
       db.cloud_bucket_region = g_pika_conf->cloud_src_bucket_region();
     }
-#endif
+#endif // end USE_S3
   }
 }
 
@@ -1526,7 +1526,7 @@ void PikaServer::InitStorageOptions() {
   cloud_fs_opts.dest_bucket.SetRegion(g_pika_conf->cloud_dest_bucket_region());
   //cloud_fs_opts.upload_meta_func = std::bind(&PikaServer::UploadMetaToSentinel, this,
                                              //std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-#endif
+#endif // end USE_S3
 }
 
 storage::Status PikaServer::RewriteStorageOptions(const storage::OptionType& option_type,
@@ -1997,5 +1997,5 @@ bool PikaServer::UploadMetaToSentinel(const std::string& local_path,
              << " remote path: " << remote_path;
   return false;
 }
-#endif
+#endif // end USE_S3
 

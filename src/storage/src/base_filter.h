@@ -24,7 +24,7 @@
 #include "rocksdb/cloud/db_cloud.h"
 #else
 #include "rocksdb/db.h"
-#endif
+#endif // end USE_S3
 
 namespace storage {
 
@@ -230,7 +230,7 @@ class BaseDataFilter : public rocksdb::CompactionFilter {
   rocksdb::DBCloud* db_ = nullptr;
 #else
   rocksdb::DB* db_ = nullptr;
-#endif
+#endif // end USE_S3
   std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr_ = nullptr;
   rocksdb::ReadOptions default_read_options_;
   mutable std::string cur_key_;
@@ -259,7 +259,7 @@ class BaseDataFilterFactory : public rocksdb::CompactionFilterFactory {
   rocksdb::DBCloud** db_ptr_ = nullptr;
 #else
   rocksdb::DB** db_ptr_ = nullptr;
-#endif
+#endif // end USE_S3
   std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr_ = nullptr;
   enum DataType type_ = DataType::kNones;
 };

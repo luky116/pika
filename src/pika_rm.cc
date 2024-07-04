@@ -178,7 +178,7 @@ Status SyncMasterDB::ReadBinlogFileToWq(const std::shared_ptr<SlaveNode>& slave_
         return Status::Corruption("Binlog item decode failed");
       }
     }
-#endif
+#endif // end USE_S3
 
     BinlogOffset sent_b_offset = BinlogOffset(filenum, offset);
     LogicOffset sent_l_offset;
@@ -188,7 +188,7 @@ Status SyncMasterDB::ReadBinlogFileToWq(const std::shared_ptr<SlaveNode>& slave_
 #else
       sent_l_offset = LogicOffset(item.term_id(), item.logic_id());
     }
-#endif
+#endif // end USE_S3
     LogOffset sent_offset(sent_b_offset, sent_l_offset);
 
     slave_ptr->sync_win.Push(SyncWinItem(sent_offset, msg.size()));
@@ -306,7 +306,7 @@ Status SyncMasterDB::GetSafetyPurgeBinlog(std::string* safety_purge) {
     }
     oldest_filenum = oldest_filenum > 0 ? oldest_filenum - 1 : 0;
     purge_max = std::min(purge_max, oldest_filenum);
-#endif
+#endif // end USE_S3
   }
   *safety_purge = (success ? kBinlogPrefix + std::to_string(static_cast<int32_t>(purge_max)) : "none");
   return Status::OK();
@@ -720,7 +720,7 @@ void PikaReplicaManager::ScheduleWriteDBTask(const std::shared_ptr<Cmd>& cmd_ptr
                                              const std::string& db_name) {
   pika_repl_client_->ScheduleWriteDBTask(cmd_ptr, offset, db_name);
 }
-#endif
+#endif // end USE_S3
 
 void PikaReplicaManager::ReplServerRemoveClientConn(int fd) { pika_repl_server_->RemoveClientConn(fd); }
 
