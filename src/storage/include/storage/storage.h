@@ -24,7 +24,7 @@
 #ifdef USE_S3
 #include "rocksdb/cloud/db_cloud.h"
 #include "rocksdb/cloud/cloud_file_system.h"
-#endif // end USE_S3
+#endif
 
 #include "slot_indexer.h"
 #include "pstd/include/pstd_wal.h"
@@ -78,7 +78,7 @@ struct StorageOptions {
 #ifdef USE_S3
   rocksdb::CloudFileSystemOptions cloud_fs_options;  // rocksdb-cloud option
   int64_t sst_cache_size_ = 10LL << 30;
-#endif // end USE_S3
+#endif
   Status ResetOptions(const OptionType& option_type, const std::unordered_map<std::string, std::string>& options_map);
 };
 
@@ -198,7 +198,7 @@ class Storage {
   Status ApplyWAL(int rocksdb_id, int type, const std::string& content,
       std::unordered_set<std::string>* redis_keys);
   bool ShouldSkip(int rocksdb_id, const std::string& content);
-#endif // end USE_S3
+#endif
 
   Status LoadCursorStartKey(const DataType& dtype, int64_t cursor, char* type, std::string* start_key);
 
@@ -1118,7 +1118,7 @@ class Storage {
 
 #else
   rocksdb::DB* GetDBByIndex(int index);
-#endif // end USE_S3
+#endif
 
   Status SetOptions(const OptionType& option_type, const std::string& db_type,
                     const std::unordered_map<std::string, std::string>& options);

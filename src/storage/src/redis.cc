@@ -39,7 +39,7 @@ Redis::Redis(Storage* const s, int32_t index, std::shared_ptr<pstd::WalWriter> w
       small_compaction_threshold_(5000),
 #ifdef USE_S3
       wal_writer_(wal_writer),
-#endif // end USE_S3
+#endif
       small_compaction_duration_threshold_(10000) {
   statistics_store_ = std::make_unique<LRUCache<std::string, KeyStatistics>>();
   scan_cursors_store_ = std::make_unique<LRUCache<std::string, std::string>>();
@@ -52,7 +52,7 @@ Redis::Redis(Storage* const s, int32_t index, std::shared_ptr<pstd::WalWriter> w
   //env_ = rocksdb::Env::Instance();
 #ifdef USE_S3
   log_listener_ = std::make_shared<LogListener>(index_, this, wal_writer);
-#endif // end USE_S3
+#endif
   handles_.clear();
 }
 
@@ -75,7 +75,7 @@ void Redis::Close() {
   }
 #ifdef USE_S3
   opened_ = false;
-#endif // end USE_S3
+#endif
 }
 
 #ifdef USE_S3

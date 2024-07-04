@@ -92,7 +92,7 @@ class ListsTest : public ::testing::Test {
     cloud_fs_opts.src_bucket.SetBucketName("database.unit.test", "pika.");
     cloud_fs_opts.dest_bucket.SetBucketName("database.unit.test", "pika.");
     storage_options.options.max_log_file_size = 0;
-#endif // end USE_S3
+#endif
     s = db.Open(storage_options, path);
     if (!s.ok()) {
       printf("Open db failed, exit...\n");

@@ -62,7 +62,7 @@ class ListsDataFilter : public rocksdb::CompactionFilter {
   ListsDataFilter(rocksdb::DBCloud* db, std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr, int meta_cf_index)
 #else
   ListsDataFilter(rocksdb::DB* db, std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr, int meta_cf_index)
-#endif // end USE_S3
+#endif
       : db_(db),
         cf_handles_ptr_(cf_handles_ptr),
         meta_cf_index_(meta_cf_index)
@@ -151,7 +151,7 @@ class ListsDataFilter : public rocksdb::CompactionFilter {
   rocksdb::DBCloud* db_ = nullptr;
 #else
   rocksdb::DB* db_ = nullptr;
-#endif // end USE_S3
+#endif
   std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr_ = nullptr;
   rocksdb::ReadOptions default_read_options_;
   mutable std::string cur_key_;
@@ -167,7 +167,7 @@ class ListsDataFilterFactory : public rocksdb::CompactionFilterFactory {
   ListsDataFilterFactory(rocksdb::DBCloud** db_ptr, std::vector<rocksdb::ColumnFamilyHandle*>* handles_ptr, int meta_cf_index)
 #else
   ListsDataFilterFactory(rocksdb::DB** db_ptr, std::vector<rocksdb::ColumnFamilyHandle*>* handles_ptr, int meta_cf_index)
-#endif // end USE_S3
+#endif
       : db_ptr_(db_ptr), cf_handles_ptr_(handles_ptr), meta_cf_index_(meta_cf_index) {}
 
   std::unique_ptr<rocksdb::CompactionFilter> CreateCompactionFilter(
@@ -181,7 +181,7 @@ class ListsDataFilterFactory : public rocksdb::CompactionFilterFactory {
   rocksdb::DBCloud** db_ptr_ = nullptr;
 #else
   rocksdb::DB** db_ptr_ = nullptr;
-#endif // end USE_S3
+#endif
   std::vector<rocksdb::ColumnFamilyHandle*>* cf_handles_ptr_ = nullptr;
   int meta_cf_index_ = 0;
 };
