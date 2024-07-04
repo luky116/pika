@@ -575,7 +575,7 @@ endif()
 set(PROTOBUF_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 set(PROTOBUF_LIBRARY ${INSTALL_LIBDIR}/${LIB_PROTOBUF})
 set(PROTOBUF_PROTOC ${STAGED_INSTALL_PREFIX}/bin/protoc)
-set(USE_S3 0)
+set(USE_S3 1)
 
 ExternalProject_Add(prometheus_cpp
   URL
@@ -812,6 +812,7 @@ aux_source_directory(src DIR_SRCS)
 if(USE_S3)
 	add_compile_definitions(USE_S3)
 else()
+  # skip compile source file used in serverless mode
   list(REMOVE_ITEM DIR_SRCS "src/pika_cloud_binlog.cc")
   list(REMOVE_ITEM DIR_SRCS "src/pika_cloud_binlog_transverter.cc")
 endif()
@@ -839,7 +840,6 @@ endif()
 string(REGEX REPLACE "[^0-9a-fA-F]+" "" PIKA_GIT_SHA "${PIKA_GIT_SHA}")
 string(REGEX REPLACE "[^0-9: /-]+" "" PIKA_GIT_DATE "${PIKA_GIT_DATE}")
 
-message("DIR_SRCS = ${DIR_SRCS}")
 message("pika GIT_SHA = ${PIKA_GIT_SHA}")
 message("pika GIT_MOD = ${PIKA_GIT_MOD}")
 message("pika GIT_DATE = ${PIKA_GIT_DATE}")
