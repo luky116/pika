@@ -128,7 +128,6 @@ class Redis {
   // Common Commands
   Status Open(const StorageOptions& storage_options, const std::string& db_path);
   void Close();
-  Status FlushDB();
 
   virtual Status CompactRange(const DataType& option_type, const rocksdb::Slice* begin, const rocksdb::Slice* end,
                               const ColumnFamilyType& type = kMetaAndData);
@@ -414,6 +413,7 @@ class Redis {
       std::unordered_set<std::string>* redis_keys);
   bool ShouldSkip(const std::string& content);
   Status FlushDBAtSlave();
+  Status FlushDB();
   Status SwitchMaster(bool is_old_master, bool is_new_master);
   void ResetLogListener(std::shared_ptr<rocksdb::ReplicationLogListener> handle) {
     log_listener_ = handle;
@@ -502,7 +502,7 @@ private:
 #endif // end USE_S3
 };
 
-// TODO(wangshaoyi): implement details
+#ifdef USE_S3
 class LogListener : public rocksdb::ReplicationLogListener {
 public:
   LogListener(int rocksdb_id, void* inst, std::shared_ptr<pstd::WalWriter> wal_writer)
@@ -520,6 +520,8 @@ private:
   void* inst_ = nullptr;
   std::shared_ptr<pstd::WalWriter> wal_writer_ = nullptr;
 };
+
+#endif // end USE_S3
 
 class RocksDBEventListener : public rocksdb::EventListener {
 public:

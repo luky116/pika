@@ -109,16 +109,6 @@ Status Storage::Open(const StorageOptions& storage_options, const std::string& d
   return Status::OK();
 }
 
-Status Storage::FlushDB() {
-  for (int index = 0; index < db_instance_num_; index++) {
-    auto s = insts_[index]->FlushDB();
-    if (!s.ok()) {
-      return s;
-    }
-  }
-  return Status::OK();
-}
-
 Status Storage::LoadCursorStartKey(const DataType& dtype, int64_t cursor, char* type, std::string* start_key) {
   std::string index_key = DataTypeTag[dtype] + std::to_string(cursor);
   std::string index_value;
@@ -2489,6 +2479,16 @@ Status Storage::ApplyWAL(int rocksdb_id,
 bool Storage::ShouldSkip(int rocksdb_id, const std::string& content) {
   auto& inst = insts_[rocksdb_id];
   return inst->ShouldSkip(content);
+}
+
+Status Storage::FlushDB() {
+  for (int index = 0; index < db_instance_num_; index++) {
+    auto s = insts_[index]->FlushDB();
+    if (!s.ok()) {
+      return s;
+    }
+  }
+  return Status::OK();
 }
 
 Status Storage::FlushDBAtSlave(int rocksdb_id) {

@@ -48,10 +48,12 @@ class BackupEngine {
 
   Status SetBackupContent();
 
-  Status CreateNewBackup(const std::string& dir);
-
+#ifdef USE_S3
   Status CreateNewCloudBackup(rocksdb::CloudFileSystemOptions& cloud_fs_options,
                               PikaConf* pika_conf) ;
+#else
+  Status CreateNewBackup(const std::string& dir);
+#endif // end USE_S3
 
   void StopBackup();
 
