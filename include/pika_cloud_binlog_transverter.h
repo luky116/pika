@@ -5,7 +5,7 @@
 
 #ifndef PIKA_CLOUD_BINLOG_TRANSVERTER_H_
 #define PIKA_CLOUD_BINLOG_TRANSVERTER_H_
-
+#ifdef USE_S3
 #include <glog/logging.h>
 
 #include <cstdint>
@@ -27,5 +27,7 @@ class PikaCloudBinlogTransverter {
   static bool BinlogItemWithoutContentDecode(const std::string& binlog,
                                              cloud::BinlogCloudItem* binlog_item);
 };
+
+#endif
 
 #endif

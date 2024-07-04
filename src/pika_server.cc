@@ -418,12 +418,14 @@ void PikaServer::InitDBStruct() {
     std::shared_ptr<DB> db_ptr = std::make_shared<DB>(name, db_path, log_path);
     db_ptr->Init();
     dbs_.emplace(name, db_ptr);
-    if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+    {
       db.cloud_endpoint_override = g_pika_conf->cloud_endpoint_override();
       db.cloud_bucket_prefix = g_pika_conf->cloud_src_bucket_prefix();
       db.cloud_bucket_suffix = g_pika_conf->cloud_src_bucket_prefix();
       db.cloud_bucket_region = g_pika_conf->cloud_src_bucket_region();
     }
+#endif
   }
 }
 
