@@ -65,13 +65,14 @@ void PikaReplServerConn::HandleMetaSyncRequest(void* arg) {
          */
         db_info->set_slot_num(1);
         db_info->set_db_instance_num(db_struct.db_instance_num);
-        if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+        PIKA_CLOUD {
           db_info->set_cloud_endpoint_override(db_struct.cloud_endpoint_override);
           db_info->set_cloud_bucket_prefix(db_struct.cloud_bucket_prefix);
           db_info->set_cloud_bucket_suffix(db_struct.cloud_bucket_suffix);
           db_info->set_cloud_bucket_region(db_struct.cloud_bucket_region);
         }
-      }
+#endif
     }
   }
 
@@ -123,7 +124,8 @@ void PikaReplServerConn::HandleTrySyncRequest(void* arg) {
     response.set_code(InnerMessage::kOk);
   }
   //In cloud mode, only full synchronization is possible.
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+  {
     if (pre_success) {
       if (!db->CheckSlaveNodeExist(node.ip(), node.port())) {
         try_sync_response->set_reply_code(InnerMessage::InnerResponse::TrySync::kSyncPointBePurged);
@@ -131,11 +133,14 @@ void PikaReplServerConn::HandleTrySyncRequest(void* arg) {
         TrySyncUpdateSlaveNode(db, try_sync_request, conn, try_sync_response);
       }
     }
-  } else {
+  }
+#else
+  {
     if (pre_success && TrySyncOffsetCheck(db, try_sync_request, try_sync_response)) {
       TrySyncUpdateSlaveNode(db, try_sync_request, conn, try_sync_response);
     }
   }
+#endif
 
   std::string reply_str;
   if (!response.SerializeToString(&reply_str) || (conn->WriteResp(reply_str) != 0)) {

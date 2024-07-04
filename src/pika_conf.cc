@@ -486,8 +486,6 @@ int PikaConf::Load() {
   int cache_num = 16;
   GetConfInt("cache-num", &cache_num);
   cache_num_ = (0 >= cache_num || 48 < cache_num) ? 16 : cache_num;
-  //todo: pika init pika_mode from conf
-  pika_mode_ = PIKA_CLOUD;
 
   int cache_model = 0;
   GetConfInt("cache-model", &cache_model);

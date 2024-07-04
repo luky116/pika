@@ -166,24 +166,29 @@ Status SyncMasterDB::ReadBinlogFileToWq(const std::shared_ptr<SlaveNode>& slave_
     }
     BinlogItem item;
     cloud::BinlogCloudItem cloud_item;
-    if (g_pika_conf->pika_mode() == PIKA_CLOUD){
+
+#ifdef USE_S3
+    {
       if (!PikaCloudBinlogTransverter::BinlogItemWithoutContentDecode(msg, &cloud_item)) {
         return Status::Corruption("Binlog item decode failed");
       }
-    } else {
+#else
       if (!PikaBinlogTransverter::BinlogItemWithoutContentDecode(TypeFirst, msg, &item)) {
         LOG(WARNING) << "Binlog item decode failed";
         return Status::Corruption("Binlog item decode failed");
       }
     }
+#endif
 
     BinlogOffset sent_b_offset = BinlogOffset(filenum, offset);
     LogicOffset sent_l_offset;
-    if (g_pika_conf->pika_mode() == PIKA_CLOUD){
+#ifdef USE_S3
+    {
       sent_l_offset = LogicOffset(cloud_item.term_id(), 0);
-    } else {
+#else
       sent_l_offset = LogicOffset(item.term_id(), item.logic_id());
     }
+#endif
     LogOffset sent_offset(sent_b_offset, sent_l_offset);
 
     slave_ptr->sync_win.Push(SyncWinItem(sent_offset, msg.size()));

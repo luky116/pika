@@ -5,7 +5,7 @@
 
 #ifndef PIKA_CLOUD_BINLOG_H_
 #define PIKA_CLOUD_BINLOG_H_
-
+#ifdef USE_S3
 #include <atomic>
 
 #include "pstd/include/env.h"
@@ -114,5 +114,5 @@ class CloudBinlog : public Binlog {
 
   std::unordered_map<int, uint32_t> binlog_to_keep_;
 };
-
+#endif
 #endif
