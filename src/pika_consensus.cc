@@ -32,7 +32,7 @@ Status Context::StableSave() {
   memcpy(p, &(applied_index_.b_offset.offset), sizeof(uint64_t));
   p += 8;
   memcpy(p, &(applied_index_.l_offset.term), sizeof(uint32_t));
-#ifdef USE_S3
+#ifndef USE_S3
   {
     p += 4;
     memcpy(p, &(applied_index_.l_offset.index), sizeof(uint64_t));
