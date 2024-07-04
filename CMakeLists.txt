@@ -803,6 +803,10 @@ endif()
 set(ROCKSDB_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 set(ROCKSDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${EP_BASE_SUFFIX}/Source/rocksdb)
 
+if(USE_S3)
+	add_compile_definitions(USE_S3)
+endif()
+
 add_subdirectory(src/pstd)
 add_subdirectory(src/net)
 add_subdirectory(src/storage)
@@ -812,9 +816,7 @@ if (USE_PIKA_TOOLS)
 endif()
 aux_source_directory(src DIR_SRCS)
 
-if(USE_S3)
-	add_compile_definitions(USE_S3)
-else()
+if(!USE_S3)
   # skip compile source file used in serverless mode
   list(REMOVE_ITEM DIR_SRCS "src/pika_cloud_binlog.cc")
   list(REMOVE_ITEM DIR_SRCS "src/pika_cloud_binlog_transverter.cc")
