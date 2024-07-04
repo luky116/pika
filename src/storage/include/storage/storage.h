@@ -195,6 +195,9 @@ class Storage {
 #ifdef USE_S3
   Status FlushDBAtSlave(int rocksdb_id);
   Status FlushDB();
+  Status ApplyWAL(int rocksdb_id, int type, const std::string& content,
+      std::unordered_set<std::string>* redis_keys);
+  bool ShouldSkip(int rocksdb_id, const std::string& content);
 #endif // end USE_S3
 
   Status LoadCursorStartKey(const DataType& dtype, int64_t cursor, char* type, std::string* start_key);
@@ -204,11 +207,6 @@ class Storage {
   std::unique_ptr<Redis>& GetDBInstance(const Slice& key);
 
   std::unique_ptr<Redis>& GetDBInstance(const std::string& key);
-
-  Status ApplyWAL(int rocksdb_id, int type, const std::string& content,
-      std::unordered_set<std::string>* redis_keys);
-
-  bool ShouldSkip(int rocksdb_id, const std::string& content);
 
   // Set key to hold the string value. if key
   // already holds a value, it is overwritten

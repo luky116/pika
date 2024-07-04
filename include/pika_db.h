@@ -154,6 +154,7 @@ class DB : public std::enable_shared_from_this<DB>, public pstd::noncopyable {
   bool IsBgSaving();
   BgSaveInfo bgsave_info();
   pstd::Status GetKeyNum(std::vector<storage::KeyInfo>* key_info);
+#ifdef USE_S3
   /*
    * Switch Master/Slave role use
    */
@@ -161,6 +162,7 @@ class DB : public std::enable_shared_from_this<DB>, public pstd::noncopyable {
 
   rocksdb::Status ApplyWAL(int rocksdb_id,
                            int type, const std::string& content);
+#endif //end USE_S3
 
  private:
   bool opened_ = false;
