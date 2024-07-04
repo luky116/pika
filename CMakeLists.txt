@@ -575,7 +575,7 @@ endif()
 set(PROTOBUF_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 set(PROTOBUF_LIBRARY ${INSTALL_LIBDIR}/${LIB_PROTOBUF})
 set(PROTOBUF_PROTOC ${STAGED_INSTALL_PREFIX}/bin/protoc)
-set(USE_S3 1)
+option(USE_S3 "use pika serverless" OFF)
 
 ExternalProject_Add(prometheus_cpp
   URL
@@ -813,7 +813,7 @@ if (USE_PIKA_TOOLS)
 endif()
 aux_source_directory(src DIR_SRCS)
 
-if(!USE_S3)
+if(NOT USE_S3)
   # skip compile source file used in serverless mode
   list(REMOVE_ITEM DIR_SRCS "src/pika_cloud_binlog.cc")
   list(REMOVE_ITEM DIR_SRCS "src/pika_cloud_binlog_transverter.cc")

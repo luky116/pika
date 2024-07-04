@@ -147,12 +147,17 @@ if [[ "${ARGS[0]}" = "tools" ]]; then
   use_pika_tools="-DUSE_PIKA_TOOLS=ON"
 fi
 
+use_s3=""
+if [[ "${USE_S3}" = "1" ]]; then
+  use_pika_tools="-DUSE_S3=ON"
+fi
+
 with_command_docs=""
 if [ "${WITH_COMMAND_DOCS}" = "ON" ]; then
   with_command_docs="-DWITH_COMMAND_DOCS=ON"
 fi
 
-${CMAKE} ${use_pika_tools} ${with_command_docs} .. .
+${CMAKE} ${use_pika_tools} ${with_command_docs} ${use_s3} .. .
 
 if [ $? -ne 0 ]; then
     echo -e "${C_RED} cmake execution error ${C_END}"
