@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <unordered_map>
 
+#ifdef USE_S3
 #include <aws/core/Aws.h>
 #include <aws/core/auth/AWSCredentials.h>
 #include <aws/core/utils/json/JsonSerializer.h>
@@ -19,6 +20,7 @@
 #include <aws/s3/model/DeleteBucketRequest.h>
 #include <aws/s3/model/DeleteObjectRequest.h>
 #include <aws/s3/model/ListObjectsRequest.h>
+#endif // end USE_S3
 #include <glog/logging.h>
 
 #include "include/build_version.h"
@@ -31,7 +33,9 @@
 #include "include/throttle.h"
 
 using pstd::Status;
+#ifdef USE_S3
 using namespace Aws::Utils;
+#endif // end USE_S3
 
 extern PikaServer* g_pika_server;
 extern std::unique_ptr<PikaReplicaManager> g_pika_rm;
@@ -3529,6 +3533,7 @@ void ClearCacheCmd::Do() {
 }
 
 void PKPingCmd::DoInitial() {
+#ifdef USE_S3
   if (!CheckArg(argv_.size())) {
     res_.SetRes(CmdRes::kWrongNum, kCmdPkPing);
     return;
@@ -3559,7 +3564,6 @@ void PKPingCmd::DoInitial() {
     }
   }
 
- #ifdef USE_S3
   if(g_pika_server->role() == PIKA_ROLE_MASTER) {
     for (auto const& slave : g_pika_server->slaves_) {
       if (std::find(masters_addr_.begin(), masters_addr_.end(), slave.ip_port) != masters_addr_.end()) {
@@ -3572,10 +3576,14 @@ void PKPingCmd::DoInitial() {
 }
 
 void PKPingCmd::Do() {
+#ifdef USE_S3
   std::string info;
   InfoCmd cmd(kCmdNameSlotsInfo, -1, kCmdFlagsRead | kCmdFlagsAdmin | kCmdFlagsSlow);
   cmd.InfoReplication(info);
   res_.AppendString(info);
+#else
+  res_.SetRes(CmdRes::kErrOther, "not supported");
+#endif // end USE_S3
 }
 
 #ifdef WITH_COMMAND_DOCS

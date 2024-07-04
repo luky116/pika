@@ -5,10 +5,13 @@
 
 #include <sstream>
 
+#ifdef USE_S3
+#include "cloud/filename.h"
+#endif
+
 #include "rocksdb/env.h"
 #include "db/write_batch_internal.h"
 #include "file/filename.h"
-#include "cloud/filename.h"
 
 #include "src/redis.h"
 #include "rocksdb/options.h"
@@ -37,8 +40,10 @@ Redis::Redis(Storage* const s, int32_t index, std::shared_ptr<pstd::WalWriter> w
     : storage_(s), index_(index),
       lock_mgr_(std::make_shared<LockMgr>(1000, 0, std::make_shared<MutexFactoryImpl>())),
       small_compaction_threshold_(5000),
-      small_compaction_duration_threshold_(10000),
-      wal_writer_(wal_writer) {
+#ifdef USE_S3
+      wal_writer_(wal_writer),
+#endif // end USE_S3
+      small_compaction_duration_threshold_(10000) {
   statistics_store_ = std::make_unique<LRUCache<std::string, KeyStatistics>>();
   scan_cursors_store_ = std::make_unique<LRUCache<std::string, std::string>>();
   spop_counts_store_ = std::make_unique<LRUCache<std::string, size_t>>();
@@ -76,6 +81,7 @@ void Redis::Close() {
 #endif // end USE_S3
 }
 
+#ifdef USE_S3
 Status Redis::FlushDBAtSlave() {
   Close();
   pstd::DeleteDir(db_path_);
@@ -113,6 +119,7 @@ Status Redis::FlushDB() {
   wal_writer_->Put("flushdb", 0/*db_id*/, index_, static_cast<uint32_t>(RocksDBRecordType::kFlushDB));
   return s;
 }
+#endif // end USE_S3
 
 Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string& db_path) {
 

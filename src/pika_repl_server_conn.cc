@@ -72,8 +72,8 @@ void PikaReplServerConn::HandleMetaSyncRequest(void* arg) {
           db_info->set_cloud_bucket_suffix(db_struct.cloud_bucket_suffix);
           db_info->set_cloud_bucket_region(db_struct.cloud_bucket_region);
         }
-      }
 #endif // end USE_S3
+      }
     }
   }
 

@@ -75,6 +75,7 @@ void DB::BgSaveDB() {
   g_pika_server->BGSaveTaskSchedule(&DoBgSave, static_cast<void*>(bg_task_arg));
 }
 
+#ifdef USE_S3
 void DB::CloudBgSaveDB() {
   std::shared_lock l(dbs_rw_);
   std::lock_guard ml(bgsave_protector_);
@@ -87,6 +88,7 @@ void DB::CloudBgSaveDB() {
   bg_task_arg->cloud_fs_options = g_pika_server->storage_options().cloud_fs_options;
   g_pika_server->BGSaveTaskSchedule(&DoCloudBgSave, static_cast<void*>(bg_task_arg));
 }
+#endif
 
 void DB::SetBinlogIoError() { return binlog_io_error_.store(true); }
 void DB::SetBinlogIoErrorrelieve() { return binlog_io_error_.store(false); }
@@ -271,11 +273,13 @@ void DB::DoBgSave(void* arg) {
   bg_task_arg->db->FinishBgsave();
 }
 
+#ifdef USE_S3
 void DB::DoCloudBgSave(void* arg) {
   std::unique_ptr<BgTaskArg> bg_task_arg(static_cast<BgTaskArg*>(arg));
   bg_task_arg->db->RunCloudBgsaveEngine(bg_task_arg->cloud_fs_options);
   bg_task_arg->db->FinishCloudBgsave();
 }
+#endif //end USE_S3
 
 bool DB::RunBgsaveEngine() {
   // Prepare for Bgsaving
@@ -303,6 +307,7 @@ bool DB::RunBgsaveEngine() {
   return true;
 }
 
+#ifdef USE_S3
 void DB::RunCloudBgsaveEngine(rocksdb::CloudFileSystemOptions& cloud_fs_options) {
   rocksdb::Status s = bgsave_engine_->CreateNewCloudBackup(cloud_fs_options, g_pika_conf.get());
   if (!s.ok()) {
@@ -311,6 +316,7 @@ void DB::RunCloudBgsaveEngine(rocksdb::CloudFileSystemOptions& cloud_fs_options)
   }
   LOG(INFO) << db_name_ << " create new cloud backup finished.";
 }
+#endif // end USE_S3
 
 BgSaveInfo DB::bgsave_info() {
   std::lock_guard l(bgsave_protector_);
@@ -323,10 +329,12 @@ void DB::FinishBgsave() {
   g_pika_server->UpdateLastSave(time(nullptr));
 }
 
+#ifdef USE_S3
 void DB::FinishCloudBgsave() {
   std::lock_guard l(bgsave_protector_);
   bgsave_info_.bgsaving = false;
 }
+#endif // end USE_S3
 
 // Prepare engine, need bgsave_protector protect
 bool DB::InitBgsaveEnv() {
@@ -656,6 +664,7 @@ bool DB::FlushDB() {
   return FlushDBWithoutLock();
 }
 
+#ifdef USE_S3
 rocksdb::Status DB::SwitchMaster(bool is_old_master, bool is_new_master) {
   return storage_->SwitchMaster(is_old_master, is_new_master);
 }
@@ -680,3 +689,4 @@ rocksdb::Status DB::ApplyWAL(int rocksdb_id,
   }
   return s;
 }
+#endif // end USE_S3

@@ -578,7 +578,7 @@ endif()
 set(PROTOBUF_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 set(PROTOBUF_LIBRARY ${INSTALL_LIBDIR}/${LIB_PROTOBUF})
 set(PROTOBUF_PROTOC ${STAGED_INSTALL_PREFIX}/bin/protoc)
-set(USE_S3 1)
+set(USE_S3 0)
 
 ExternalProject_Add(prometheus_cpp
   URL
@@ -803,10 +803,6 @@ endif()
 set(ROCKSDB_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 set(ROCKSDB_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${EP_BASE_SUFFIX}/Source/rocksdb)
 
-if(USE_S3)
-	add_compile_definitions(USE_S3)
-endif()
-
 add_subdirectory(src/pstd)
 add_subdirectory(src/net)
 add_subdirectory(src/storage)
@@ -815,6 +811,13 @@ if (USE_PIKA_TOOLS)
   add_subdirectory(tools)
 endif()
 aux_source_directory(src DIR_SRCS)
+
+if(USE_S3)
+	add_compile_definitions(USE_S3)
+else()
+  list(REMOVE_ITEM DIR_SRCS "src/pika_cloud_binlog.cc")
+  list(REMOVE_ITEM DIR_SRCS "src/pika_cloud_binlog_transverter.cc")
+endif()
 
 # generate version
 string(TIMESTAMP TS "%Y-%m-%d %H:%M:%S" UTC)
@@ -839,6 +842,7 @@ endif()
 string(REGEX REPLACE "[^0-9a-fA-F]+" "" PIKA_GIT_SHA "${PIKA_GIT_SHA}")
 string(REGEX REPLACE "[^0-9: /-]+" "" PIKA_GIT_DATE "${PIKA_GIT_DATE}")
 
+message("DIR_SRCS = ${DIR_SRCS}")
 message("pika GIT_SHA = ${PIKA_GIT_SHA}")
 message("pika GIT_MOD = ${PIKA_GIT_MOD}")
 message("pika GIT_DATE = ${PIKA_GIT_DATE}")
