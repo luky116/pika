@@ -614,58 +614,34 @@ public:
 
   Status DeleteCF(uint32_t column_family_id, const Slice& key) override {
     switch (column_family_id) {
-      case kStringsCF: {
+      case kMetaCF: {
         ParsedBaseKey pbk(key);
-        redis_keys_->insert("K" + pbk.Key().ToString());
-        break;
-      }
-      case kHashesMetaCF: {
-        ParsedBaseMetaKey pbk(key);
-        redis_keys_->insert("H" + pbk.Key().ToString());
+        redis_keys_->insert(pbk.Key().ToString());
         break;
       }
       case kHashesDataCF: {
         ParsedHashesDataKey pbk(key);
-        redis_keys_->insert("H" + pbk.Key().ToString());
-        break;
-      }
-      case kSetsMetaCF: {
-        ParsedBaseMetaKey pbk(key);
-        redis_keys_->insert("S" + pbk.Key().ToString());
+        redis_keys_->insert(pbk.Key().ToString());
         break;
       }
       case kSetsDataCF: {
         ParsedSetsMemberKey pbk(key);
-        redis_keys_->insert("S" + pbk.Key().ToString());
-        break;
-      }
-      case kListsMetaCF: {
-        ParsedBaseMetaKey pbk(key);
-        redis_keys_->insert("L" + pbk.Key().ToString());
+        redis_keys_->insert(pbk.Key().ToString());
         break;
       }
       case kListsDataCF: {
         ParsedListsDataKey pbk(key);
-        redis_keys_->insert("L" + pbk.key().ToString());
-        break;
-      }
-      case kZsetsMetaCF: {
-        ParsedBaseMetaKey pbk(key);
-        redis_keys_->insert("Z" + pbk.Key().ToString());
+        redis_keys_->insert(pbk.key().ToString());
         break;
       }
       case kZsetsDataCF: {
         ParsedZSetsMemberKey pbk(key);
-        redis_keys_->insert("Z" + pbk.Key().ToString());
+        redis_keys_->insert(pbk.Key().ToString());
         break;
       }
       case kZsetsScoreCF: {
         ParsedZSetsScoreKey pbk(key);
-        redis_keys_->insert("Z" + pbk.key().ToString());
-        break;
-      }
-      case kStreamsMetaCF: {
-        LOG(INFO) << "rediscache don't cache stream type";
+        redis_keys_->insert(pbk.key().ToString());
         break;
       }
       case kStreamsDataCF: {

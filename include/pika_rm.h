@@ -187,8 +187,8 @@ class PikaReplicaManager {
   void ScheduleWriteDBTask(ReplClientWriteDBTaskArg* arg);
 #else
   void ScheduleWriteDBTask(const std::shared_ptr<Cmd>& cmd_ptr, const LogOffset& offset, const std::string& db_name);
-  void ScheduleReplClientBGTaskByDBName(net::TaskFunc , void* arg, const std::string &db_name);
 #endif // end USE_S3
+  void ScheduleReplClientBGTaskByDBName(net::TaskFunc , void* arg, const std::string &db_name);
   void ReplServerRemoveClientConn(int fd);
   void ReplServerUpdateClientConnMap(const std::string& ip_port, int fd);
 
