@@ -658,12 +658,6 @@ void DB::ResetDisplayCacheInfo(int status) {
   cache_usage_ = 0;
 }
 
-bool DB::FlushDB() {
-  std::lock_guard rwl(db_rwlock_);
-  std::lock_guard l(bgsave_protector_);
-  return FlushDBWithoutLock();
-}
-
 #ifdef USE_S3
 rocksdb::Status DB::SwitchMaster(bool is_old_master, bool is_new_master) {
   return storage_->SwitchMaster(is_old_master, is_new_master);

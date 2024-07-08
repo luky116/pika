@@ -19,6 +19,7 @@
 #include "src/pika_stream_meta_value.h"
 #include "src/strings_value_format.h"
 #include "src/zsets_data_key_format.h"
+#include "src/base_key_format.h"
 #include "src/debug.h"
 #ifdef USE_S3
 #include "rocksdb/cloud/db_cloud.h"
@@ -247,7 +248,7 @@ class BaseDataFilterFactory : public rocksdb::CompactionFilterFactory {
 #else
   BaseDataFilterFactory(rocksdb::DB** db_ptr, std::vector<rocksdb::ColumnFamilyHandle*>* handles_ptr, enum DataType type)
 #endif
-      : db_ptr_(db_ptr), cf_handles_ptr_(handles_ptr), meta_cf_index_(meta_cf_index) {}
+      : db_ptr_(db_ptr), cf_handles_ptr_(handles_ptr), type_(type) {}
   std::unique_ptr<rocksdb::CompactionFilter> CreateCompactionFilter(
       const rocksdb::CompactionFilter::Context& context) override {
     return std::make_unique<BaseDataFilter>(BaseDataFilter(*db_ptr_, cf_handles_ptr_, type_));
