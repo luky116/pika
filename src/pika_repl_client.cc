@@ -126,6 +126,7 @@ size_t PikaReplClient::GetBinlogWorkerIndexByDBName(const std::string &db_name) 
     }
     return db_num % write_binlog_workers_.size();
 }
+#endif // end USE_S3
 
 size_t PikaReplClient::GetHashIndexByKey(const std::string& key) {
   size_t hash_base = write_db_workers_.size();

@@ -2000,4 +2000,3 @@ bool PikaServer::UploadMetaToSentinel(const std::string& local_path,
   return false;
 }
 #endif // end USE_S3
-
