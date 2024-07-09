@@ -14,6 +14,7 @@
 #include <memory>
 #include <utility>
 
+#ifdef USE_S3
 #include <aws/core/http/curl/CurlHttpClient.h>
 #include <aws/core/http/HttpRequest.h>
 #include <aws/core/http/HttpResponse.h>
@@ -27,6 +28,7 @@
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
+#endif // end USE_S3
 
 #include "net/include/net_cli.h"
 #include "net/include/net_interfaces.h"
@@ -44,9 +46,11 @@
 #include "include/pika_rm.h"
 #include "include/pika_server.h"
 
+#ifdef USE_S3
 using namespace Aws::Http;
 using namespace Aws::Utils;
 using namespace Aws::Client;
+#endif // end USE_S3
 
 using pstd::Status;
 extern PikaServer* g_pika_server;
@@ -56,6 +60,7 @@ extern std::unique_ptr<net::NetworkStatistic> g_network_statistic;
 // QUEUE_SIZE_THRESHOLD_PERCENTAGE is used to represent a percentage value and should be within the range of 0 to 100.
 const size_t QUEUE_SIZE_THRESHOLD_PERCENTAGE = 75;
 
+#ifdef USE_S3
 namespace {
 char * base64Encode(const char *buffer, int length, bool newLine)
 {
@@ -100,6 +105,7 @@ char * base64Decode(char *input, int length, bool newLine)
 	return buffer;
 }
 }
+#endif // end USE_S3
 
 void DoPurgeDir(void* arg) {
   std::unique_ptr<std::string> path(static_cast<std::string*>(arg));
