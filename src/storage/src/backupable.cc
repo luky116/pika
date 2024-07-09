@@ -117,6 +117,28 @@ Status BackupEngine::WaitBackupPthread() {
   return s;
 }
 
+std::string GenBackUpDirectory(std::string& db_path) {
+  // dbpath :1."db/"、2."db"、3."bak/db"
+  size_t lastSepPos = db_path.rfind('/');
+  if (lastSepPos != std::string::npos) {
+    if (db_path.back() == '/') {
+      db_path.replace(lastSepPos, std::string::npos, "_bak/");
+      return db_path;
+    } else {
+      return db_path + "_bak/";
+    }
+  } else {
+    return db_path.append("_bak/");
+  }
+}
+
+std::string DBPath(const std::string& path, const std::string& db_name) {
+  char buf[100];
+  snprintf(buf, sizeof(buf), "%s/", db_name.data());
+  return path + buf;
+}
+
+#ifndef USE_S3
 Status BackupEngine::CreateNewBackup(const std::string& dir) {
   Status s = Status::OK();
   // ensure cleaning up the pointers after the function has finished.
@@ -143,28 +165,7 @@ Status BackupEngine::CreateNewBackup(const std::string& dir) {
 
   return s;
 }
-
-std::string GenBackUpDirectory(std::string& db_path) {
-  // dbpath :1."db/"、2."db"、3."bak/db"
-  size_t lastSepPos = db_path.rfind('/');
-  if (lastSepPos != std::string::npos) {
-    if (db_path.back() == '/') {
-      db_path.replace(lastSepPos, std::string::npos, "_bak/");
-      return db_path;
-    } else {
-      return db_path + "_bak/";
-    }
-  } else {
-    return db_path.append("_bak/");
-  }
-}
-
-std::string DBPath(const std::string& path, const std::string& db_name) {
-  char buf[100];
-  snprintf(buf, sizeof(buf), "%s/", db_name.data());
-  return path + buf;
-}
-
+#else
 Status BackupEngine::CreateNewCloudBackup(rocksdb::CloudFileSystemOptions& cloud_fs_options,
                                           PikaConf* pika_conf) {
   Status s = Status::OK();
@@ -208,6 +209,7 @@ Status BackupEngine::CreateNewCloudBackup(rocksdb::CloudFileSystemOptions& cloud
   return s;
 }
 
+#endif // end USE_S3
 
 void BackupEngine::StopBackup() {
   // DEPRECATED

@@ -88,7 +88,7 @@ void PikaReplClient::ScheduleWriteDBTask(const std::shared_ptr<Cmd>& cmd_ptr, co
   auto task_arg = new ReplClientWriteDBTaskArg(cmd_ptr, offset, db_name);
   bg_workers_[index]->Schedule(&PikaReplBgWorker::HandleBGWorkerWriteDB, static_cast<void*>(task_arg));
 }
-#endif
+#endif // end USE_S3
 
 size_t PikaReplClient::GetHashIndex(const std::string& key, bool upper_half) {
   size_t hash_base = bg_workers_.size() / 2;

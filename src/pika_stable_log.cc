@@ -23,11 +23,15 @@ extern std::unique_ptr<PikaReplicaManager> g_pika_rm;
 
 StableLog::StableLog(std::string db_name, std::string log_path)
     : purging_(false), db_name_(std::move(db_name)), log_path_(std::move(log_path)) {
-  if (g_pika_conf->pika_mode() == PIKA_LOCAL) {
+#ifndef USE_S3
+  {
     stable_logger_ = std::make_shared<Binlog>(log_path_, g_pika_conf->binlog_file_size());
-  } else if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+  }
+#else
+  {
     stable_logger_ = std::make_shared<CloudBinlog>(log_path_, g_pika_conf->binlog_file_size());
   }
+#endif // end USE_S3
   std::map<uint32_t, std::string> binlogs;
   if (!GetBinlogFiles(&binlogs)) {
     LOG(FATAL) << log_path_ << " Could not get binlog files!";
@@ -188,7 +192,8 @@ void StableLog::UpdateFirstOffset(uint32_t filenum) {
       LOG(WARNING) << "Binlog reader get failed";
       return;
     }
-    if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+    {
       if (!PikaCloudBinlogTransverter::BinlogItemWithoutContentDecode(binlog, &cloud_item)) {
         LOG(WARNING) << "Cloud Binlog item decode failed";
         return;
@@ -197,7 +202,9 @@ void StableLog::UpdateFirstOffset(uint32_t filenum) {
       if (cloud_item.exec_time() != 0) {
         break;
       }
-    } else {
+    }
+#else
+    {
       if (!PikaBinlogTransverter::BinlogItemWithoutContentDecode(TypeFirst, binlog, &item)) {
         LOG(WARNING) << "Binlog item decode failed";
         return;
@@ -207,16 +214,21 @@ void StableLog::UpdateFirstOffset(uint32_t filenum) {
         break;
       }
     }
+#endif // end USE_S3
   }
 
   std::lock_guard l(offset_rwlock_);
   first_offset_.b_offset = offset;
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+  {
     first_offset_.l_offset.term = cloud_item.term_id();
-  } else {
+  }
+#else
+  {
     first_offset_.l_offset.term = item.term_id();
     first_offset_.l_offset.index = item.logic_id();
   }
+#endif // end USE_S3
 }
 
 Status StableLog::PurgeFileAfter(uint32_t filenum) {

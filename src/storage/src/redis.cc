@@ -5,10 +5,13 @@
 
 #include <sstream>
 
+#ifdef USE_S3
+#include "cloud/filename.h"
+#endif
+
 #include "rocksdb/env.h"
 #include "db/write_batch_internal.h"
 #include "file/filename.h"
-#include "cloud/filename.h"
 
 #include "src/redis.h"
 #include "rocksdb/options.h"
@@ -34,8 +37,10 @@ Redis::Redis(Storage* const s, int32_t index, std::shared_ptr<pstd::WalWriter> w
     : storage_(s), index_(index),
       lock_mgr_(std::make_shared<LockMgr>(1000, 0, std::make_shared<MutexFactoryImpl>())),
       small_compaction_threshold_(5000),
-      small_compaction_duration_threshold_(10000),
-      wal_writer_(wal_writer) {
+#ifdef USE_S3
+      wal_writer_(wal_writer),
+#endif
+      small_compaction_duration_threshold_(10000) {
   statistics_store_ = std::make_unique<LRUCache<std::string, KeyStatistics>>();
   scan_cursors_store_ = std::make_unique<LRUCache<std::string, std::string>>();
   spop_counts_store_ = std::make_unique<LRUCache<std::string, size_t>>();
@@ -73,6 +78,7 @@ void Redis::Close() {
 #endif
 }
 
+#ifdef USE_S3
 Status Redis::FlushDBAtSlave() {
   Close();
   pstd::DeleteDir(db_path_);
@@ -94,12 +100,12 @@ Status Redis::FlushDB() {
     return s;
   }
   s = cfs_->DeleteCloudObject(s3_bucket, MakeCloudManifestFile(db_path_, ""));
-  LOG(INFO) << "deletecloudmanifestfromdest tatus: " << s.ToString(); 
+  LOG(INFO) << "deletecloudmanifestfromdest tatus: " << s.ToString();
   if (!s.ok()) {
     return s;
   }
   s = cfs_->DeleteCloudObject(s3_bucket, rocksdb::IdentityFileName(db_path_));
-  LOG(INFO) << "deleteidentityfile status: " << s.ToString(); 
+  LOG(INFO) << "deleteidentityfile status: " << s.ToString();
   if (!s.ok()) {
     return s;
   }
@@ -110,6 +116,7 @@ Status Redis::FlushDB() {
   wal_writer_->Put("flushdb", 0/*db_id*/, index_, static_cast<uint32_t>(RocksDBRecordType::kFlushDB));
   return s;
 }
+#endif // end USE_S3
 
 Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string& db_path) {
 
@@ -133,7 +140,7 @@ Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string&
   }
   storage_options.options.atomic_flush = true;
   storage_options.options.avoid_flush_during_shutdown = true;
-#endif
+#endif // end USE_S3
 
   statistics_store_->SetCapacity(storage_options.statistics_max_size);
   small_compaction_threshold_ = storage_options.small_compaction_threshold;
@@ -273,7 +280,7 @@ Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string&
   auto s = rocksdb::DB::Open(db_ops, db_path, column_families, &handles_, &db_);
   opened_ = true;
   return s;
-#endif
+#endif // end USE_S3
 }
 
 Status Redis::GetScanStartPoint(const DataType& type, const Slice& key, const Slice& pattern, int64_t cursor, std::string* start_point) {
@@ -589,7 +596,7 @@ Status Redis::ReOpenRocksDB(const storage::StorageOptions& opt) {
 }
 
 Status Redis::SwitchMaster(bool is_old_master, bool is_new_master) {
-  LOG(WARNING) << "switchMaster from " << (is_old_master ? "master" : "slave") 
+  LOG(WARNING) << "switchMaster from " << (is_old_master ? "master" : "slave")
                << " to " << (is_new_master ? "master" : "slave");
   if (is_old_master && is_new_master) {
     // Do nothing
@@ -747,7 +754,7 @@ Status Redis::ApplyWAL(int type, const std::string& content,
   if (type != 0) {
     return s;
   }
-  
+
   rocksdb::WriteBatch batch;
   s = rocksdb::WriteBatchInternal::SetContents(&batch, content);
   WriteBatchHandler handler(redis_keys);
@@ -779,5 +786,5 @@ std::string LogListener::OnReplicationLogRecord(rocksdb::ReplicationLogRecord re
   }
   return "";
 }
-#endif
+#endif // end USE_S3
 }  // namespace storage

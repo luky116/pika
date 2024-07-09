@@ -24,10 +24,10 @@
 #ifdef USE_S3
 #include "rocksdb/cloud/db_cloud.h"
 #include "rocksdb/cloud/cloud_file_system.h"
-#include "pstd/include/pstd_wal.h"
 #endif
 
 #include "slot_indexer.h"
+#include "pstd/include/pstd_wal.h"
 #include "pstd/include/pstd_mutex.h"
 
 namespace storage {
@@ -192,7 +192,13 @@ class Storage {
 
   Status Open(const StorageOptions& storage_options, const std::string& db_path, std::shared_ptr<pstd::WalWriter> wal_writer = nullptr);
 
+#ifdef USE_S3
+  Status FlushDBAtSlave(int rocksdb_id);
   Status FlushDB();
+  Status ApplyWAL(int rocksdb_id, int type, const std::string& content,
+      std::unordered_set<std::string>* redis_keys);
+  bool ShouldSkip(int rocksdb_id, const std::string& content);
+#endif
 
   Status LoadCursorStartKey(const DataType& dtype, int64_t cursor, char* type, std::string* start_key);
 
@@ -201,14 +207,6 @@ class Storage {
   std::unique_ptr<Redis>& GetDBInstance(const Slice& key);
 
   std::unique_ptr<Redis>& GetDBInstance(const std::string& key);
-
-  Status ApplyWAL(int rocksdb_id, int type, const std::string& content,
-      std::unordered_set<std::string>* redis_keys);
-
-  bool ShouldSkip(int rocksdb_id, const std::string& content);
-  Status FlushDBAtSlave(int rocksdb_id);
-
-  // Strings Commands
 
   // Set key to hold the string value. if key
   // already holds a value, it is overwritten

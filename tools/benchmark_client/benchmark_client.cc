@@ -881,7 +881,7 @@ Status RunLRangeCommand(redisContext*& c, ThreadArg* arg) {
 
 void* ThreadMain(void* arg) {
   ThreadArg* ta = reinterpret_cast<ThreadArg*>(arg);
-  last_seed = ta->tid;
+  last_seed = uint64_t(ta->tid);
 
   if (FLAGS_command == "generate") {
     RunGenerateCommand(ta->idx);

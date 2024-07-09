@@ -14,6 +14,7 @@
 #include <memory>
 #include <utility>
 
+#ifdef USE_S3
 #include <aws/core/http/curl/CurlHttpClient.h>
 #include <aws/core/http/HttpRequest.h>
 #include <aws/core/http/HttpResponse.h>
@@ -27,6 +28,7 @@
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
+#endif // end USE_S3
 
 #include "net/include/net_cli.h"
 #include "net/include/net_interfaces.h"
@@ -44,9 +46,11 @@
 #include "include/pika_rm.h"
 #include "include/pika_server.h"
 
+#ifdef USE_S3
 using namespace Aws::Http;
 using namespace Aws::Utils;
 using namespace Aws::Client;
+#endif // end USE_S3
 
 using pstd::Status;
 extern PikaServer* g_pika_server;
@@ -56,6 +60,7 @@ extern std::unique_ptr<net::NetworkStatistic> g_network_statistic;
 // QUEUE_SIZE_THRESHOLD_PERCENTAGE is used to represent a percentage value and should be within the range of 0 to 100.
 const size_t QUEUE_SIZE_THRESHOLD_PERCENTAGE = 75;
 
+#ifdef USE_S3
 namespace {
 char * base64Encode(const char *buffer, int length, bool newLine)
 {
@@ -100,6 +105,7 @@ char * base64Decode(char *input, int length, bool newLine)
 	return buffer;
 }
 }
+#endif // end USE_S3
 
 void DoPurgeDir(void* arg) {
   std::unique_ptr<std::string> path(static_cast<std::string*>(arg));
@@ -158,7 +164,7 @@ PikaServer::PikaServer()
 #ifdef USE_S3
   storage_options_.sst_cache_size_ = g_pika_conf->SSTCacheSize();
   storage_options_.cloud_fs_options.is_master = true;
-#endif
+#endif // end USE_S3
   if (!slaveof.empty()) {
     auto sep = static_cast<int32_t>(slaveof.find(':'));
     std::string master_ip = slaveof.substr(0, sep);
@@ -169,7 +175,7 @@ PikaServer::PikaServer()
       SetMaster(master_ip, master_port);
 #ifdef USE_S3
       storage_options_.cloud_fs_options.is_master = false;
-#endif
+#endif // end USE_S3
     }
   }
 
@@ -389,12 +395,14 @@ void PikaServer::InitDBStruct() {
     std::shared_ptr<DB> db_ptr = std::make_shared<DB>(name, db_path, log_path);
     db_ptr->Init();
     dbs_.emplace(name, db_ptr);
-    if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+    {
       db.cloud_endpoint_override = g_pika_conf->cloud_endpoint_override();
       db.cloud_bucket_prefix = g_pika_conf->cloud_src_bucket_prefix();
       db.cloud_bucket_suffix = g_pika_conf->cloud_src_bucket_prefix();
       db.cloud_bucket_region = g_pika_conf->cloud_src_bucket_region();
     }
+#endif // end USE_S3
   }
 }
 
@@ -487,9 +495,11 @@ Status PikaServer::DoSameThingSpecificDB(const std::set<std::string>& dbs, const
       case TaskType::kBgSave:
         db_item.second->BgSaveDB();
         break;
+#ifdef USE_S3
       case TaskType::kCloudBgSave:
         db_item.second->CloudBgSaveDB();
         break;
+#endif // end USE_S3
       case TaskType::kCompactRangeStrings:
         db_item.second->CompactRange(storage::DataType::kStrings, arg.argv[0], arg.argv[1]);
         break;
@@ -601,7 +611,7 @@ void PikaServer::BecomeMaster() {
   std::lock_guard l(state_protector_);
   int tmp_role = role_;
   role_ |= PIKA_ROLE_MASTER;
-  LOG(WARNING) << "role change from " << tmp_role << " to " << role_; 
+  LOG(WARNING) << "role change from " << tmp_role << " to " << role_;
 }
 
 void PikaServer::DeleteSlave(int fd) {
@@ -1486,7 +1496,7 @@ void PikaServer::InitStorageOptions() {
   cloud_fs_opts.dest_bucket.SetRegion(g_pika_conf->cloud_dest_bucket_region());
   //cloud_fs_opts.upload_meta_func = std::bind(&PikaServer::UploadMetaToSentinel, this,
                                              //std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-#endif
+#endif // end USE_S3
 }
 
 storage::Status PikaServer::RewriteStorageOptions(const storage::OptionType& option_type,
@@ -1960,5 +1970,5 @@ bool PikaServer::UploadMetaToSentinel(const std::string& local_path,
              << " remote path: " << remote_path;
   return false;
 }
-#endif
+#endif // end USE_S3
 

@@ -98,7 +98,7 @@ Status Storage::Open(const StorageOptions& storage_options, const std::string& d
     insts_.emplace_back(std::make_unique<Redis>(this, index, wal_writer));
 #else
     insts_.emplace_back(std::make_unique<Redis>(this, index));
-#endif
+#endif // end USE_S3
     Status s = insts_.back()->Open(storage_options, AppendSubDirectory(db_path, index));
     if (!s.ok()) {
       LOG(FATAL) << "open db failed" << s.ToString();
@@ -106,16 +106,6 @@ Status Storage::Open(const StorageOptions& storage_options, const std::string& d
   }
 
   is_opened_.store(true);
-  return Status::OK();
-}
-
-Status Storage::FlushDB() {
-  for (int index = 0; index < db_instance_num_; index++) {
-    auto s = insts_[index]->FlushDB();
-    if (!s.ok()) {
-      return s;
-    }
-  }
   return Status::OK();
 }
 
@@ -2491,10 +2481,20 @@ bool Storage::ShouldSkip(int rocksdb_id, const std::string& content) {
   return inst->ShouldSkip(content);
 }
 
+Status Storage::FlushDB() {
+  for (int index = 0; index < db_instance_num_; index++) {
+    auto s = insts_[index]->FlushDB();
+    if (!s.ok()) {
+      return s;
+    }
+  }
+  return Status::OK();
+}
+
 Status Storage::FlushDBAtSlave(int rocksdb_id) {
   auto& inst = insts_[rocksdb_id];
   return inst->FlushDBAtSlave();
 }
-#endif
+#endif // end USE_S3
 
 }  //  namespace storage

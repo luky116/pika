@@ -884,9 +884,11 @@ void Cmd::InternalProcessCommand(const HintKeys& hint_keys) {
     do_duration_ += pstd::NowMicros() - start_us;
   }
 
-  if (g_pika_conf->pika_mode() == PIKA_LOCAL) {
+#ifndef USE_S3
+  {
     DoBinlog();
   }
+#endif // end USE_S3
 
   if (is_write()) {
     record_lock.Unlock(current_key());

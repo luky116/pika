@@ -486,8 +486,6 @@ int PikaConf::Load() {
   int cache_num = 16;
   GetConfInt("cache-num", &cache_num);
   cache_num_ = (0 >= cache_num || 48 < cache_num) ? 16 : cache_num;
-  //todo: pika init pika_mode from conf
-  pika_mode_ = PIKA_CLOUD;
 
   int cache_model = 0;
   GetConfInt("cache-model", &cache_model);
@@ -557,7 +555,7 @@ int PikaConf::Load() {
   if (sst_cache_size_ <= 0) {
     sst_cache_size_ = 10LL << 30;
   }
-#endif
+#endif // end USE_S3
   GetConfInt64Human("blob-file-size", &blob_file_size_);
   if (blob_file_size_ <= 0) {
     blob_file_size_ = 256 * 1024 * 1024;

@@ -32,10 +32,12 @@ Status Context::StableSave() {
   memcpy(p, &(applied_index_.b_offset.offset), sizeof(uint64_t));
   p += 8;
   memcpy(p, &(applied_index_.l_offset.term), sizeof(uint32_t));
-  if (g_pika_conf->pika_mode() == PIKA_LOCAL) {
+#ifndef USE_S3
+  {
     p += 4;
     memcpy(p, &(applied_index_.l_offset.index), sizeof(uint64_t));
   }
+#endif // end USE_S3
   return Status::OK();
 }
 
@@ -58,9 +60,11 @@ Status Context::Init() {
     memcpy(reinterpret_cast<char*>(&(applied_index_.b_offset.filenum)), save_->GetData(), sizeof(uint32_t));
     memcpy(reinterpret_cast<char*>(&(applied_index_.b_offset.offset)), save_->GetData() + 4, sizeof(uint64_t));
     memcpy(reinterpret_cast<char*>(&(applied_index_.l_offset.term)), save_->GetData() + 12, sizeof(uint32_t));
-    if (g_pika_conf->pika_mode() == PIKA_LOCAL) {
+#ifndef USE_S3
+    {
       memcpy(reinterpret_cast<char*>(&(applied_index_.l_offset.index)), save_->GetData() + 16, sizeof(uint64_t));
     }
+#endif // end USE_S3
     return Status::OK();
   } else {
     return Status::Corruption("Context init error");
@@ -412,7 +416,7 @@ uint32_t ConsensusCoordinator::term() {
 void ConsensusCoordinator::InternalApplyFollower(const MemLog::LogItem& log) {
 #ifndef USE_S3
   g_pika_rm->ScheduleWriteDBTask(log.cmd_ptr, log.offset, db_name_);
-#endif
+#endif // end USE_S3
 }
 
 int ConsensusCoordinator::InitCmd(net::RedisParser* parser, const net::RedisCmdArgsType& argv) {

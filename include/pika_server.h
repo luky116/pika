@@ -18,7 +18,7 @@
 
 #ifdef USE_S3
 #include <aws/core/http/HttpClientFactory.h>
-#endif
+#endif // end USE_S3
 
 #include "src/cache/include/config.h"
 #include "net/include/bg_thread.h"
@@ -315,7 +315,7 @@ class PikaServer : public pstd::noncopyable {
 #ifdef USE_S3
   bool UploadMetaToSentinel(const std::string& s3_bucket, const std::string& remote_path,
                             const std::string& content);
-#endif
+#endif // end USE_S3
 
 
   /*
@@ -508,7 +508,7 @@ class PikaServer : public pstd::noncopyable {
 #ifdef USE_S3
   void set_lease_term_id(const int lease_term_id) {lease_term_id_ = lease_term_id;}
   void set_group_id(const int group_id) {group_id_ = group_id;}
-#endif
+#endif // end USE_S3
 
  private:
   /*
@@ -532,7 +532,7 @@ class PikaServer : public pstd::noncopyable {
   std::shared_ptr<Aws::Http::HttpClient> sentinel_client_;
   int lease_term_id_;
   int group_id_;
-#endif
+#endif // end USE_S3
 
   std::shared_mutex storage_options_rw_;
   storage::StorageOptions storage_options_;

@@ -114,7 +114,7 @@ void PikaReplBgWorker::HandleBGWorkerWriteBinlog(void* arg) {
 
 #ifdef USE_S3
   std::vector<std::future<bool>> pending_tasks;
-#endif
+#endif // end USE_S3
 
   for (int i : *index) {
     const InnerMessage::InnerResponse::BinlogSync& binlog_res = res->binlog_sync(i);
@@ -140,7 +140,7 @@ void PikaReplBgWorker::HandleBGWorkerWriteBinlog(void* arg) {
       continue;
     }
 
-    if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
       cloud::BinlogCloudItem binlog_item;
       if (!PikaCloudBinlogTransverter::BinlogItemWithoutContentDecode(binlog_res.binlog(), &binlog_item)) {
         LOG(WARNING) << "Cloud Binlog item decode failed";
@@ -162,7 +162,8 @@ void PikaReplBgWorker::HandleBGWorkerWriteBinlog(void* arg) {
       pending_tasks.emplace_back(prom_ptr->get_future());
       auto task_arg = new ReplClientWriteDBTaskArg(binlog_item, worker->db_name_, prom_ptr);
       g_pika_rm->ScheduleWriteDBTask(task_arg);
-    } else {
+#else
+    {
       if (!PikaBinlogTransverter::BinlogItemWithoutContentDecode(TypeFirst, binlog_res.binlog(), &worker->binlog_item_)) {
         LOG(WARNING) << "Binlog item decode failed";
         slave_db->SetReplState(ReplState::kTryConnect);
@@ -180,7 +181,9 @@ void PikaReplBgWorker::HandleBGWorkerWriteBinlog(void* arg) {
         return;
       }
     }
+#endif // end USE_S3
   }
+
 #ifdef USE_S3
   for (auto& fut : pending_tasks) {
     if (!fut.get()) {
@@ -189,7 +192,7 @@ void PikaReplBgWorker::HandleBGWorkerWriteBinlog(void* arg) {
       return;
     }
   }
-#endif
+#endif // end USE_S3
 
   LogOffset ack_end;
   if (only_keepalive) {
@@ -315,4 +318,4 @@ void PikaReplBgWorker::HandleBGWorkerWriteDB(void* arg) {
     }
   }
 }
-#endif
+#endif // end USE_S3

@@ -314,7 +314,6 @@ class PikaConf : public pstd::BaseConf {
     return network_interface_;
   }
   int cache_model() { return cache_model_; }
-  int pika_mode() { return pika_mode_; }
   int sync_window_size() { return sync_window_size_.load(); }
   int max_conn_rbuf_size() { return max_conn_rbuf_size_.load(); }
   int consensus_level() { return consensus_level_.load(); }
@@ -351,13 +350,12 @@ class PikaConf : public pstd::BaseConf {
   void SetCacheMaxmemoryPolicy(const int value) { cache_maxmemory_policy_ = value; }
   void SetCacheMaxmemorySamples(const int value) { cache_maxmemory_samples_ = value; }
   void SetCacheLFUDecayTime(const int value) { cache_lfu_decay_time_ = value; }
-  void SetPikaMode(const int value) { pika_mode_ = value; }
   void UnsetCacheDisableFlag() { tmp_cache_disable_flag_ = false; }
   bool enable_blob_files() { return enable_blob_files_; }
   int64_t min_blob_size() { return min_blob_size_; }
 #ifdef USE_S3
   int64_t SSTCacheSize() const { return sst_cache_size_; }
-#endif
+#endif // end USE_S3
   int64_t blob_file_size() { return blob_file_size_; }
   std::string blob_compression_type() { return blob_compression_type_; }
   bool enable_blob_garbage_collection() { return enable_blob_garbage_collection_; }
@@ -814,9 +812,6 @@ class PikaConf : public pstd::BaseConf {
   std::atomic_int cache_maxmemory_samples_;
   std::atomic_int cache_lfu_decay_time_;
 
-  //pika mode
-  int32_t pika_mode_;
-
   // rocksdb blob
   bool enable_blob_files_ = false;
   bool enable_blob_garbage_collection_ = false;
@@ -830,7 +825,7 @@ class PikaConf : public pstd::BaseConf {
 
 #ifdef USE_S3
   int64_t sst_cache_size_ = 10LL << 30;
-#endif
+#endif // end USE_S3
 
   // rocksdb-cloud options
   std::string cloud_endpoint_override_;

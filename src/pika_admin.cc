@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <unordered_map>
 
+#ifdef USE_S3
 #include <aws/core/Aws.h>
 #include <aws/core/auth/AWSCredentials.h>
 #include <aws/core/utils/json/JsonSerializer.h>
@@ -19,6 +20,7 @@
 #include <aws/s3/model/DeleteBucketRequest.h>
 #include <aws/s3/model/DeleteObjectRequest.h>
 #include <aws/s3/model/ListObjectsRequest.h>
+#endif // end USE_S3
 #include <glog/logging.h>
 
 #include "include/build_version.h"
@@ -30,7 +32,9 @@
 #include "pstd/include/rsync.h"
 
 using pstd::Status;
+#ifdef USE_S3
 using namespace Aws::Utils;
+#endif // end USE_S3
 
 extern PikaServer* g_pika_server;
 extern std::unique_ptr<PikaReplicaManager> g_pika_rm;
@@ -161,12 +165,14 @@ void SlaveofCmd::Do() {
   g_pika_server->RemoveMaster();
 
   if (is_none_) {
-    if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+    {
       std::shared_lock rwl(g_pika_server->dbs_rw_);
       for (const auto& db_item : g_pika_server->dbs_) {
         db_item.second->SwitchMaster(is_old_master, true);
       }
     }
+#endif // end USE_S3
     res_.SetRes(CmdRes::kOk);
     g_pika_conf->SetSlaveof(std::string());
     return;
@@ -176,12 +182,14 @@ void SlaveofCmd::Do() {
    * the data synchronization was successful, but only changes the status of the
    * slaveof executor to slave */
 
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+  {
     std::shared_lock rwl(g_pika_server->dbs_rw_);
     for (const auto& db_item : g_pika_server->dbs_) {
       db_item.second->SwitchMaster(is_old_master, false);
     }
   }
+#endif // end USE_S3
 
   bool sm_ret = g_pika_server->SetMaster(master_ip_, static_cast<int32_t>(master_port_));
   if (sm_ret) {
@@ -342,11 +350,11 @@ void BgsaveCmd::DoInitial() {
 }
 
 void BgsaveCmd::Do() {
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
-    g_pika_server->DoSameThingSpecificDB(bgsave_dbs_, {TaskType::kCloudBgSave});
-  } else {
-    g_pika_server->DoSameThingSpecificDB(bgsave_dbs_, {TaskType::kBgSave});
-  }
+#ifdef USE_S3
+  g_pika_server->DoSameThingSpecificDB(bgsave_dbs_, {TaskType::kCloudBgSave});
+#else
+  g_pika_server->DoSameThingSpecificDB(bgsave_dbs_, {TaskType::kBgSave});
+#endif // end USE_S3
   LogCommand();
   res_.AppendContent("+Background saving started");
 }
@@ -610,7 +618,7 @@ void FlushallCmd::FlushAllWithoutLock() {
     DoWithoutLock(db);
 #ifndef USE_S3
     DoBinlog(g_pika_rm->GetSyncMasterDBs()[p_info]);
-#endif
+#endif // end USE_S3
   }
   if (res_.ok()) {
     res_.SetRes(CmdRes::kOk);
@@ -699,7 +707,7 @@ void FlushdbCmd::FlushAllDBsWithoutLock() {
   DoWithoutLock();
 #ifndef USE_S3
   DoBinlog();
-#endif
+#endif // end USE_S3
 }
 
 void FlushdbCmd::DoWithoutLock() {
@@ -2793,7 +2801,8 @@ void DelbackupCmd::DoInitial() {
 }
 
 void DelbackupCmd::Do() {
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
+#ifdef USE_S3
+  {
     Aws::SDKOptions options;
     Aws::InitAPI(options);
 
@@ -2858,6 +2867,7 @@ void DelbackupCmd::Do() {
     Aws::ShutdownAPI(options);
     return;
   }
+#endif // end USE_S3
 
   std::string db_sync_prefix = g_pika_conf->bgsave_prefix();
   std::string db_sync_path = g_pika_conf->bgsave_path();
@@ -2997,12 +3007,13 @@ void PaddingCmd::DoInitial() {
 void PaddingCmd::Do() { res_.SetRes(CmdRes::kOk); }
 
 std::string PaddingCmd::ToRedisProtocol() {
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD) {
-    return PikaBinlogTransverter::ConstructPaddingBinlog(BinlogType::TypeFirst, argv_[1].size());
-  }
+#ifdef USE_S3
+  return PikaBinlogTransverter::ConstructPaddingBinlog(BinlogType::TypeFirst, argv_[1].size());
+#else
   return PikaBinlogTransverter::ConstructPaddingBinlog(
       BinlogType::TypeFirst,
       argv_[1].size() + BINLOG_ITEM_HEADER_SIZE + PADDING_BINLOG_PROTOCOL_SIZE + SPACE_STROE_PARAMETER_LENGTH);
+#endif // end USE_S3
 }
 
 void PKPatternMatchDelCmd::DoInitial() {
@@ -3315,6 +3326,7 @@ void ClearCacheCmd::Do() {
 }
 
 void PKPingCmd::DoInitial() {
+#ifdef USE_S3
   if (!CheckArg(argv_.size())) {
     res_.SetRes(CmdRes::kWrongNum, kCmdPkPing);
     return;
@@ -3345,8 +3357,7 @@ void PKPingCmd::DoInitial() {
     }
   }
 
-  if (g_pika_conf->pika_mode() == PIKA_CLOUD
-      && g_pika_server->role() == PIKA_ROLE_MASTER) {
+  if(g_pika_server->role() == PIKA_ROLE_MASTER) {
     for (auto const& slave : g_pika_server->slaves_) {
       if (std::find(masters_addr_.begin(), masters_addr_.end(), slave.ip_port) != masters_addr_.end()) {
         g_pika_server->set_group_id(group_id_);
@@ -3354,13 +3365,18 @@ void PKPingCmd::DoInitial() {
       }
     }
   }
+#endif // end USE_S3
 }
 
 void PKPingCmd::Do() {
+#ifdef USE_S3
   std::string info;
   InfoCmd cmd(kCmdNameSlotsInfo, -1, kCmdFlagsRead | kCmdFlagsAdmin | kCmdFlagsSlow);
   cmd.InfoReplication(info);
   res_.AppendString(info);
+#else
+  res_.SetRes(CmdRes::kErrOther, "not supported");
+#endif // end USE_S3
 }
 
 #ifdef WITH_COMMAND_DOCS

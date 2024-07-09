@@ -42,9 +42,9 @@ class ListsFilterTest : public ::testing::Test {
     cloud_fs_opts.dest_bucket.SetObjectPath(s3_path);
     rocksdb::CloudFileSystem* cfs = nullptr;
     Status s = rocksdb::CloudFileSystem::NewAwsFileSystem(
-      rocksdb::FileSystem::Default(), 
-      cloud_fs_opts, 
-      nullptr, 
+      rocksdb::FileSystem::Default(),
+      cloud_fs_opts,
+      nullptr,
       &cfs
     );
     assert(s.ok());

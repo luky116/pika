@@ -5,7 +5,7 @@
 
 #ifndef PIKA_CLOUD_BINLOG_TRANSVERTER_H_
 #define PIKA_CLOUD_BINLOG_TRANSVERTER_H_
-
+#ifdef USE_S3
 #include <glog/logging.h>
 
 #include <cstdint>
@@ -28,4 +28,5 @@ class PikaCloudBinlogTransverter {
                                              cloud::BinlogCloudItem* binlog_item);
 };
 
+#endif // end USE_S3
 #endif
