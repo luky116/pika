@@ -323,12 +323,6 @@ class PikaServer : public pstd::noncopyable {
 #endif // end USE_S3
 
 
-#ifdef USE_S3
-  bool UploadMetaToSentinel(const std::string& s3_bucket, const std::string& remote_path,
-                            const std::string& content);
-#endif // end USE_S3
-
-
   /*
    * BGSlotsReload used
    */
