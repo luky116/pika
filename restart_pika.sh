@@ -14,6 +14,9 @@ if [ "$1" -eq 1 ]; then
   echo "rebuild pika success"
 fi
 
-rm -rf ./pika-cloud2
 cd /data01/yuecai/pika-start-time
-./output/pika -c conf/pika-3344-test.conf
+
+kill -9 $(lsof -t -i :3344)
+rm -rf ./pika-cloud2
+
+nohup ./output/pika -c conf/pika-3344-test.conf > start_log.out &
