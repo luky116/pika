@@ -92,7 +92,7 @@ class PikaServer : public pstd::noncopyable {
    * Server init info
    */
   bool ServerInit();
-  void Start();
+  void Start(long long ts);
   void Exit();
 
   std::string host();

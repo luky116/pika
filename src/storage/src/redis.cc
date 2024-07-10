@@ -262,15 +262,21 @@ Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string&
   // stream CF
   column_families.emplace_back("stream_meta_cf", stream_meta_cf_ops);
   column_families.emplace_back("stream_data_cf", stream_data_cf_ops);
-
+  auto startTs = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
 #ifdef USE_S3
   Status s = OpenCloudEnv(storage_options.cloud_fs_options, db_path);
   if (!s.ok()) {
     LOG(ERROR) << "Failed to create AWS S3 cloud environment";
     return s;
   }
+  auto gapTs = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - startTs;
+  std::cout << "\n\n\n" << "【CostStatis】【redis.cc###OpenCloudEnv】 costs: " << gapTs << std::endl;
   db_ops.env = cloud_env_.get();
+
+  startTs = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
   s = rocksdb::DBCloud::Open(db_ops, db_path, column_families, "", 0, &handles_, &db_);
+  gapTs = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - startTs;
+  std::cout << "【CostStatis】【redis.cc###rocksdb::DBCloud::Open】 costs: " << gapTs << ", db_path：" << db_path << "\n\n\n" << std::endl;
   if (s.ok()) {
     opened_ = true;
   }

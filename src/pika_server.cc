@@ -227,7 +227,7 @@ bool PikaServer::ServerInit() {
   return true;
 }
 
-void PikaServer::Start() {
+void PikaServer::Start(long long ts) {
   int ret = 0;
   // start rsync first, rocksdb opened fd will not appear in this fork
   // TODO: temporarily disable rsync server
@@ -275,6 +275,11 @@ void PikaServer::Start() {
   time(&start_time_s_);
   LOG(INFO) << "Pika Server going to start";
   rsync_server_->Start();
+
+
+  auto gapTs = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - ts;
+  std::cout << "【CostStatis】【Start pika】 costs: " << gapTs << std::endl;
+
   while (!exit_) {
     DoTimingTask();
     // wake up every 5 seconds

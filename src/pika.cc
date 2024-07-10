@@ -149,6 +149,9 @@ int main(int argc, char* argv[]) {
     exit(-1);
   }
 
+  auto startTs = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count();
+  std::cout << "Milliseconds since epoch: " << startTs << std::endl;
+
   bool path_opt = false;
   signed char c;
   char path[1024];
@@ -232,7 +235,7 @@ int main(int argc, char* argv[]) {
   };
 
   g_pika_rm->Start();
-  g_pika_server->Start();
+  g_pika_server->Start(startTs);
 
   if (g_pika_conf->daemonize()) {
     unlink(g_pika_conf->pidfile().c_str());
