@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 3.18)
 include(GoogleTest)
 
 file(GLOB_RECURSE BLACKWINDOW_TEST_SOURCE "${PROJECT_SOURCE_DIR}/tests/*.cc")
+if (NOT USE_S3)
+list(REMOVE_ITEM BLACKWINDOW_TEST_SOURCE "${PROJECT_SOURCE_DIR}/tests/cloud_clone_test.cc")
+list(REMOVE_ITEM BLACKWINDOW_TEST_SOURCE "${PROJECT_SOURCE_DIR}/tests/cloud_test.cc")
+endif()
 
 aux_source_directory(../src TEST_SRCS)
 
@@ -34,7 +38,7 @@ foreach(blackwindow_test_source ${BLACKWINDOW_TEST_SOURCE})
     PUBLIC ${LIBUNWIND_LIBRARY}
   )
   if (USE_S3)
-    find_package(AWSSDK REQUIRED COMPONENTS s3 transfer kinesis)
+    find_package(AWSSDK REQUIRED COMPONENTS s3-crt transfer kinesis)
     target_link_libraries(${blackwindow_test_name} PUBLIC ${AWSSDK_LINK_LIBRARIES})
   endif()
 
