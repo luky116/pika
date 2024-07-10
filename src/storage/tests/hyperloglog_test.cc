@@ -58,7 +58,7 @@ TEST_F(HyperLogLogTest, PfaddTest) {
   ASSERT_TRUE(s.ok());
   ASSERT_TRUE(update);
   std::vector<std::string> keys{"HLL"};
-  int64_t nums = db.Exists(keys, &type_status);
+  int64_t nums = db.Exists(keys);
   ASSERT_EQ(nums, 1);
 
   // Approximated cardinality after creation is zero
@@ -67,7 +67,7 @@ TEST_F(HyperLogLogTest, PfaddTest) {
   ASSERT_TRUE(s.ok());
   ASSERT_EQ(result, 0);
 
-  nums = db.Del(keys, &type_status);
+  nums = db.Del(keys);
   ASSERT_EQ(nums, 1);
 
   // PFADD the return value is true when at least 1 reg was modified
@@ -88,7 +88,7 @@ TEST_F(HyperLogLogTest, PfaddTest) {
   s = db.PfAdd("HLL", values, &update);
   ASSERT_TRUE(s.ok());
   ASSERT_FALSE(update);
-  nums = db.Del(keys, &type_status);
+  nums = db.Del(keys);
   ASSERT_EQ(nums, 1);
 
   // PFADD works with empty string (regression)
@@ -98,7 +98,7 @@ TEST_F(HyperLogLogTest, PfaddTest) {
   ASSERT_TRUE(s.ok());
   ASSERT_TRUE(update);
 
-  nums = db.Del(keys, &type_status);
+  nums = db.Del(keys);
   ASSERT_EQ(nums, 1);
 }
 
@@ -133,7 +133,7 @@ TEST_F(HyperLogLogTest, PfCountTest) {
   ASSERT_TRUE(s.ok());
   ASSERT_EQ(result, 10);
 
-  int64_t nums = db.Del(keys, &type_status);
+  int64_t nums = db.Del(keys);
   ASSERT_EQ(nums, 1);
 }
 
@@ -164,7 +164,7 @@ TEST_F(HyperLogLogTest, PfMergeTest) {
   ASSERT_EQ(result, 5);
 
   std::map<storage::DataType, Status> type_status;
-  int64_t nums = db.Del(keys, &type_status);
+  int64_t nums = db.Del(keys);
   ASSERT_EQ(nums, 3);
 }
 

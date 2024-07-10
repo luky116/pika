@@ -116,6 +116,7 @@ void DoPurgeDir(void* arg) {
 
 PikaServer::PikaServer()
     : exit_(false),
+      slow_cmd_thread_pool_flag_(g_pika_conf->slow_cmd_pool()),
       last_check_compact_time_({0, 0}),
       last_check_resume_time_({0, 0}),
       repl_state_(PIKA_REPL_NO_CONNECT),
@@ -154,6 +155,7 @@ PikaServer::PikaServer()
 
   pika_client_processor_ = std::make_unique<PikaClientProcessor>(g_pika_conf->thread_pool_size(), 100000);
   pika_slow_cmd_thread_pool_ = std::make_unique<net::ThreadPool>(g_pika_conf->slow_cmd_thread_pool_size(), 100000);
+  pika_admin_cmd_thread_pool_ = std::make_unique<net::ThreadPool>(g_pika_conf->admin_thread_pool_size(), 100000);
   instant_ = std::make_unique<Instant>();
   exit_mutex_.lock();
   int64_t lastsave = GetLastSaveTime(g_pika_conf->bgsave_path());
@@ -180,6 +182,7 @@ PikaServer::PikaServer()
   }
 
   acl_ = std::make_unique<::Acl>();
+  SetSlowCmdThreadPoolFlag(g_pika_conf->slow_cmd_pool());
 }
 
 PikaServer::~PikaServer() {
@@ -188,6 +191,7 @@ PikaServer::~PikaServer() {
   // so we need to delete dispatch before worker.
   pika_client_processor_->Stop();
   pika_slow_cmd_thread_pool_->stop_thread_pool();
+  pika_admin_cmd_thread_pool_->stop_thread_pool();
   {
     std::lock_guard l(slave_mutex_);
     auto iter = slaves_.begin();
@@ -246,10 +250,17 @@ void PikaServer::Start() {
     LOG(FATAL) << "Start PikaClientProcessor Error: " << ret
                << (ret == net::kCreateThreadError ? ": create thread error " : ": other error");
   }
+
   ret = pika_slow_cmd_thread_pool_->start_thread_pool();
   if (ret != net::kSuccess) {
     dbs_.clear();
     LOG(FATAL) << "Start PikaLowLevelThreadPool Error: " << ret
+               << (ret == net::kCreateThreadError ? ": create thread error " : ": other error");
+  }
+  ret = pika_admin_cmd_thread_pool_->start_thread_pool();
+  if (ret != net::kSuccess) {
+    dbs_.clear();
+    LOG(FATAL) << "Start PikaAdminThreadPool Error: " << ret
                << (ret == net::kCreateThreadError ? ": create thread error " : ": other error");
   }
   ret = pika_dispatch_thread_->StartThread();
@@ -283,6 +294,24 @@ void PikaServer::Start() {
     }
   }
   LOG(INFO) << "Goodbye...";
+}
+
+void PikaServer::SetSlowCmdThreadPoolFlag(bool flag) {
+  slow_cmd_thread_pool_flag_ = flag;
+  int ret = 0;
+  if (flag) {
+    ret = pika_slow_cmd_thread_pool_->start_thread_pool();
+    if (ret != net::kSuccess) {
+      dbs_.clear();
+      LOG(ERROR) << "Start PikaLowLevelThreadPool Error: " << ret
+                 << (ret == net::kCreateThreadError ? ": create thread error " : ": other error");
+    }
+  } else {
+    while (SlowCmdThreadPoolCurQueueSize() != 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    pika_slow_cmd_thread_pool_->stop_thread_pool();
+  }
 }
 
 void PikaServer::Exit() {
@@ -435,9 +464,9 @@ bool PikaServer::IsKeyScaning() {
 bool PikaServer::IsCompacting() {
   std::shared_lock db_rwl(dbs_rw_);
   for (const auto& db_item : dbs_) {
-    db_item.second->DbRWLockReader();
+    db_item.second->DBLockShared();
     std::string task_type = db_item.second->storage()->GetCurrentTaskType();
-    db_item.second->DbRWUnLock();
+    db_item.second->DBUnlockShared();
     if (strcasecmp(task_type.data(), "no") != 0) {
       return true;
     }
@@ -471,21 +500,6 @@ Status PikaServer::DoSameThingSpecificDB(const std::set<std::string>& dbs, const
       case TaskType::kCompactAll:
         db_item.second->Compact(storage::DataType::kAll);
         break;
-      case TaskType::kCompactStrings:
-        db_item.second->Compact(storage::DataType::kStrings);
-        break;
-      case TaskType::kCompactHashes:
-        db_item.second->Compact(storage::DataType::kHashes);
-        break;
-      case TaskType::kCompactSets:
-        db_item.second->Compact(storage::DataType::kSets);
-        break;
-      case TaskType::kCompactZSets:
-        db_item.second->Compact(storage::DataType::kZSets);
-        break;
-      case TaskType::kCompactList:
-        db_item.second->Compact(storage::DataType::kLists);
-        break;
       case TaskType::kStartKeyScan:
         db_item.second->KeyScan();
         break;
@@ -495,25 +509,13 @@ Status PikaServer::DoSameThingSpecificDB(const std::set<std::string>& dbs, const
       case TaskType::kBgSave:
         db_item.second->BgSaveDB();
         break;
+      case TaskType::kCompactRangeAll:
+        db_item.second->CompactRange(storage::DataType::kAll, arg.argv[0], arg.argv[1]);
 #ifdef USE_S3
       case TaskType::kCloudBgSave:
         db_item.second->CloudBgSaveDB();
         break;
 #endif // end USE_S3
-      case TaskType::kCompactRangeStrings:
-        db_item.second->CompactRange(storage::DataType::kStrings, arg.argv[0], arg.argv[1]);
-        break;
-      case TaskType::kCompactRangeHashes:
-        db_item.second->CompactRange(storage::DataType::kHashes, arg.argv[0], arg.argv[1]);
-        break;
-      case TaskType::kCompactRangeSets:
-        db_item.second->CompactRange(storage::DataType::kSets, arg.argv[0], arg.argv[1]);
-        break;
-      case TaskType::kCompactRangeZSets:
-        db_item.second->CompactRange(storage::DataType::kZSets, arg.argv[0], arg.argv[1]);
-        break;
-      case TaskType::kCompactRangeList:
-        db_item.second->CompactRange(storage::DataType::kLists, arg.argv[0], arg.argv[1]);
         break;
       default:
         break;
@@ -539,27 +541,27 @@ void PikaServer::PrepareDBTrySync() {
 void PikaServer::DBSetMaxCacheStatisticKeys(uint32_t max_cache_statistic_keys) {
   std::shared_lock rwl(dbs_rw_);
   for (const auto& db_item : dbs_) {
-    db_item.second->DbRWLockReader();
+    db_item.second->DBLockShared();
     db_item.second->storage()->SetMaxCacheStatisticKeys(max_cache_statistic_keys);
-    db_item.second->DbRWUnLock();
+    db_item.second->DBUnlockShared();
   }
 }
 
 void PikaServer::DBSetSmallCompactionThreshold(uint32_t small_compaction_threshold) {
   std::shared_lock rwl(dbs_rw_);
   for (const auto& db_item : dbs_) {
-    db_item.second->DbRWLockReader();
+    db_item.second->DBLockShared();
     db_item.second->storage()->SetSmallCompactionThreshold(small_compaction_threshold);
-    db_item.second->DbRWUnLock();
+    db_item.second->DBUnlockShared();
   }
 }
 
 void PikaServer::DBSetSmallCompactionDurationThreshold(uint32_t small_compaction_duration_threshold) {
   std::shared_lock rwl(dbs_rw_);
   for (const auto& db_item : dbs_) {
-    db_item.second->DbRWLockReader();
+    db_item.second->DBLockShared();
     db_item.second->storage()->SetSmallCompactionDurationThreshold(small_compaction_duration_threshold);
-    db_item.second->DbRWUnLock();
+    db_item.second->DBUnlockShared();
   }
 }
 
@@ -598,7 +600,7 @@ Status PikaServer::DoSameThingEveryDB(const TaskType& type) {
         break;
       }
       case TaskType::kCompactAll:
-        db_item.second->Compact(storage::kAll);
+        db_item.second->Compact(storage::DataType::kAll);
         break;
       default:
         break;
@@ -697,6 +699,8 @@ int32_t PikaServer::GetSlaveListString(std::string& slave_list_str) {
               master_boffset.offset - sent_slave_boffset.offset;
           tmp_stream << "(" << db->DBName() << ":" << lag << ")";
         }
+      } else if (s.ok() && slave_state == SlaveState::kSlaveDbSync){
+        tmp_stream << "(" << db->DBName() << ":full syncing)";
       } else {
         tmp_stream << "(" << db->DBName() << ":not syncing)";
       }
@@ -831,16 +835,16 @@ void PikaServer::SetFirstMetaSync(bool v) {
   first_meta_sync_ = v;
 }
 
-void PikaServer::ScheduleClientPool(net::TaskFunc func, void* arg, bool is_slow_cmd) {
-  if (is_slow_cmd) {
+void PikaServer::ScheduleClientPool(net::TaskFunc func, void* arg, bool is_slow_cmd, bool is_admin_cmd) {
+  if (is_slow_cmd && g_pika_conf->slow_cmd_pool()) {
     pika_slow_cmd_thread_pool_->Schedule(func, arg);
     return;
   }
+  if (is_admin_cmd) {
+    pika_admin_cmd_thread_pool_->Schedule(func, arg);
+    return;
+  }
   pika_client_processor_->SchedulePool(func, arg);
-}
-
-void PikaServer::ScheduleClientBgThreads(net::TaskFunc func, void* arg, const std::string& hash_str) {
-  pika_client_processor_->ScheduleBgThreads(func, arg, hash_str);
 }
 
 size_t PikaServer::ClientProcessorThreadPoolCurQueueSize() {
@@ -874,11 +878,13 @@ size_t PikaServer::SlowCmdThreadPoolMaxQueueSize() {
 }
 
 void PikaServer::BGSaveTaskSchedule(net::TaskFunc func, void* arg) {
+  bgsave_thread_.set_thread_name("BGSaveTask");
   bgsave_thread_.StartThread();
   bgsave_thread_.Schedule(func, arg);
 }
 
 void PikaServer::PurgelogsTaskSchedule(net::TaskFunc func, void* arg) {
+  purge_thread_.set_thread_name("PurgelogsTask");
   purge_thread_.StartThread();
   purge_thread_.Schedule(func, arg);
 }
@@ -889,6 +895,7 @@ void PikaServer::PurgeDir(const std::string& path) {
 }
 
 void PikaServer::PurgeDirTaskSchedule(void (*function)(void*), void* arg) {
+  purge_thread_.set_thread_name("PurgeDirTask");
   purge_thread_.StartThread();
   purge_thread_.Schedule(function, arg);
 }
@@ -932,13 +939,15 @@ void PikaServer::TryDBSync(const std::string& ip, int port, const std::string& d
   std::string logger_filename = sync_db->Logger()->filename();
   if (pstd::IsDir(bgsave_info.path) != 0 ||
       !pstd::FileExists(NewFileName(logger_filename, bgsave_info.offset.b_offset.filenum)) ||
-      top - bgsave_info.offset.b_offset.filenum > kDBSyncMaxGap) {
+      static_cast<int64_t>(top) - static_cast<int64_t>(bgsave_info.offset.b_offset.filenum) >
+          static_cast<int64_t>(kDBSyncMaxGap)) {
     // Need Bgsave first
     db->BgSaveDB();
   }
 }
 
 void PikaServer::KeyScanTaskSchedule(net::TaskFunc func, void* arg) {
+  key_scan_thread_.set_thread_name("KeyScanTask");
   key_scan_thread_.StartThread();
   key_scan_thread_.Schedule(func, arg);
 }
@@ -1191,7 +1200,19 @@ void PikaServer::DoTimingTask() {
   UpdateCacheInfo();
   // Print the queue status periodically
   PrintThreadPoolQueueStatus();
+  StatDiskUsage();
+}
 
+void PikaServer::StatDiskUsage() {
+  thread_local uint64_t last_update_time = 0;
+  auto current_time = pstd::NowMicros();
+  if (current_time - last_update_time < 60 * 1000 * 1000) {
+    return;
+  }
+  last_update_time = current_time;
+
+  disk_statistic_.db_size_.store(pstd::Du(g_pika_conf->db_path()));
+  disk_statistic_.log_size_.store(pstd::Du(g_pika_conf->log_path()));
 }
 
 void PikaServer::AutoCompactRange() {
@@ -1403,12 +1424,21 @@ void PikaServer::InitStorageOptions() {
   storage_options_.options.arena_block_size = g_pika_conf->arena_block_size();
   storage_options_.options.write_buffer_manager =
       std::make_shared<rocksdb::WriteBufferManager>(g_pika_conf->max_write_buffer_size());
+  storage_options_.options.max_total_wal_size = g_pika_conf->MaxTotalWalSize();
   storage_options_.options.max_write_buffer_number = g_pika_conf->max_write_buffer_number();
+  storage_options_.options.level0_file_num_compaction_trigger = g_pika_conf->level0_file_num_compaction_trigger();
+  storage_options_.options.level0_stop_writes_trigger = g_pika_conf->level0_stop_writes_trigger();
+  storage_options_.options.level0_slowdown_writes_trigger = g_pika_conf->level0_slowdown_writes_trigger();
+  storage_options_.options.min_write_buffer_number_to_merge = g_pika_conf->min_write_buffer_number_to_merge();
+  storage_options_.options.max_bytes_for_level_base = g_pika_conf->level0_file_num_compaction_trigger() * g_pika_conf->write_buffer_size();
+  storage_options_.options.max_subcompactions = g_pika_conf->max_subcompactions();
   storage_options_.options.target_file_size_base = g_pika_conf->target_file_size_base();
+  storage_options_.options.max_compaction_bytes = g_pika_conf->max_compaction_bytes();
   storage_options_.options.max_background_flushes = g_pika_conf->max_background_flushes();
   storage_options_.options.max_background_compactions = g_pika_conf->max_background_compactions();
   storage_options_.options.disable_auto_compactions = g_pika_conf->disable_auto_compactions();
   storage_options_.options.max_background_jobs = g_pika_conf->max_background_jobs();
+  storage_options_.options.delayed_write_rate = g_pika_conf->delayed_write_rate();
   storage_options_.options.max_open_files = g_pika_conf->max_cache_files();
   storage_options_.options.max_bytes_for_level_multiplier = g_pika_conf->max_bytes_for_level_multiplier();
   storage_options_.options.level0_file_num_compaction_trigger = 2;
@@ -1446,17 +1476,15 @@ void PikaServer::InitStorageOptions() {
     storage_options_.table_options.block_cache =
         rocksdb::NewLRUCache(storage_options_.block_cache_size, static_cast<int>(g_pika_conf->num_shard_bits()));
   }
-
   storage_options_.options.rate_limiter =
       std::shared_ptr<rocksdb::RateLimiter>(
           rocksdb::NewGenericRateLimiter(
               g_pika_conf->rate_limiter_bandwidth(),
               g_pika_conf->rate_limiter_refill_period_us(),
               static_cast<int32_t>(g_pika_conf->rate_limiter_fairness()),
-              rocksdb::RateLimiter::Mode::kWritesOnly,
+              static_cast<rocksdb::RateLimiter::Mode>(g_pika_conf->rate_limiter_mode()),
               g_pika_conf->rate_limiter_auto_tuned()
                   ));
-
   // For Storage small compaction
   storage_options_.statistics_max_size = g_pika_conf->max_cache_statistic_keys();
   storage_options_.small_compaction_threshold = g_pika_conf->small_compaction_threshold();
@@ -1481,6 +1509,16 @@ void PikaServer::InitStorageOptions() {
   storage_options_.options.ttl = g_pika_conf->rocksdb_ttl_second();
   storage_options_.options.periodic_compaction_seconds = g_pika_conf->rocksdb_periodic_compaction_second();
 
+  // For Partitioned Index Filters
+  if (g_pika_conf->enable_partitioned_index_filters()) {
+    storage_options_.table_options.index_type = rocksdb::BlockBasedTableOptions::IndexType::kTwoLevelIndexSearch;
+    storage_options_.table_options.filter_policy.reset(rocksdb::NewBloomFilterPolicy(10, false));
+    storage_options_.table_options.partition_filters = true;
+    storage_options_.table_options.metadata_block_size = 4096;
+    storage_options_.table_options.cache_index_and_filter_blocks_with_high_priority = true;
+    storage_options_.table_options.pin_top_level_index_and_filter = true;
+    storage_options_.table_options.optimize_filters_for_memory = true;
+  }
 #ifdef USE_S3
   // rocksdb-cloud
   auto& cloud_fs_opts = storage_options_.cloud_fs_options;
@@ -1504,9 +1542,7 @@ storage::Status PikaServer::RewriteStorageOptions(const storage::OptionType& opt
   storage::Status s;
   std::shared_lock db_rwl(dbs_rw_);
   for (const auto& db_item : dbs_) {
-    db_item.second->DbRWLockWriter();
     s = db_item.second->storage()->SetOptions(option_type, storage::ALL_DB, options_map);
-    db_item.second->DbRWUnLock();
     if (!s.ok()) {
       return s;
     }
@@ -1551,8 +1587,8 @@ bool PikaServer::SlotsMigrateAsyncCancel() {
 void PikaServer::Bgslotsreload(const std::shared_ptr<DB>& db) {
   // Only one thread can go through
   {
-    std::lock_guard ml(bgsave_protector_);
-    if (bgslots_reload_.reloading || bgsave_info_.bgsaving) {
+    std::lock_guard ml(bgslots_protector_);
+    if (bgslots_reload_.reloading || db->IsBgSaving()) {
       return;
     }
     bgslots_reload_.reloading = true;
@@ -1570,6 +1606,7 @@ void PikaServer::Bgslotsreload(const std::shared_ptr<DB>& db) {
   LOG(INFO) << "Start slot reloading";
 
   // Start new thread if needed
+  bgsave_thread_.set_thread_name("SlotsReload");
   bgsave_thread_.StartThread();
   bgsave_thread_.Schedule(&DoBgslotsreload, static_cast<void*>(this));
 }
@@ -1615,8 +1652,8 @@ void DoBgslotsreload(void* arg) {
 void PikaServer::Bgslotscleanup(std::vector<int> cleanupSlots, const std::shared_ptr<DB>& db) {
   // Only one thread can go through
   {
-    std::lock_guard ml(bgsave_protector_);
-    if (bgslots_cleanup_.cleaningup || bgslots_reload_.reloading || bgsave_info_.bgsaving) {
+    std::lock_guard ml(bgslots_protector_);
+    if (bgslots_cleanup_.cleaningup || bgslots_reload_.reloading || db->IsBgSaving()) {
       return;
     }
     bgslots_cleanup_.cleaningup = true;
@@ -1637,6 +1674,7 @@ void PikaServer::Bgslotscleanup(std::vector<int> cleanupSlots, const std::shared
   LOG(INFO) << "Start slot cleanup, slots: " << slotsStr << std::endl;
 
   // Start new thread if needed
+  bgslots_cleanup_thread_.set_thread_name("SlotsCleanup");
   bgslots_cleanup_thread_.StartThread();
   bgslots_cleanup_thread_.Schedule(&DoBgslotscleanup, static_cast<void*>(this));
 }
@@ -1685,9 +1723,9 @@ void PikaServer::DisableCompact() {
   /* cancel in-progress manual compactions */
   std::shared_lock rwl(dbs_rw_);
   for (const auto& db_item : dbs_) {
-      db_item.second->DbRWLockWriter();
+      db_item.second->DBLock();
       db_item.second->SetCompactRangeOptions(true);
-      db_item.second->DbRWUnLock();
+      db_item.second->DBUnlock();
   }
 }
 
@@ -1741,7 +1779,7 @@ void DoBgslotscleanup(void* arg) {
 void PikaServer::ResetCacheAsync(uint32_t cache_num, std::shared_ptr<DB> db, cache::CacheConfig *cache_cfg) {
   if (PIKA_CACHE_STATUS_OK == db->cache()->CacheStatus()
       || PIKA_CACHE_STATUS_NONE == db->cache()->CacheStatus()) {
-
+    common_bg_thread_.set_thread_name("ResetCacheTask");
     common_bg_thread_.StartThread();
     BGCacheTaskArg *arg = new BGCacheTaskArg();
     arg->db = db;
@@ -1765,7 +1803,7 @@ void PikaServer::ClearCacheDbAsync(std::shared_ptr<DB> db) {
     LOG(WARNING) << "can not clear cache in status: " << db->cache()->CacheStatus();
     return;
   }
-
+  common_bg_thread_.set_thread_name("CacheClearThread");
   common_bg_thread_.StartThread();
   BGCacheTaskArg *arg = new BGCacheTaskArg();
   arg->db = db;
@@ -1805,9 +1843,7 @@ void PikaServer::DoCacheBGTask(void* arg) {
   }
 
   db->cache()->SetCacheStatus(PIKA_CACHE_STATUS_OK);
-  if (pCacheTaskArg->reenable_cache) {
-    pCacheTaskArg->conf->UnsetCacheDisableFlag();
-  }
+  g_pika_conf->UnsetCacheDisableFlag();
 }
 
 void PikaServer::ResetCacheConfig(std::shared_ptr<DB> db) {
@@ -1827,7 +1863,7 @@ void PikaServer::ClearHitRatio(std::shared_ptr<DB> db) {
 
 void PikaServer::OnCacheStartPosChanged(int zset_cache_start_direction, std::shared_ptr<DB> db) {
   ResetCacheConfig(db);
-  ClearCacheDbAsync(db);
+  ClearCacheDbAsyncV2(db);
 }
 
 void PikaServer::ClearCacheDbAsyncV2(std::shared_ptr<DB> db) {
@@ -1835,7 +1871,7 @@ void PikaServer::ClearCacheDbAsyncV2(std::shared_ptr<DB> db) {
     LOG(WARNING) << "can not clear cache in status: " << db->cache()->CacheStatus();
     return;
   }
-
+  common_bg_thread_.set_thread_name("V2CacheClearThread");
   common_bg_thread_.StartThread();
   BGCacheTaskArg *arg = new BGCacheTaskArg();
   arg->db = db;
@@ -1850,7 +1886,6 @@ void PikaServer::ProcessCronTask() {
     auto cache = dbs.second->cache();
     cache->ProcessCronTask();
   }
-  LOG(INFO) << "hit rate:" << HitRatio() << std::endl;
 }
 
 double PikaServer::HitRatio(void) {
@@ -1971,4 +2006,3 @@ bool PikaServer::UploadMetaToSentinel(const std::string& local_path,
   return false;
 }
 #endif // end USE_S3
-

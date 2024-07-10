@@ -175,6 +175,8 @@ int main(int argc, char* argv[]) {
     usage();
     exit(-1);
   }
+  g_pika_cmd_table_manager = std::make_unique<PikaCmdTableManager>();
+  g_pika_cmd_table_manager->InitCmdTable();
   PikaConfInit(path);
 
   rlimit limit;
@@ -205,13 +207,12 @@ int main(int argc, char* argv[]) {
   PikaSignalSetup();
 
   LOG(INFO) << "Server at: " << path;
-  g_pika_cmd_table_manager = std::make_unique<PikaCmdTableManager>();
-  g_pika_cmd_table_manager->InitCmdTable();
   g_pika_server = new PikaServer();
   g_pika_rm = std::make_unique<PikaReplicaManager>();
   g_network_statistic = std::make_unique<net::NetworkStatistic>();
   g_pika_server->InitDBStruct();
-
+  //the cmd table of g_pika_cmd_table_manager must be inited before calling PikaServer::InitStatistic(CmdTable* )
+  g_pika_server->InitStatistic(g_pika_cmd_table_manager->GetCmdTable());
   auto status = g_pika_server->InitAcl();
   if (!status.ok()) {
     LOG(FATAL) << status.ToString();

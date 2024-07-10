@@ -28,6 +28,7 @@ RsyncClient::RsyncClient(const std::string& dir, const std::string& db_name)
       parallel_num_(g_pika_conf->max_rsync_parallel_num()) {
   wo_mgr_.reset(new WaitObjectManager());
   client_thread_ = std::make_unique<RsyncClientThread>(3000, 60, wo_mgr_.get());
+  client_thread_->set_thread_name("RsyncClientThread");
   work_threads_.resize(GetParallelNum());
   finished_work_cnt_.store(0);
 }
@@ -48,7 +49,9 @@ void RsyncClient::Copy(const std::set<std::string>& file_set, int index) {
       break;
     }
   }
-  LOG(INFO) << "work_thread index: " << index << " copy remote files done";
+  if (!error_stopped_.load()) {
+    LOG(INFO) << "work_thread index: " << index << " copy remote files done";
+  }
   finished_work_cnt_.fetch_add(1);
   cond_.notify_all();
 }
@@ -66,6 +69,7 @@ bool RsyncClient::Init() {
   if (!ret) {
     LOG(WARNING) << "RsyncClient recover failed";
     client_thread_->StopThread();
+    state_.store(IDLE);
     return false;
   }
   finished_work_cnt_.store(0);
@@ -75,8 +79,10 @@ bool RsyncClient::Init() {
 
 void* RsyncClient::ThreadMain() {
   if (file_set_.empty()) {
-    LOG(INFO) << "No remote files need copy, RsyncClient exit";
+    LOG(INFO) << "No remote files need copy, RsyncClient exit and going to delete dir:" << dir_;
+    DeleteDirIfExist(dir_);
     state_.store(STOP);
+    all_worker_exited_.store(true);
     return nullptr;
   }
 
@@ -87,7 +93,7 @@ void* RsyncClient::ThreadMain() {
   for (const auto& file : file_set_) {
     file_vec[index++ % GetParallelNum()].insert(file);
   }
-
+  all_worker_exited_.store(false);
   for (int i = 0; i < GetParallelNum(); i++) {
     work_threads_[i] = std::move(std::thread(&RsyncClient::Copy, this, file_vec[i], i));
   }
@@ -96,8 +102,9 @@ void* RsyncClient::ThreadMain() {
   std::ofstream outfile;
   outfile.open(meta_file_path, std::ios_base::app);
   if (!outfile.is_open()) {
-    LOG(FATAL) << "unable to open meta file " << meta_file_path << ", error:"  << strerror(errno);
-    return nullptr;
+    LOG(ERROR) << "unable to open meta file " << meta_file_path << ", error:"  << strerror(errno);
+    error_stopped_.store(true);
+    state_.store(STOP);
   }
   DEFER {
     outfile.close();
@@ -142,7 +149,18 @@ void* RsyncClient::ThreadMain() {
   }
   finished_work_cnt_.store(0);
   state_.store(STOP);
-  LOG(INFO) << "RsyncClient copy remote files done";
+  if (!error_stopped_.load()) {
+    LOG(INFO) << "RsyncClient copy remote files done";
+  } else {
+    if (DeleteDirIfExist(dir_)) {
+      //the dir_ doesn't not exist OR it's existing but successfully deleted
+      LOG(ERROR) << "RsyncClient stopped with errors, deleted:" << dir_;
+    } else {
+      //the dir_ exists but failed to delete
+      LOG(ERROR) << "RsyncClient stopped with errors, but failed to delete " << dir_ << " when cleaning";
+    }
+  }
+  all_worker_exited_.store(true);
   return nullptr;
 }
 
@@ -200,7 +218,7 @@ Status RsyncClient::CopyRemoteFile(const std::string& filename, int index) {
       std::shared_ptr<RsyncResponse> resp = nullptr;
       s = wo->Wait(resp);
       if (s.IsTimeout() || resp == nullptr) {
-        LOG(WARNING) << "rsync request timeout";
+        LOG(WARNING) << s.ToString();
         retries++;
         continue;
       }
@@ -215,8 +233,9 @@ Status RsyncClient::CopyRemoteFile(const std::string& filename, int index) {
 
       if (resp->snapshot_uuid() != snapshot_uuid_) {
         LOG(WARNING) << "receive newer dump, reset state to STOP, local_snapshot_uuid:"
-                     << snapshot_uuid_ << "remote snapshot uuid: " << resp->snapshot_uuid();
+                     << snapshot_uuid_ << ", remote snapshot uuid: " << resp->snapshot_uuid();
         state_.store(STOP);
+        error_stopped_.store(true);
         return s;
       }
 
@@ -312,7 +331,8 @@ bool RsyncClient::ComparisonUpdate() {
     return false;
   }
 
-  state_ = RUNNING;
+  state_.store(RUNNING);
+  error_stopped_.store(false);
   LOG(INFO) << "copy meta data done, db name: " << db_name_
             << " snapshot_uuid: " << snapshot_uuid_
             << " file count: " << file_set_.size()
@@ -358,7 +378,10 @@ Status RsyncClient::PullRemoteMeta(std::string* snapshot_uuid, std::set<std::str
     }
 
     if (resp.get() == nullptr || resp->code() != RsyncService::kOk) {
-      s = Status::IOError("kRsyncMeta request failed! unknown reason");
+      s = Status::IOError("kRsyncMeta request failed! db is not exist or doing bgsave");
+      LOG(WARNING) << s.ToString() << ", retries:" << retries;
+      sleep(1);
+      retries++;
       continue;
     }
     LOG(INFO) << "receive rsync meta infos, snapshot_uuid: " << resp->snapshot_uuid()

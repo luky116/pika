@@ -111,7 +111,6 @@ const std::string kCmdNameTtl = "ttl";
 const std::string kCmdNamePttl = "pttl";
 const std::string kCmdNamePersist = "persist";
 const std::string kCmdNameType = "type";
-const std::string kCmdNamePType = "ptype";
 const std::string kCmdNameScan = "scan";
 const std::string kCmdNameScanx = "scanx";
 const std::string kCmdNamePKSetexAt = "pksetexat";
@@ -248,6 +247,15 @@ const std::string kCmdNameXInfo = "xinfo";
 
 const std::string kClusterPrefix = "pkcluster";
 
+/*
+ * If a type holds a key, a new data structure
+ * that uses the key will use this error
+ */
+constexpr const char* ErrTypeMessage = "Invalid argument: WRONGTYPE";
+//cloud
+//Waiting for interface support
+const std::string kCmdNameRocksdbFlush = "rocksdbflush";
+const std::string kCmdNameRocksdbCompact = "rocksdbcompact";
 const std::string kCmdPkPing = "pkping";
 
 using PikaCmdArgsType = net::RedisCmdArgsType;
@@ -328,6 +336,7 @@ class CmdRes {
     kInvalidTransaction,
     kTxnQueued,
     kTxnAbort,
+    kMultiKey
   };
 
   CmdRes() = default;
@@ -420,6 +429,10 @@ class CmdRes {
       case KIncrByOverFlow:
         result = "-ERR increment would produce NaN or Infinity";
         result.append(message_);
+        result.append(kNewLine);
+        break;
+      case kMultiKey:
+        result = "-WRONGTYPE Operation against a key holding the wrong kind of value";
         result.append(kNewLine);
         break;
       default:
@@ -558,6 +571,7 @@ class Cmd : public std::enable_shared_from_this<Cmd> {
   std::shared_ptr<std::string> GetResp();
 
   void SetStage(CmdStage stage);
+  void SetCmdId(uint32_t cmdId){cmdId_ = cmdId;}
 
   virtual void DoBinlog();
 

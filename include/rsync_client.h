@@ -62,12 +62,14 @@ class RsyncClient : public net::Thread {
   bool IsRunning() {
     return state_.load() == RUNNING;
   }
+  bool IsExitedFromRunning() {
+    return state_.load() == STOP && all_worker_exited_.load();
+  }
   bool IsStop() {
     return state_.load() == STOP;
   }
   bool IsIdle() { return state_.load() == IDLE;}
   void OnReceive(RsyncService::RsyncResponse* resp);
-
 private:
   bool ComparisonUpdate();
   Status CopyRemoteFile(const std::string& filename, int index);
@@ -93,10 +95,13 @@ private:
   std::atomic<int> finished_work_cnt_ = 0;
 
   std::atomic<State> state_;
+  std::atomic<bool> error_stopped_{false};
+  std::atomic<bool> all_worker_exited_{true};
   int max_retries_ = 10;
   std::unique_ptr<WaitObjectManager> wo_mgr_;
   std::condition_variable cond_;
   std::mutex mu_;
+
 
   std::string master_ip_;
   int master_port_;
@@ -157,19 +162,18 @@ class WaitObject {
   }
 
   pstd::Status Wait(ResponseSPtr& resp) {
-    pstd::Status s = Status::Timeout("rsync timeout", "timeout");
-    {
-      std::unique_lock<std::mutex> lock(mu_);
-      auto cv_s = cond_.wait_for(lock, std::chrono::seconds(1), [this] {
-          return resp_.get() != nullptr;
-      });
-      if (!cv_s) {
-        return s;
-      }
-      resp = resp_;
-      s = Status::OK();
+    auto timeout = g_pika_conf->rsync_timeout_ms();
+    std::unique_lock<std::mutex> lock(mu_);
+    auto cv_s = cond_.wait_for(lock, std::chrono::milliseconds(timeout), [this] {
+      return resp_.get() != nullptr;
+    });
+    if (!cv_s) {
+      std::string timout_info("timeout during(in ms) is ");
+      timout_info.append(std::to_string(timeout));
+      return pstd::Status::Timeout("rsync timeout", timout_info);
     }
-    return s;
+    resp = resp_;
+    return pstd::Status::OK();
   }
 
   void WakeUp(RsyncService::RsyncResponse* resp) {
@@ -234,7 +238,6 @@ class WaitObjectManager {
     }
     wo_vec_[index]->WakeUp(resp);
   }
-
  private:
   std::vector<WaitObject*> wo_vec_;
   std::mutex mu_;
@@ -242,4 +245,3 @@ class WaitObjectManager {
 
 } // end namespace rsync
 #endif
-
