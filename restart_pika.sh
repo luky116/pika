@@ -9,6 +9,8 @@ if [ "$1" -eq 1 ]; then
   echo "update rocksdb success"
 
   cd /data01/yuecai/pika-start-time
+  git pull
+
   export USE_S3=1
   ./build.sh
   echo "rebuild pika success"
