@@ -1445,6 +1445,7 @@ void PikaServer::InitStorageOptions() {
   // TODO 测试的参数
   storage_options_.options.skip_checking_sst_file_sizes_on_db_open = true;
   storage_options_.options.skip_stats_update_on_db_open = true;
+  storage_options_.cloud_fs_options.roll_cloud_manifest_on_open = true;
 
   storage_options_.table_options.pin_l0_filter_and_index_blocks_in_cache =
       g_pika_conf->pin_l0_filter_and_index_blocks_in_cache();
