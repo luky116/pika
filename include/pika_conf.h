@@ -492,6 +492,7 @@ class PikaConf : public pstd::BaseConf {
   std::string cloud_dest_bucket_prefix() { return cloud_dest_bucket_prefix_; }
   std::string cloud_dest_bucket_suffix() { return cloud_dest_bucket_suffix_; }
   std::string cloud_dest_bucket_region() { return cloud_dest_bucket_region_; }
+  bool skip_checking_sst_file_sizes_on_db_open() { return skip_checking_sst_file_sizes_on_db_open_; }
 
   // Setter
   void SetPort(const int value) {
@@ -1024,6 +1025,9 @@ class PikaConf : public pstd::BaseConf {
 
 #ifdef USE_S3
   int64_t sst_cache_size_ = 10LL << 30;
+  bool skip_checking_sst_file_sizes_on_db_open_ = true;
+#else
+  bool skip_checking_sst_file_sizes_on_db_open_ = false;
 #endif // end USE_S3
 
   // rocksdb-cloud options

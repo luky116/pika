@@ -707,6 +707,7 @@ int PikaConf::Load() {
   } else {
     rsync_timeout_ms_.store(tmp_rsync_timeout_ms);
   }
+  GetConfBool("skip-checking-sst-file-sizes-on-db-open", &skip_checking_sst_file_sizes_on_db_open_);
 #ifdef USE_S3
   // rocksdb-cloud options
   GetConfStr("cloud-endpoint-override", &cloud_endpoint_override_);

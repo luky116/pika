@@ -1466,6 +1466,7 @@ void PikaServer::InitStorageOptions() {
   storage_options_.table_options.cache_index_and_filter_blocks = g_pika_conf->cache_index_and_filter_blocks();
   storage_options_.block_cache_size = g_pika_conf->block_cache();
   storage_options_.share_block_cache = g_pika_conf->share_block_cache();
+  storage_options_.options.skip_checking_sst_file_sizes_on_db_open = g_pika_conf->skip_checking_sst_file_sizes_on_db_open();
 
   storage_options_.table_options.pin_l0_filter_and_index_blocks_in_cache =
       g_pika_conf->pin_l0_filter_and_index_blocks_in_cache();
