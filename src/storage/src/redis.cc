@@ -270,7 +270,7 @@ Status Redis::Open(const StorageOptions& tmp_storage_options, const std::string&
     return s;
   }
   auto gapTs = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - startTs;
-  std::cout << "\n\n\n" << "【CostStatis】【redis.cc###OpenCloudEnv】 costs: " << gapTs << std::endl;
+  std::cout << "\n\n\n" << "【CostStatis】【redis.cc###OpenCloudEnv】 costs: " << gapTs << "ms" << std::endl;
   db_ops.env = cloud_env_.get();
 
   startTs = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count();

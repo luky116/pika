@@ -1442,6 +1442,9 @@ void PikaServer::InitStorageOptions() {
   storage_options_.block_cache_size = g_pika_conf->block_cache();
   storage_options_.share_block_cache = g_pika_conf->share_block_cache();
 
+  // TODO 测试的参数
+  storage_options_.options.skip_checking_sst_file_sizes_on_db_open = true;
+
   storage_options_.table_options.pin_l0_filter_and_index_blocks_in_cache =
       g_pika_conf->pin_l0_filter_and_index_blocks_in_cache();
 
@@ -1499,6 +1502,7 @@ void PikaServer::InitStorageOptions() {
   cloud_fs_opts.src_bucket.SetRegion(g_pika_conf->cloud_src_bucket_region());
   cloud_fs_opts.dest_bucket.SetBucketName(g_pika_conf->cloud_dest_bucket_suffix(), g_pika_conf->cloud_dest_bucket_prefix());
   cloud_fs_opts.dest_bucket.SetRegion(g_pika_conf->cloud_dest_bucket_region());
+
   //cloud_fs_opts.upload_meta_func = std::bind(&PikaServer::UploadMetaToSentinel, this,
                                              //std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
 #endif // end USE_S3
