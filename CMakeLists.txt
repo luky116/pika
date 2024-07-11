@@ -575,7 +575,7 @@ endif()
 set(PROTOBUF_INCLUDE_DIR ${INSTALL_INCLUDEDIR})
 set(PROTOBUF_LIBRARY ${INSTALL_LIBDIR}/${LIB_PROTOBUF})
 set(PROTOBUF_PROTOC ${STAGED_INSTALL_PREFIX}/bin/protoc)
-option(USE_S3 "use pika serverless" OFF)
+option(USE_S3 "use pika serverless" ON)
 
 ExternalProject_Add(prometheus_cpp
   URL
